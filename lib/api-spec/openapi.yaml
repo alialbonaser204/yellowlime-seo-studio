@@ -1,0 +1,1061 @@
+openapi: 3.1.0
+info:
+  # Do not change the title, if the title changes, the import paths will be broken
+  title: Api
+  version: 0.1.0
+  description: API specification
+servers:
+  - url: /api
+    description: Base API path
+tags:
+  - name: health
+    description: Health operations
+  - name: partners
+    description: Partner operations
+  - name: briefings
+    description: Briefing operations
+  - name: yellowlimers
+    description: Yellowlimer employee operations
+  - name: articles
+    description: Article and human review operations
+  - name: semrush
+    description: Semrush SEO research operations
+  - name: Storage
+    description: Object storage upload and serving endpoints
+paths:
+  /healthz:
+    get:
+      operationId: healthCheck
+      tags: [health]
+      summary: Health check
+      description: Returns server health status
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+  /partners:
+    get:
+      operationId: listPartners
+      tags: [partners]
+      summary: List partners
+      responses:
+        "200":
+          description: Partners
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Partner"
+    post:
+      operationId: createPartner
+      tags: [partners]
+      summary: Create a partner
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PartnerInput"
+      responses:
+        "201":
+          description: Partner created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Partner"
+        "400":
+          description: Invalid partner
+  /partners/{partnerId}/profile:
+    get:
+      operationId: getPartnerProfile
+      tags: [partners]
+      summary: Get the generated and approved profile for a partner
+      parameters:
+        - name: partnerId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Partner profile or null
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/PartnerProfile"
+                  - type: "null"
+        "404":
+          description: Partner not found
+    put:
+      operationId: savePartnerProfileReview
+      tags: [partners]
+      summary: Save employee edits without approving the profile
+      parameters:
+        - name: partnerId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PartnerProfileReviewInput"
+      responses:
+        "200":
+          description: Review edits saved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PartnerProfile"
+        "404":
+          description: Partner profile not found
+  /partners/{partnerId}/profile/analyze:
+    post:
+      operationId: analyzePartnerWebsite
+      tags: [partners]
+      summary: Collect the website and generate a Claude partner profile
+      parameters:
+        - name: partnerId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "202":
+          description: Website analysis started
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PartnerProfile"
+        "404":
+          description: Partner not found
+  /partners/{partnerId}/profile/generate-draft:
+    post:
+      operationId: generatePartnerProfileDraft
+      tags: [partners]
+      summary: Generate a safe editable profile draft with Claude without crawling the website
+      parameters:
+        - name: partnerId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "202":
+          description: Safe profile draft generation started
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PartnerProfile"
+        "404":
+          description: Partner not found
+  /partners/{partnerId}/profile/approve:
+    post:
+      operationId: approvePartnerProfile
+      tags: [partners]
+      summary: Save employee edits as the approved profile
+      parameters:
+        - name: partnerId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PartnerProfileReviewInput"
+      responses:
+        "200":
+          description: Partner profile approved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PartnerProfile"
+        "404":
+          description: Partner profile not found
+  /partners/{partnerId}/profile/reject:
+    post:
+      operationId: rejectPartnerProfile
+      tags: [partners]
+      summary: Reject a generated partner profile
+      parameters:
+        - name: partnerId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PartnerProfileReviewInput"
+      responses:
+        "200":
+          description: Partner profile rejected
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PartnerProfile"
+        "404":
+          description: Partner profile not found
+  /briefings:
+    get:
+      operationId: listBriefings
+      tags: [briefings]
+      summary: List briefings
+      responses:
+        "200":
+          description: Briefings
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Briefing"
+    post:
+      operationId: createBriefing
+      tags: [briefings]
+      summary: Create a briefing
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BriefingInput"
+      responses:
+        "201":
+          description: Briefing created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Briefing"
+        "400":
+          description: Invalid briefing
+  /briefings/{briefingId}/seo-research:
+    get:
+      operationId: getSeoResearch
+      tags: [semrush]
+      summary: Get the saved Semrush research for a briefing
+      parameters:
+        - name: briefingId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Saved SEO research or null
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/SeoResearch"
+                  - type: "null"
+        "404":
+          description: Briefing not found
+    post:
+      operationId: runSeoResearch
+      tags: [semrush]
+      summary: Rerun Semrush research for a briefing
+      parameters:
+        - name: briefingId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "202":
+          description: SEO research started
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SeoResearch"
+        "404":
+          description: Briefing not found
+  /yellowlimers:
+    get:
+      operationId: listYellowlimers
+      tags: [yellowlimers]
+      summary: List Yellowlimers
+      responses:
+        "200":
+          description: Yellowlimers
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Yellowlimer"
+    post:
+      operationId: createYellowlimer
+      tags: [yellowlimers]
+      summary: Create a Yellowlimer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/YellowlimerInput"
+      responses:
+        "201":
+          description: Yellowlimer created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Yellowlimer"
+        "400":
+          description: Invalid Yellowlimer
+  /yellowlimers/{id}:
+    patch:
+      operationId: updateYellowlimer
+      tags: [yellowlimers]
+      summary: Update a Yellowlimer
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/YellowlimerUpdate"
+      responses:
+        "200":
+          description: Yellowlimer updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Yellowlimer"
+        "400":
+          description: Invalid Yellowlimer
+        "404":
+          description: Yellowlimer not found
+    delete:
+      operationId: removeYellowlimer
+      tags: [yellowlimers]
+      summary: Remove or deactivate a Yellowlimer
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Yellowlimer removed or deactivated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/YellowlimerRemoval"
+        "404":
+          description: Yellowlimer not found
+  /articles:
+    post:
+      operationId: createArticle
+      tags: [articles]
+      summary: Save the final AI article
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ArticleInput"
+      responses:
+        "201":
+          description: Article saved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Article"
+        "400":
+          description: Invalid article
+  /articles/by-briefing/{briefingId}:
+    get:
+      operationId: getArticleByBriefing
+      tags: [articles]
+      summary: Get an article by briefing
+      parameters:
+        - name: briefingId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Article
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/Article"
+                  - type: "null"
+  /briefings/{briefingId}/article-generations:
+    get:
+      operationId: listArticleGenerations
+      tags: [articles]
+      summary: List immutable AI article versions for a briefing
+      parameters:
+        - name: briefingId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: AI article versions, newest first
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ArticleGeneration"
+        "404":
+          description: Briefing not found
+    post:
+      operationId: generateArticleGeneration
+      tags: [articles]
+      summary: Generate a new immutable AI article version
+      parameters:
+        - name: briefingId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "202":
+          description: Article generation started
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ArticleGeneration"
+        "409":
+          description: Generation prerequisites are not complete
+  /article-reviews:
+    get:
+      operationId: listArticleReviews
+      tags: [articles]
+      summary: List saved human review comparisons
+      responses:
+        "200":
+          description: Article reviews
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ArticleReview"
+    post:
+      operationId: createArticleReview
+      tags: [articles]
+      summary: Save a corrected human article version
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ArticleReviewInput"
+      responses:
+        "201":
+          description: Article review saved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ArticleReview"
+        "400":
+          description: Invalid review
+  /storage/uploads/request-url:
+    post:
+      operationId: requestUploadUrl
+      tags: [Storage]
+      summary: Request a presigned image upload URL
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UploadUrlRequest"
+      responses:
+        "200":
+          description: Upload URL generated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UploadUrlResponse"
+        "400":
+          description: Invalid upload metadata
+  /storage/objects/{objectPath}:
+    get:
+      operationId: getStorageObject
+      tags: [Storage]
+      summary: Serve an uploaded profile image
+      parameters:
+        - name: objectPath
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Object content
+          content:
+            "*/*":
+              schema:
+                type: string
+                format: binary
+        "404":
+          description: Object not found
+components:
+  schemas:
+    HealthStatus:
+      type: object
+      properties:
+        status:
+          type: string
+      required:
+        - status
+    Partner:
+      type: object
+      required: [id, companyName, websiteUrl, profileStatus, createdAt, updatedAt]
+      properties:
+        id:
+          type: integer
+        companyName:
+          type: string
+        websiteUrl:
+          type: string
+          format: uri
+        profileStatus:
+          $ref: "#/components/schemas/PartnerProfileStatus"
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    PartnerInput:
+      type: object
+      required: [companyName, websiteUrl]
+      properties:
+        companyName:
+          type: string
+          minLength: 1
+        websiteUrl:
+          type: string
+          format: uri
+    PartnerProfileStatus:
+      type: string
+      enum:
+        - Nog niet opgebouwd
+        - Wordt opgebouwd
+        - Wacht op controle
+        - Goedgekeurd
+        - Afgekeurd
+        - Analyse mislukt
+    PartnerProfileContent:
+      type: object
+      required: [companyName, companyDescription, products, services, targetAudience, toneOfVoice, writingStyle, importantFacts, locations, sourceUrls, missingInformation]
+      properties:
+        companyName:
+          type: ["string", "null"]
+        companyDescription:
+          type: ["string", "null"]
+        products:
+          type: array
+          items:
+            type: string
+        services:
+          type: array
+          items:
+            type: string
+        targetAudience:
+          type: array
+          items:
+            type: string
+        toneOfVoice:
+          type: array
+          items:
+            type: string
+        writingStyle:
+          type: array
+          items:
+            type: string
+        importantFacts:
+          type: array
+          items:
+            type: string
+        locations:
+          type: array
+          items:
+            type: string
+        sourceUrls:
+          type: array
+          items:
+            type: string
+            format: uri
+        missingInformation:
+          type: array
+          items:
+            type: string
+    PartnerWebsitePage:
+      type: object
+      required: [url, title, text]
+      properties:
+        url:
+          type: string
+          format: uri
+        title:
+          type: string
+        text:
+          type: string
+    PartnerProfile:
+      type: object
+      required: [id, partnerId, websitePages, websiteText, claudeProfile, reviewProfile, approvedProfile, profileStatus, claudeModelName, promptVersion, failureMessage, createdAt, updatedAt, approvedAt, approvedByYellowlimerId]
+      properties:
+        id:
+          type: integer
+        partnerId:
+          type: integer
+        websitePages:
+          type: array
+          items:
+            $ref: "#/components/schemas/PartnerWebsitePage"
+        websiteText:
+          type: string
+        claudeProfile:
+          oneOf:
+            - $ref: "#/components/schemas/PartnerProfileContent"
+            - type: "null"
+        reviewProfile:
+          oneOf:
+            - $ref: "#/components/schemas/PartnerProfileContent"
+            - type: "null"
+        approvedProfile:
+          oneOf:
+            - $ref: "#/components/schemas/PartnerProfileContent"
+            - type: "null"
+        profileStatus:
+          $ref: "#/components/schemas/PartnerProfileStatus"
+        claudeModelName:
+          type: string
+          enum: [claude-sonnet-5]
+        promptVersion:
+          type: string
+        failureMessage:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        approvedAt:
+          type: ["string", "null"]
+          format: date-time
+        approvedByYellowlimerId:
+          type: ["integer", "null"]
+    PartnerProfileReviewInput:
+      type: object
+      required: [reviewerId, profile]
+      properties:
+        reviewerId:
+          type: integer
+        profile:
+          $ref: "#/components/schemas/PartnerProfileContent"
+    Briefing:
+      type: object
+      required: [id, partnerId, reviewerId, subject, contentGoal, createdAt, updatedAt]
+      properties:
+        id:
+          type: integer
+        partnerId:
+          type: integer
+        reviewerId:
+          type: ["integer", "null"]
+        subject:
+          type: string
+        contentGoal:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    BriefingInput:
+      type: object
+      required: [partnerId, reviewerId, subject, contentGoal]
+      properties:
+        partnerId:
+          type: integer
+        reviewerId:
+          type: integer
+        subject:
+          type: string
+          minLength: 1
+        contentGoal:
+          type: string
+          minLength: 1
+    SeoKeyword:
+      type: object
+      required: [keyword, searchVolume, keywordDifficulty, searchIntent, trend]
+      properties:
+        keyword:
+          type: string
+        searchVolume:
+          type: ["integer", "null"]
+        keywordDifficulty:
+          type: ["number", "null"]
+        searchIntent:
+          type: ["string", "null"]
+        trend:
+          type: ["string", "null"]
+    SeoQuestion:
+      type: object
+      required: [question, searchVolume, keywordDifficulty, searchIntent]
+      properties:
+        question:
+          type: string
+        searchVolume:
+          type: ["integer", "null"]
+        keywordDifficulty:
+          type: ["number", "null"]
+        searchIntent:
+          type: ["string", "null"]
+    OrganicCompetitor:
+      type: object
+      required: [position, domain, url]
+      properties:
+        position:
+          type: ["integer", "null"]
+        domain:
+          type: string
+        url:
+          type: string
+    SeoResearch:
+      type: object
+      required: [id, briefingId, partnerId, originalSubject, selectedMainKeyword, searchVolume, keywordDifficulty, searchIntent, trend, secondaryKeywords, relevantQuestions, organicCompetitors, researchedAt, semrushDatabase, apiStatus, message]
+      properties:
+        id:
+          type: integer
+        briefingId:
+          type: integer
+        partnerId:
+          type: integer
+        originalSubject:
+          type: string
+        selectedMainKeyword:
+          type: string
+        searchVolume:
+          type: ["integer", "null"]
+        keywordDifficulty:
+          type: ["number", "null"]
+        searchIntent:
+          type: ["string", "null"]
+        trend:
+          type: ["string", "null"]
+        secondaryKeywords:
+          type: array
+          items:
+            $ref: "#/components/schemas/SeoKeyword"
+        relevantQuestions:
+          type: array
+          items:
+            $ref: "#/components/schemas/SeoQuestion"
+        organicCompetitors:
+          type: array
+          items:
+            $ref: "#/components/schemas/OrganicCompetitor"
+        researchedAt:
+          type: ["string", "null"]
+          format: date-time
+        semrushDatabase:
+          type: string
+          enum: [nl]
+        apiStatus:
+          type: string
+          enum: [pending, success, failed]
+        message:
+          type: ["string", "null"]
+    Yellowlimer:
+      type: object
+      required: [id, name, avatarType, avatarValue, createdAt, active]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        avatarType:
+          type: string
+          enum: [icon, image]
+        avatarValue:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        active:
+          type: boolean
+    YellowlimerInput:
+      type: object
+      required: [name, avatarType, avatarValue]
+      properties:
+        name:
+          type: string
+          minLength: 1
+        avatarType:
+          type: string
+          enum: [icon, image]
+        avatarValue:
+          type: string
+          minLength: 1
+    YellowlimerUpdate:
+      type: object
+      required: [name, avatarType, avatarValue, active]
+      properties:
+        name:
+          type: string
+          minLength: 1
+        avatarType:
+          type: string
+          enum: [icon, image]
+        avatarValue:
+          type: string
+          minLength: 1
+        active:
+          type: boolean
+    YellowlimerRemoval:
+      type: object
+      required: [id, deleted, active]
+      properties:
+        id:
+          type: integer
+        deleted:
+          type: boolean
+        active:
+          type: boolean
+    Article:
+      type: object
+      required: [id, partnerId, briefingId, yellowlimerId, title, content, metaTitle, metaDescription, modelName, promptVersion, createdAt]
+      properties:
+        id:
+          type: integer
+        partnerId:
+          type: integer
+        briefingId:
+          type: integer
+        yellowlimerId:
+          type: integer
+        title:
+          type: string
+        content:
+          type: string
+        metaTitle:
+          type: string
+        metaDescription:
+          type: string
+        modelName:
+          type: string
+        promptVersion:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+    ArticleInput:
+      type: object
+      required: [partnerId, briefingId, yellowlimerId, title, content, metaTitle, metaDescription, modelName, promptVersion]
+      properties:
+        partnerId:
+          type: integer
+        briefingId:
+          type: integer
+        yellowlimerId:
+          type: integer
+        title:
+          type: string
+          minLength: 1
+        content:
+          type: string
+          minLength: 1
+        metaTitle:
+          type: string
+        metaDescription:
+          type: string
+        modelName:
+          type: string
+        promptVersion:
+          type: string
+    ArticleGenerationStatus:
+      type: string
+      enum:
+        - Klaar voor generatie
+        - Artikel wordt geschreven
+        - Concept gereed
+        - Generatie mislukt
+        - Wacht op controle
+    ArticleSection:
+      type: object
+      required: [heading, headingLevel, content]
+      properties:
+        heading:
+          type: string
+        headingLevel:
+          type: string
+          enum: [H2, H3]
+        content:
+          type: string
+    ArticleGeneration:
+      type: object
+      required: [id, versionNumber, briefingId, partnerId, yellowlimerId, title, introduction, sections, conclusion, fullArticle, metaTitle, metaDescription, primaryKeyword, secondaryKeywordsUsed, questionsAnswered, articleStatus, claudeModelName, promptVersion, generatedAt, failureMessage]
+      properties:
+        id:
+          type: integer
+        versionNumber:
+          type: integer
+        briefingId:
+          type: integer
+        partnerId:
+          type: integer
+        yellowlimerId:
+          type: integer
+        title:
+          type: string
+        introduction:
+          type: string
+        sections:
+          type: array
+          items:
+            $ref: "#/components/schemas/ArticleSection"
+        conclusion:
+          type: string
+        fullArticle:
+          type: string
+        metaTitle:
+          type: string
+        metaDescription:
+          type: string
+        primaryKeyword:
+          type: string
+        secondaryKeywordsUsed:
+          type: array
+          items:
+            type: string
+        questionsAnswered:
+          type: array
+          items:
+            type: string
+        articleStatus:
+          $ref: "#/components/schemas/ArticleGenerationStatus"
+        claudeModelName:
+          type: string
+          enum: [claude-sonnet-5]
+        promptVersion:
+          type: string
+          enum: [article_generation_v1]
+        generatedAt:
+          type: string
+          format: date-time
+        failureMessage:
+          type: ["string", "null"]
+    ArticleReview:
+      type: object
+      required: [id, partnerId, briefingId, articleId, yellowlimerId, originalTitle, originalContent, originalMetaTitle, originalMetaDescription, correctedTitle, correctedContent, correctedMetaTitle, correctedMetaDescription, reviewerExplanation, reviewStatus, aiVersionCreatedAt, humanVersionCreatedAt, claudeModelName, promptVersion]
+      properties:
+        id:
+          type: integer
+        partnerId:
+          type: integer
+        briefingId:
+          type: integer
+        articleId:
+          type: integer
+        yellowlimerId:
+          type: integer
+        originalTitle:
+          type: string
+        originalContent:
+          type: string
+        originalMetaTitle:
+          type: string
+        originalMetaDescription:
+          type: string
+        correctedTitle:
+          type: string
+        correctedContent:
+          type: string
+        correctedMetaTitle:
+          type: string
+        correctedMetaDescription:
+          type: string
+        reviewerExplanation:
+          type: ["string", "null"]
+        reviewStatus:
+          type: string
+          enum: [approved, rejected]
+        aiVersionCreatedAt:
+          type: string
+          format: date-time
+        humanVersionCreatedAt:
+          type: string
+          format: date-time
+        claudeModelName:
+          type: string
+        promptVersion:
+          type: string
+    ArticleReviewInput:
+      type: object
+      required: [articleId, correctedTitle, correctedContent, correctedMetaTitle, correctedMetaDescription, reviewStatus]
+      properties:
+        articleId:
+          type: integer
+        correctedTitle:
+          type: string
+          minLength: 1
+        correctedContent:
+          type: string
+          minLength: 1
+        correctedMetaTitle:
+          type: string
+        correctedMetaDescription:
+          type: string
+        reviewerExplanation:
+          type: ["string", "null"]
+        reviewStatus:
+          type: string
+          enum: [approved, rejected]
+    UploadUrlRequest:
+      type: object
+      required: [name, size, contentType]
+      properties:
+        name:
+          type: string
+          minLength: 1
+        size:
+          type: integer
+          minimum: 1
+        contentType:
+          type: string
+          minLength: 1
+    UploadUrlResponse:
+      type: object
+      required: [uploadURL, objectPath, metadata]
+      properties:
+        uploadURL:
+          type: string
+          format: uri
+        objectPath:
+          type: string
+        metadata:
+          $ref: "#/components/schemas/UploadUrlRequest"
+

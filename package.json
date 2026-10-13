@@ -1,0 +1,24 @@
+{
+  "name": "yellowlime-seo-studio",
+  "version": "1.0.0",
+  "private": true,
+  "license": "UNLICENSED",
+  "packageManager": "pnpm@10.28.0",
+  "engines": {
+    "node": ">=22.12"
+  },
+  "scripts": {
+    "dev": "pnpm --parallel --filter @yellowlime/api --filter @yellowlime/web run dev",
+    "build": "pnpm run typecheck && pnpm -r --if-present run build",
+    "start": "pnpm --filter @yellowlime/api run start",
+    "test": "pnpm --filter @yellowlime/api run test",
+    "db:push": "pnpm --filter @yellowlime/db run push",
+    "codegen": "pnpm --filter @yellowlime/api-spec run codegen",
+    "typecheck:libs": "tsc --build",
+    "typecheck": "pnpm run typecheck:libs && pnpm -r --filter \"./apps/**\" --if-present run typecheck"
+  },
+  "devDependencies": {
+    "prettier": "^3.9.6",
+    "typescript": "~5.9.3"
+  }
+}

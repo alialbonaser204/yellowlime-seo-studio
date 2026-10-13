@@ -1,0 +1,39 @@
+{
+  "name": "@yellowlime/api",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "pnpm run build && node --env-file-if-exists=../../.env --enable-source-maps ./dist/index.mjs",
+    "build": "node ./build.mjs",
+    "start": "node --env-file-if-exists=../../.env --enable-source-maps ./dist/index.mjs",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "tsx --test src/services/semrush.test.ts src/services/semrushMcp.test.ts src/services/partnerProfile.test.ts src/services/articleGeneration.test.ts",
+    "test:db": "tsx --test src/services/*.storage.test.ts"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.130.0",
+    "@modelcontextprotocol/sdk": "^1.30.0",
+    "@yellowlime/api-zod": "workspace:*",
+    "@yellowlime/db": "workspace:*",
+    "cheerio": "^1.2.0",
+    "cors": "^2.8.6",
+    "drizzle-orm": "catalog:",
+    "express": "^5.2.1",
+    "pino": "^9.14.0",
+    "pino-http": "^10.5.0",
+    "robots-parser": "^3.0.1",
+    "tldts": "^7.4.13"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
+    "@types/node": "catalog:",
+    "esbuild": "0.28.2",
+    "esbuild-plugin-pino": "^2.3.3",
+    "pino-pretty": "^13.1.3",
+    "thread-stream": "3.1.0",
+    "tsx": "catalog:",
+    "zod": "catalog:"
+  }
+}
