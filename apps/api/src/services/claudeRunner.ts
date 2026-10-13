@@ -2,8 +2,6 @@ import Anthropic from "@anthropic-ai/sdk";
 
 export const CLAUDE_MODEL = "claude-sonnet-5" as const;
 export const CLAUDE_MAX_TOKENS = 8192;
-/** Per-request timeout of a single call to the Claude API. */
-const CLAUDE_REQUEST_TIMEOUT_MS = 25_000;
 
 export type ClaudeTextRunner = (
   input: string,
@@ -14,7 +12,7 @@ let client: Anthropic | null = null;
 
 function getClient(apiKey: string): Anthropic {
   if (!client || client.apiKey !== apiKey) {
-    client = new Anthropic({ apiKey, timeout: CLAUDE_REQUEST_TIMEOUT_MS });
+    client = new Anthropic({ apiKey, maxRetries: 1 });
   }
   return client;
 }
@@ -40,7 +38,9 @@ export async function defaultClaudeTextRunner(
         max_tokens: CLAUDE_MAX_TOKENS,
         messages: [{ role: "user", content: input }],
       },
-      { signal: AbortSignal.timeout(timeoutMs) },
+      // The caller decides how long a call may take (articles need much longer
+      // than short profile drafts), so the same limit applies to the request.
+      { timeout: timeoutMs, signal: AbortSignal.timeout(timeoutMs) },
     );
     const textBlock = result.content.find((block) => block.type === "text");
     return textBlock && textBlock.type === "text" ? textBlock.text.trim() : "";

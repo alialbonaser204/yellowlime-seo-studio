@@ -8,7 +8,7 @@ export const CLAUDE_MODEL = SHARED_CLAUDE_MODEL;
 export const PROMPT_VERSION = "article_generation_v1" as const;
 export const ARTICLE_CLAUDE_MODEL = CLAUDE_MODEL;
 export const ARTICLE_PROMPT_VERSION = PROMPT_VERSION;
-export const ARTICLE_GENERATION_TIMEOUT_MS = 90_000;
+export const ARTICLE_GENERATION_TIMEOUT_MS = 180_000;
 
 export interface ArticleGenerationInput {
   partnerName: string;
