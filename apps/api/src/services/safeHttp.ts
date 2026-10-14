@@ -19,6 +19,8 @@ export interface SafeHttpOptions {
   timeoutMs?: number;
   maxBytes?: number;
   maxRedirects?: number;
+  /** Accept header to send; defaults to HTML. */
+  accept?: string;
   fetcher?: (url: string, options?: SafeHttpOptions) => Promise<SafeResponse>;
   transport?: (url: URL, options: SafeHttpOptions) => Promise<SafeResponse>;
 }
@@ -78,7 +80,7 @@ async function oneRequest(url: URL, options: SafeHttpOptions): Promise<SafeRespo
         port: validated.port || undefined,
         path: `${validated.pathname}${validated.search}`,
         method: "GET",
-        headers: { "user-agent": USER_AGENT, accept: "text/html,application/xhtml+xml" },
+        headers: { "user-agent": USER_AGENT, accept: options.accept ?? "text/html,application/xhtml+xml" },
         timeout: options.timeoutMs ?? 10_000,
         servername: validated.hostname,
         lookup: (hostname, _opts, callback) => {
@@ -137,18 +139,19 @@ export async function fetchSafe(
 export async function fetchRobots(
   origin: URL,
   options: SafeHttpOptions = {},
-): Promise<{ allowed: (url: string) => boolean; unavailable: boolean }> {
+): Promise<{ allowed: (url: string) => boolean; unavailable: boolean; sitemaps: string[] }> {
   const robotsUrl = new URL("/robots.txt", origin);
   try {
     const response = await (options.fetcher ?? fetchSafe)(robotsUrl.toString(), { ...options, maxBytes: 128 * 1024, maxRedirects: 2 });
-    if (response.status === 404) return { allowed: () => true, unavailable: false };
-    if (response.status < 200 || response.status >= 300) return { allowed: () => false, unavailable: true };
+    if (response.status === 404) return { allowed: () => true, unavailable: false, sitemaps: [] };
+    if (response.status < 200 || response.status >= 300) return { allowed: () => false, unavailable: true, sitemaps: [] };
     const parser = robotsParser(robotsUrl.toString(), response.body);
     return {
       allowed: (url) => parser.isAllowed(url, USER_AGENT) !== false,
       unavailable: false,
+      sitemaps: parser.getSitemaps(),
     };
   } catch {
-    return { allowed: () => false, unavailable: true };
+    return { allowed: () => false, unavailable: true, sitemaps: [] };
   }
 }

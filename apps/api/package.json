@@ -8,7 +8,7 @@
     "build": "node ./build.mjs",
     "start": "node --env-file-if-exists=../../.env --enable-source-maps ./dist/index.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "tsx --test src/services/semrush.test.ts src/services/semrushMcp.test.ts src/services/partnerProfile.test.ts src/services/articleGeneration.test.ts",
+    "test": "tsx --test src/services/semrush.test.ts src/services/semrushMcp.test.ts src/services/partnerProfile.test.ts src/services/articleGeneration.test.ts src/services/articleInventory.test.ts src/services/topicMatching.test.ts",
     "test:db": "tsx --test src/services/*.storage.test.ts"
   },
   "dependencies": {

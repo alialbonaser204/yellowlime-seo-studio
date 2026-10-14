@@ -500,6 +500,93 @@ export const RejectPartnerProfileResponse = zod.object({
 
 
 /**
+ * @summary Published articles found on the partner's website and the latest scan
+ */
+export const ListWebsiteArticlesParams = zod.object({
+  "partnerId": zod.coerce.number().int()
+})
+
+export const ListWebsiteArticlesResponse = zod.object({
+  "scan": zod.union([zod.object({
+  "id": zod.number().int(),
+  "status": zod.enum(['running', 'completed', 'failed']),
+  "source": zod.union([zod.literal('sitemap'),zod.literal('rss'),zod.literal('crawl'),zod.literal(null)]).nullable(),
+  "pagesChecked": zod.number().int(),
+  "articlesFound": zod.number().int(),
+  "message": zod.string().nullable(),
+  "startedAt": zod.coerce.date(),
+  "finishedAt": zod.coerce.date().nullable()
+}),zod.null()]),
+  "articles": zod.array(zod.object({
+  "id": zod.number().int(),
+  "url": zod.string(),
+  "title": zod.string(),
+  "description": zod.string().nullable(),
+  "headings": zod.array(zod.string()),
+  "publishedAt": zod.coerce.date().nullable(),
+  "wordCount": zod.number().int()
+}))
+})
+
+
+/**
+ * @summary Start scanning the partner's website for published articles
+ */
+export const ScanWebsiteArticlesParams = zod.object({
+  "partnerId": zod.coerce.number().int()
+})
+
+export const ScanWebsiteArticlesResponse = zod.object({
+  "id": zod.number().int(),
+  "status": zod.enum(['running', 'completed', 'failed']),
+  "source": zod.union([zod.literal('sitemap'),zod.literal('rss'),zod.literal('crawl'),zod.literal(null)]).nullable(),
+  "pagesChecked": zod.number().int(),
+  "articlesFound": zod.number().int(),
+  "message": zod.string().nullable(),
+  "startedAt": zod.coerce.date(),
+  "finishedAt": zod.coerce.date().nullable()
+})
+
+
+/**
+ * @summary Check whether a topic is already covered on the partner's website
+ */
+export const CheckTopicParams = zod.object({
+  "partnerId": zod.coerce.number().int()
+})
+
+export const checkTopicBodySubjectMin = 3;
+export const checkTopicBodySubjectMax = 300;
+
+export const checkTopicBodyContentGoalMax = 1000;
+
+
+
+export const CheckTopicBody = zod.object({
+  "subject": zod.string().min(checkTopicBodySubjectMin).max(checkTopicBodySubjectMax),
+  "contentGoal": zod.string().max(checkTopicBodyContentGoalMax).optional()
+})
+
+export const CheckTopicResponse = zod.object({
+  "verdict": zod.enum(['new', 'related', 'duplicate', 'unknown']),
+  "explanation": zod.string(),
+  "matches": zod.array(zod.object({
+  "url": zod.string(),
+  "title": zod.string(),
+  "relation": zod.enum(['duplicate', 'related']),
+  "reason": zod.string()
+})),
+  "alternatives": zod.array(zod.string()),
+  "googleRanking": zod.union([zod.object({
+  "position": zod.number().int().nullable(),
+  "url": zod.string()
+}),zod.null()]),
+  "articlesChecked": zod.number().int(),
+  "lastScanAt": zod.coerce.date().nullable()
+})
+
+
+/**
  * @summary List briefings
  */
 export const ListBriefingsResponseItem = zod.object({

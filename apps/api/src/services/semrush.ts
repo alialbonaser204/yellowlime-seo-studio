@@ -472,3 +472,22 @@ export function safeSemrushError(error: unknown): { code: SemrushErrorCode; mess
   if (error instanceof SemrushServiceError) return { code: error.code, message: error.message };
   return { code: "unexpected", message: "Semrush gaf een technische fout." };
 }
+/**
+ * Where (if anywhere) a domain appears in Google's organic top 10 for a phrase.
+ * Returns null when the domain is not in the top 10 or Semrush has no data.
+ */
+export async function findDomainInTopResults(
+  phrase: string,
+  domain: string,
+  transport: SemrushTransport = defaultSemrushTransport,
+  timeoutMs = REQUEST_TIMEOUT_MS,
+): Promise<{ position: number | null; url: string } | null> {
+  const raw = await requestReport(reportPath("phrase_organic", phrase, "Po,Dn,Ur", { limit: "10" }), transport, timeoutMs);
+  if (!raw) return null;
+  const target = domain.toLowerCase().replace(/^www\./, "");
+  const match = parseOrganicReport(raw).find((row) => {
+    const host = row.domain.toLowerCase().replace(/^www\./, "");
+    return host === target || host.endsWith(`.${target}`);
+  });
+  return match ? { position: match.position, url: match.url } : null;
+}

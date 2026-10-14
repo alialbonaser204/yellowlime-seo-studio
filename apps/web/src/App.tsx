@@ -39,6 +39,7 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import NotFound from '@/pages/not-found';
 import { YellowlimersPage } from './pages/yellowlimers-page';
+import { TopicCheckCard, WebsiteArticlesSection, useTopicCheck } from './components/website-articles';
 import { ICONS } from './pages/yellowlimers-page';
 import { UserCircle } from 'lucide-react';
 
@@ -720,6 +721,7 @@ function PartnerDetailPage() {
             </div>
           </div>
         )}
+        <WebsiteArticlesSection partnerId={Number(id)} />
       </div>
     </>
   );
@@ -739,6 +741,9 @@ function NewAssignmentPage() {
   const [errors, setErrors] = useState({ partnerId: '', reviewerId: '', subject: '', contentGoal: '' });
 
   const change = (key: keyof typeof form, value: string) => setForm((current) => ({ ...current, [key]: value }));
+  const topicCheck = useTopicCheck();
+  const topicResult = form.partnerId && form.subject.trim().length >= 3 ? topicCheck.resultFor(form.partnerId, form.subject) : null;
+  const runTopicCheck = () => topicCheck.run(form.partnerId, form.subject, form.contentGoal);
   
   useEffect(() => {
     if (dbPartners.length > 0 && !form.partnerId) {
@@ -749,7 +754,7 @@ function NewAssignmentPage() {
     }
   }, [dbPartners, activeYellowlimers, form.partnerId, form.reviewerId]);
 
-  const submit = (event: React.FormEvent) => {
+  const submit = async (event: React.FormEvent) => {
     event.preventDefault();
     const newErrors = { partnerId: '', reviewerId: '', subject: '', contentGoal: '' };
     let isValid = true;
@@ -761,6 +766,20 @@ function NewAssignmentPage() {
     
     setErrors(newErrors);
     if (!isValid) return;
+
+    // Check the topic against the partner's published articles first.
+    let check = topicResult;
+    if (!check && form.subject.trim().length >= 3) {
+      check = await runTopicCheck();
+      if (check && (check.verdict === 'related' || check.verdict === 'duplicate')) {
+        addToast('Limey vond overlap met bestaande artikelen. Bekijk het resultaat en klik opnieuw om door te gaan.');
+        return;
+      }
+    }
+    if (check?.verdict === 'duplicate' && !topicCheck.acknowledged) {
+      setErrors((current) => ({ ...current, subject: 'Dit onderwerp staat al op de website. Kies een andere invalshoek of bevestig dat je toch wilt doorgaan.' }));
+      return;
+    }
 
     createBriefing.mutate({
       data: {
@@ -906,6 +925,28 @@ function NewAssignmentPage() {
             <label htmlFor="subject">Onderwerp van het artikel <span style={{ color: 'hsl(var(--destructive))' }}>verplicht</span></label>
             <input id="subject" className="input" value={form.subject} onChange={(event) => change('subject', event.target.value)} placeholder="bijv. Hoe kies je alledaagse schoenen die lang meegaan" data-testid="input-assignment-subject" />
             {errors.subject && <span className="text-destructive text-xs" style={{ color: 'hsl(var(--destructive))', fontSize: '11px' }} data-testid="error-assignment-subject">{errors.subject}</span>}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 4 }}>
+              <button
+                type="button"
+                className="button button-ghost button-small"
+                onClick={() => { void runTopicCheck(); }}
+                disabled={!form.partnerId || form.subject.trim().length < 3 || topicCheck.isChecking}
+                data-testid="check-topic"
+              >
+                {topicCheck.isChecking ? <RefreshCw size={14} className="animate-spin" /> : <Search size={14} />}
+                {topicCheck.isChecking ? 'Limey vergelijkt met de website…' : 'Controleer of dit onderwerp al bestaat'}
+              </button>
+              {topicCheck.failed && !topicCheck.isChecking && <span style={{ fontSize: 11, color: 'hsl(var(--muted-foreground))' }}>De controle lukte niet. Je kunt gewoon doorgaan.</span>}
+            </div>
+            {topicResult && (
+              <TopicCheckCard
+                result={topicResult}
+                partnerId={Number(form.partnerId)}
+                acknowledged={topicCheck.acknowledged}
+                onAcknowledge={topicCheck.setAcknowledged}
+                onUseAlternative={(subject) => { change('subject', subject); setErrors((current) => ({ ...current, subject: '' })); }}
+              />
+            )}
           </div>
           <div className="field full">
             <label htmlFor="goal">Contentdoel <span style={{ color: 'hsl(var(--destructive))' }}>verplicht</span></label>
@@ -915,8 +956,8 @@ function NewAssignmentPage() {
         </div>
         <div className="form-actions">
           <Link href="/" className="button button-ghost" data-testid="button-cancel-assignment">Annuleren</Link>
-          <button type="submit" className="button button-primary" data-testid="button-submit-assignment" disabled={createBriefing.isPending}>
-            {createBriefing.isPending ? 'Bezig met aanmaken...' : <><ArrowRight size={15} /> Briefing aanmaken</>}
+          <button type="submit" className="button button-primary" data-testid="button-submit-assignment" disabled={createBriefing.isPending || topicCheck.isChecking}>
+            {createBriefing.isPending ? 'Bezig met aanmaken...' : topicCheck.isChecking ? 'Limey controleert het onderwerp…' : <><ArrowRight size={15} /> Briefing aanmaken</>}
           </button>
         </div>
       </form>

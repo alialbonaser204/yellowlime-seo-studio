@@ -5,6 +5,110 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+export interface WebsiteArticle {
+  id: number;
+  url: string;
+  title: string;
+  /** @nullable */
+  description: string | null;
+  headings: string[];
+  /** @nullable */
+  publishedAt: string | null;
+  wordCount: number;
+}
+
+export type WebsiteScanStatus = typeof WebsiteScanStatus[keyof typeof WebsiteScanStatus];
+
+
+export const WebsiteScanStatus = {
+  running: 'running',
+  completed: 'completed',
+  failed: 'failed',
+} as const;
+
+/**
+ * @nullable
+ */
+export type WebsiteScanSource = typeof WebsiteScanSource[keyof typeof WebsiteScanSource] | null;
+
+
+export const WebsiteScanSource = {
+  sitemap: 'sitemap',
+  rss: 'rss',
+  crawl: 'crawl',
+} as const;
+
+export interface WebsiteScan {
+  id: number;
+  status: WebsiteScanStatus;
+  /** @nullable */
+  source: WebsiteScanSource;
+  pagesChecked: number;
+  articlesFound: number;
+  /** @nullable */
+  message: string | null;
+  startedAt: string;
+  /** @nullable */
+  finishedAt: string | null;
+}
+
+export interface WebsiteArticlesOverview {
+  scan: WebsiteScan | null;
+  articles: WebsiteArticle[];
+}
+
+export interface TopicCheckInput {
+  /**
+     * @minLength 3
+     * @maxLength 300
+     */
+  subject: string;
+  /** @maxLength 1000 */
+  contentGoal?: string;
+}
+
+export type TopicMatchRelation = typeof TopicMatchRelation[keyof typeof TopicMatchRelation];
+
+
+export const TopicMatchRelation = {
+  duplicate: 'duplicate',
+  related: 'related',
+} as const;
+
+export interface TopicMatch {
+  url: string;
+  title: string;
+  relation: TopicMatchRelation;
+  reason: string;
+}
+
+export interface GoogleRanking {
+  /** @nullable */
+  position: number | null;
+  url: string;
+}
+
+export type TopicCheckResultVerdict = typeof TopicCheckResultVerdict[keyof typeof TopicCheckResultVerdict];
+
+
+export const TopicCheckResultVerdict = {
+  new: 'new',
+  related: 'related',
+  duplicate: 'duplicate',
+  unknown: 'unknown',
+} as const;
+
+export interface TopicCheckResult {
+  verdict: TopicCheckResultVerdict;
+  explanation: string;
+  matches: TopicMatch[];
+  alternatives: string[];
+  googleRanking: GoogleRanking | null;
+  articlesChecked: number;
+  /** @nullable */
+  lastScanAt: string | null;
+}
+
 export interface HealthStatus {
   status: string;
 }

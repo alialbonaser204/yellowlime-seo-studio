@@ -7,3 +7,4 @@ export * from "./semrushResearch";
 export * from "./partnerProfiles";
 export * from "./articleGenerations";
 export * from "./uploads";
+export * from "./websiteArticles";

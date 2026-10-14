@@ -8,6 +8,7 @@ import storageRouter from "./storage";
 import semrushRouter from "./semrush";
 import partnerProfilesRouter from "./partnerProfiles";
 import articleGenerationsRouter from "./articleGenerations";
+import websiteArticlesRouter from "./websiteArticles";
 
 const router: IRouter = Router();
 
@@ -20,5 +21,6 @@ router.use(storageRouter);
 router.use(semrushRouter);
 router.use(partnerProfilesRouter);
 router.use(articleGenerationsRouter);
+router.use(websiteArticlesRouter);
 
 export default router;

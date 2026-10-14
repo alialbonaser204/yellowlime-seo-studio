@@ -208,6 +208,74 @@ paths:
                 $ref: "#/components/schemas/PartnerProfile"
         "404":
           description: Partner profile not found
+  /partners/{partnerId}/website-articles:
+    get:
+      operationId: listWebsiteArticles
+      tags: [partners]
+      summary: Published articles found on the partner's website and the latest scan
+      parameters:
+        - name: partnerId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Website articles overview
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WebsiteArticlesOverview"
+        "404":
+          description: Partner not found
+  /partners/{partnerId}/website-articles/scan:
+    post:
+      operationId: scanWebsiteArticles
+      tags: [partners]
+      summary: Start scanning the partner's website for published articles
+      parameters:
+        - name: partnerId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "202":
+          description: Scan started (or already running)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WebsiteScan"
+        "404":
+          description: Partner not found
+  /partners/{partnerId}/topic-check:
+    post:
+      operationId: checkTopic
+      tags: [partners]
+      summary: Check whether a topic is already covered on the partner's website
+      parameters:
+        - name: partnerId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TopicCheckInput"
+      responses:
+        "200":
+          description: Topic check result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TopicCheckResult"
+        "400":
+          description: Invalid topic
+        "404":
+          description: Partner not found
   /briefings:
     get:
       operationId: listBriefings
@@ -519,6 +587,121 @@ paths:
           description: Object not found
 components:
   schemas:
+    WebsiteArticle:
+      type: object
+      required: [id, url, title, description, headings, publishedAt, wordCount]
+      properties:
+        id:
+          type: integer
+        url:
+          type: string
+        title:
+          type: string
+        description:
+          type: ["string", "null"]
+        headings:
+          type: array
+          items:
+            type: string
+        publishedAt:
+          type: ["string", "null"]
+          format: date-time
+        wordCount:
+          type: integer
+    WebsiteScan:
+      type: object
+      required: [id, status, source, pagesChecked, articlesFound, message, startedAt, finishedAt]
+      properties:
+        id:
+          type: integer
+        status:
+          type: string
+          enum: [running, completed, failed]
+        source:
+          type: ["string", "null"]
+          enum: [sitemap, rss, crawl, null]
+        pagesChecked:
+          type: integer
+        articlesFound:
+          type: integer
+        message:
+          type: ["string", "null"]
+        startedAt:
+          type: string
+          format: date-time
+        finishedAt:
+          type: ["string", "null"]
+          format: date-time
+    WebsiteArticlesOverview:
+      type: object
+      required: [scan, articles]
+      properties:
+        scan:
+          oneOf:
+            - $ref: "#/components/schemas/WebsiteScan"
+            - type: "null"
+        articles:
+          type: array
+          items:
+            $ref: "#/components/schemas/WebsiteArticle"
+    TopicCheckInput:
+      type: object
+      required: [subject]
+      properties:
+        subject:
+          type: string
+          minLength: 3
+          maxLength: 300
+        contentGoal:
+          type: string
+          maxLength: 1000
+    TopicMatch:
+      type: object
+      required: [url, title, relation, reason]
+      properties:
+        url:
+          type: string
+        title:
+          type: string
+        relation:
+          type: string
+          enum: [duplicate, related]
+        reason:
+          type: string
+    GoogleRanking:
+      type: object
+      required: [position, url]
+      properties:
+        position:
+          type: ["integer", "null"]
+        url:
+          type: string
+    TopicCheckResult:
+      type: object
+      required: [verdict, explanation, matches, alternatives, googleRanking, articlesChecked, lastScanAt]
+      properties:
+        verdict:
+          type: string
+          enum: [new, related, duplicate, unknown]
+        explanation:
+          type: string
+        matches:
+          type: array
+          items:
+            $ref: "#/components/schemas/TopicMatch"
+        alternatives:
+          type: array
+          items:
+            type: string
+        googleRanking:
+          oneOf:
+            - $ref: "#/components/schemas/GoogleRanking"
+            - type: "null"
+        articlesChecked:
+          type: integer
+        lastScanAt:
+          type: ["string", "null"]
+          format: date-time
     HealthStatus:
       type: object
       properties:
