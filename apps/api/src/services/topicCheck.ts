@@ -2,6 +2,8 @@ import { eq } from "drizzle-orm";
 import { db, partnersTable } from "@yellowlime/db";
 import { logger } from "../lib/logger";
 import { defaultClaudeTextRunner, type ClaudeTextRunner } from "./claudeRunner";
+import { searchConsolePagesForTopic } from "./searchConsole";
+import type { TopicPage } from "./searchConsoleData";
 import { findDomainInTopResults, type SemrushTransport } from "./semrush";
 import { distinctOverlap, lexicalScore, makeTopicCheckPrompt, parseTopicJudgement, selectCandidates, topicTokens } from "./topicMatching";
 import { latestScan, listWebsiteArticles } from "./websiteScan";
@@ -27,6 +29,8 @@ export interface TopicCheckResult {
   matches: TopicMatch[];
   alternatives: string[];
   googleRanking: { position: number | null; url: string } | null;
+  /** The partner's pages that Google already shows for this topic (Search Console, last 90 days). */
+  searchConsole: { property: string; pages: TopicPage[] } | null;
   articlesChecked: number;
   lastScanAt: Date | null;
 }
@@ -42,7 +46,12 @@ export interface TopicCheckDeps {
   semrushTransport?: SemrushTransport;
   /** Skip the Semrush lookup (e.g. when no key is configured). */
   skipGoogle?: boolean;
+  /** Replaces the Search Console lookup (tests). */
+  searchConsoleLookup?: (websiteUrl: string, subject: string) => Promise<{ property: string; pages: TopicPage[] } | null>;
 }
+
+/** A Search Console page counts as covering the topic from this many impressions. */
+const SEARCH_CONSOLE_MIN_IMPRESSIONS = 20;
 
 const CLAUDE_TIMEOUT_MS = 90_000;
 
@@ -62,13 +71,18 @@ export async function checkTopic(input: TopicCheckInput, deps: TopicCheckDeps = 
   const scan = await latestScan(input.partnerId);
   const lastScanAt = scan?.status === "completed" ? scan.finishedAt : null;
 
-  const googlePromise: Promise<TopicCheckResult["googleRanking"]> =
-    deps.skipGoogle || !process.env.SEMRUSH_API_KEY?.trim() && !deps.semrushTransport
-      ? Promise.resolve(null)
+  // Search Console shows exactly which pages Google already shows for the
+  // topic. Semrush (which costs API units) is only asked when Search Console
+  // is not available for this website.
+  const searchConsolePromise = (deps.searchConsoleLookup ?? searchConsolePagesForTopic)(partner.websiteUrl, subject).catch(() => null);
+  const googlePromise: Promise<TopicCheckResult["googleRanking"]> = searchConsolePromise.then((searchConsole) =>
+    searchConsole || deps.skipGoogle || (!process.env.SEMRUSH_API_KEY?.trim() && !deps.semrushTransport)
+      ? null
       : findDomainInTopResults(subject, hostOf(partner.websiteUrl), deps.semrushTransport).catch((error) => {
           logger.warn({ errorType: error instanceof Error ? error.name : typeof error }, "Topic check: Google lookup failed");
           return null;
-        });
+        }),
+  );
 
   let result: TopicCheckResult;
   if (articles.length === 0) {
@@ -80,6 +94,7 @@ export async function checkTopic(input: TopicCheckInput, deps: TopicCheckDeps = 
       matches: [],
       alternatives: [],
       googleRanking: null,
+      searchConsole: null,
       articlesChecked: 0,
       lastScanAt,
     };
@@ -102,6 +117,7 @@ export async function checkTopic(input: TopicCheckInput, deps: TopicCheckDeps = 
         })),
         alternatives: judgement.alternatives,
         googleRanking: null,
+        searchConsole: null,
         articlesChecked: candidates.length,
         lastScanAt,
       };
@@ -121,9 +137,41 @@ export async function checkTopic(input: TopicCheckInput, deps: TopicCheckDeps = 
         matches: scored.map(({ article }) => ({ url: article.url, title: article.title, relation: "related" as const, reason: "Gebruikt dezelfde woorden." })),
         alternatives: [],
         googleRanking: null,
+        searchConsole: null,
         articlesChecked: candidates.length,
         lastScanAt,
       };
+    }
+  }
+
+  const samePage = (a: string, b: string) => {
+    try {
+      const x = new URL(a);
+      const y = new URL(b);
+      return hostOf(a) === hostOf(b) && x.pathname.replace(/\/+$/, "") === y.pathname.replace(/\/+$/, "");
+    } catch {
+      return false;
+    }
+  };
+
+  const searchConsole = await searchConsolePromise;
+  result.searchConsole = searchConsole;
+  const coveringPages = (searchConsole?.pages ?? [])
+    .filter((page) => page.impressions >= SEARCH_CONSOLE_MIN_IMPRESSIONS && page.position <= 20)
+    .slice(0, 3);
+  if (coveringPages.length) {
+    if (result.verdict === "new" || result.verdict === "unknown") result.verdict = "related";
+    const best = coveringPages[0];
+    result.explanation = `${result.explanation} Volgens Search Console toont Google ${coveringPages.length === 1 ? "al een pagina" : `al ${coveringPages.length} pagina's`} van de website voor dit onderwerp (beste: gemiddelde positie ${best.position}, ${best.clicks} klikken in 90 dagen). Overweeg die pagina bij te werken of kies een andere invalshoek.`.trim();
+    for (const page of [...coveringPages].reverse()) {
+      const reason = `Google toont deze pagina al bij zoekopdrachten als ${page.queries.map((q) => `"${q}"`).join(", ")}: ${page.impressions} vertoningen, ${page.clicks} klikken, gemiddelde positie ${page.position} (laatste 90 dagen).`;
+      const existing = result.matches.find((match) => samePage(match.url, page.page));
+      if (existing) {
+        existing.reason = `${existing.reason} ${reason}`;
+      } else {
+        const known = articles.find((article) => samePage(article.url, page.page));
+        result.matches.unshift({ url: page.page, title: known?.title ?? page.page, relation: "related", reason });
+      }
     }
   }
 
@@ -133,15 +181,6 @@ export async function checkTopic(input: TopicCheckInput, deps: TopicCheckDeps = 
     const sentence = `De website staat in Google al op positie ${ranking.position ?? "?"} voor dit onderwerp. Overweeg die pagina bij te werken.`;
     if (result.verdict === "new" || result.verdict === "unknown") result.verdict = "related";
     result.explanation = `${result.explanation} ${sentence}`.trim();
-    const samePage = (a: string, b: string) => {
-      try {
-        const x = new URL(a);
-        const y = new URL(b);
-        return hostOf(a) === hostOf(b) && x.pathname.replace(/\/+$/, "") === y.pathname.replace(/\/+$/, "");
-      } catch {
-        return false;
-      }
-    };
     const known = articles.find((article) => samePage(article.url, ranking.url));
     if (!result.matches.some((match) => samePage(match.url, ranking.url))) {
       result.matches.unshift({

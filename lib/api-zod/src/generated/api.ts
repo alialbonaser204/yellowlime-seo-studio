@@ -581,8 +581,94 @@ export const CheckTopicResponse = zod.object({
   "position": zod.number().int().nullable(),
   "url": zod.string()
 }),zod.null()]),
+  "searchConsole": zod.union([zod.object({
+  "property": zod.string(),
+  "pages": zod.array(zod.object({
+  "page": zod.string(),
+  "clicks": zod.number(),
+  "impressions": zod.number(),
+  "position": zod.number(),
+  "queries": zod.array(zod.string())
+}))
+}),zod.null()]),
   "articlesChecked": zod.number().int(),
   "lastScanAt": zod.coerce.date().nullable()
+})
+
+
+/**
+ * @summary Whether a Google account is connected for Search Console data
+ */
+export const GetGoogleStatusResponse = zod.object({
+  "configured": zod.boolean(),
+  "connected": zod.boolean(),
+  "needsReconnect": zod.boolean(),
+  "account": zod.string().nullable(),
+  "connectedAt": zod.coerce.date().nullable(),
+  "redirectUri": zod.string()
+})
+
+
+/**
+ * @summary Disconnect the Google account
+ */
+export const DisconnectGoogleResponse = zod.void()
+
+
+/**
+ * @summary Search Console data for the partner's website
+ */
+export const GetPartnerSearchConsoleParams = zod.object({
+  "partnerId": zod.coerce.number().int()
+})
+
+export const GetPartnerSearchConsoleQueryParams = zod.object({
+  "days": zod.coerce.number().int().optional().describe('Number of days (28, 90 or 180). Defaults to 90.'),
+  "refresh": zod.coerce.string().optional().describe('Set to 1 to bypass the cache.')
+})
+
+export const GetPartnerSearchConsoleResponse = zod.object({
+  "status": zod.enum(['not_configured', 'not_connected', 'no_property', 'ok', 'error']),
+  "account": zod.string().nullable(),
+  "property": zod.string().nullable(),
+  "message": zod.string().nullable(),
+  "period": zod.union([zod.object({
+  "startDate": zod.string(),
+  "endDate": zod.string()
+}),zod.null()]),
+  "totals": zod.union([zod.object({
+  "clicks": zod.number(),
+  "impressions": zod.number(),
+  "ctr": zod.number(),
+  "position": zod.number()
+}),zod.null()]),
+  "topQueries": zod.array(zod.object({
+  "key": zod.string(),
+  "clicks": zod.number(),
+  "impressions": zod.number(),
+  "ctr": zod.number(),
+  "position": zod.number()
+})),
+  "topPages": zod.array(zod.object({
+  "key": zod.string(),
+  "clicks": zod.number(),
+  "impressions": zod.number(),
+  "ctr": zod.number(),
+  "position": zod.number()
+})),
+  "opportunities": zod.array(zod.object({
+  "key": zod.string(),
+  "clicks": zod.number(),
+  "impressions": zod.number(),
+  "ctr": zod.number(),
+  "position": zod.number()
+})),
+  "decliningPages": zod.array(zod.object({
+  "page": zod.string(),
+  "clicks": zod.number(),
+  "previousClicks": zod.number(),
+  "change": zod.number()
+}))
 })
 
 

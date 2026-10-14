@@ -27,11 +27,14 @@ import type {
   ArticleReviewInput,
   Briefing,
   BriefingInput,
+  GetPartnerSearchConsoleParams,
+  GoogleStatus,
   HealthStatus,
   Partner,
   PartnerInput,
   PartnerProfile,
   PartnerProfileReviewInput,
+  SearchConsoleOverview,
   SeoResearch,
   TopicCheckInput,
   TopicCheckResult,
@@ -1046,6 +1049,246 @@ export const useCheckTopic = <TError = ErrorType<void>,
       > => {
       return useMutation(getCheckTopicMutationOptions(options));
     }
+
+export const getGetGoogleStatusUrl = () => {
+
+
+
+
+  return `/api/google/status`
+}
+
+/**
+ * @summary Whether a Google account is connected for Search Console data
+ */
+export const getGoogleStatus = async ( options?: Parameters<typeof customFetch>[1]): Promise<GoogleStatus> => {
+
+  return customFetch<GoogleStatus>(getGetGoogleStatusUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetGoogleStatusQueryKey = () => {
+    return [
+    `/api/google/status`
+    ] as const;
+    }
+
+
+export const getGetGoogleStatusQueryOptions = <TData = Awaited<ReturnType<typeof getGoogleStatus>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getGoogleStatus>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetGoogleStatusQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getGoogleStatus>>> = ({ signal }) => getGoogleStatus({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getGoogleStatus>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetGoogleStatusQueryResult = NonNullable<Awaited<ReturnType<typeof getGoogleStatus>>>
+export type GetGoogleStatusQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Whether a Google account is connected for Search Console data
+ */
+
+export function useGetGoogleStatus<TData = Awaited<ReturnType<typeof getGoogleStatus>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getGoogleStatus>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetGoogleStatusQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getDisconnectGoogleUrl = () => {
+
+
+
+
+  return `/api/google/disconnect`
+}
+
+/**
+ * @summary Disconnect the Google account
+ */
+export const disconnectGoogle = async ( options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+  return customFetch<void>(getDisconnectGoogleUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getDisconnectGoogleMutationKey = () => ['disconnectGoogle'] as const;
+
+export const getDisconnectGoogleMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof disconnectGoogle>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof disconnectGoogle>>, TError,void, TContext> => {
+
+const mutationKey = getDisconnectGoogleMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof disconnectGoogle>>, void> = () => {
+
+
+          return  disconnectGoogle(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DisconnectGoogleMutationResult = NonNullable<Awaited<ReturnType<typeof disconnectGoogle>>>
+
+    export type DisconnectGoogleMutationError = ErrorType<unknown>
+
+
+    /**
+ * @summary Disconnect the Google account
+ */
+export const useDisconnectGoogle = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof disconnectGoogle>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof disconnectGoogle>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getDisconnectGoogleMutationOptions(options));
+    }
+
+export const getGetPartnerSearchConsoleUrl = (partnerId: number,
+    params?: GetPartnerSearchConsoleParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/partners/${partnerId}/search-console?${stringifiedParams}` : `/api/partners/${partnerId}/search-console`
+}
+
+/**
+ * @summary Search Console data for the partner's website
+ */
+export const getPartnerSearchConsole = async (partnerId: number,
+    params?: GetPartnerSearchConsoleParams, options?: Parameters<typeof customFetch>[1]): Promise<SearchConsoleOverview> => {
+
+  return customFetch<SearchConsoleOverview>(getGetPartnerSearchConsoleUrl(partnerId,params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetPartnerSearchConsoleQueryKey = (partnerId: number,
+    params?: GetPartnerSearchConsoleParams,) => {
+    return [
+    `/api/partners/${partnerId}/search-console`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetPartnerSearchConsoleQueryOptions = <TData = Awaited<ReturnType<typeof getPartnerSearchConsole>>, TError = ErrorType<void>>(partnerId: number,
+    params?: GetPartnerSearchConsoleParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPartnerSearchConsole>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetPartnerSearchConsoleQueryKey(partnerId,params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getPartnerSearchConsole>>> = ({ signal }) => getPartnerSearchConsole(partnerId,params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: partnerId !== null && partnerId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getPartnerSearchConsole>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetPartnerSearchConsoleQueryResult = NonNullable<Awaited<ReturnType<typeof getPartnerSearchConsole>>>
+export type GetPartnerSearchConsoleQueryError = ErrorType<void>
+
+
+/**
+ * @summary Search Console data for the partner's website
+ */
+
+export function useGetPartnerSearchConsole<TData = Awaited<ReturnType<typeof getPartnerSearchConsole>>, TError = ErrorType<void>>(
+ partnerId: number,
+    params?: GetPartnerSearchConsoleParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPartnerSearchConsole>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetPartnerSearchConsoleQueryOptions(partnerId,params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getListBriefingsUrl = () => {
 

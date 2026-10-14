@@ -20,6 +20,8 @@ tags:
     description: Article and human review operations
   - name: semrush
     description: Semrush SEO research operations
+  - name: google
+    description: Google account connection for Search Console data
   - name: Storage
     description: Object storage upload and serving endpoints
 paths:
@@ -274,6 +276,58 @@ paths:
                 $ref: "#/components/schemas/TopicCheckResult"
         "400":
           description: Invalid topic
+        "404":
+          description: Partner not found
+  /google/status:
+    get:
+      operationId: getGoogleStatus
+      tags: [google]
+      summary: Whether a Google account is connected for Search Console data
+      responses:
+        "200":
+          description: Google connection status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GoogleStatus"
+  /google/disconnect:
+    post:
+      operationId: disconnectGoogle
+      tags: [google]
+      summary: Disconnect the Google account
+      responses:
+        "204":
+          description: Disconnected
+  /partners/{partnerId}/search-console:
+    get:
+      operationId: getPartnerSearchConsole
+      tags: [partners]
+      summary: Search Console data for the partner's website
+      parameters:
+        - name: partnerId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: days
+          in: query
+          required: false
+          description: Number of days (28, 90 or 180). Defaults to 90.
+          schema:
+            type: integer
+        - name: refresh
+          in: query
+          required: false
+          description: Set to 1 to bypass the cache.
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Search Console overview
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SearchConsoleOverview"
         "404":
           description: Partner not found
   /briefings:
@@ -678,7 +732,7 @@ components:
           type: string
     TopicCheckResult:
       type: object
-      required: [verdict, explanation, matches, alternatives, googleRanking, articlesChecked, lastScanAt]
+      required: [verdict, explanation, matches, alternatives, googleRanking, searchConsole, articlesChecked, lastScanAt]
       properties:
         verdict:
           type: string
@@ -697,11 +751,141 @@ components:
           oneOf:
             - $ref: "#/components/schemas/GoogleRanking"
             - type: "null"
+        searchConsole:
+          oneOf:
+            - $ref: "#/components/schemas/SearchConsoleTopicData"
+            - type: "null"
         articlesChecked:
           type: integer
         lastScanAt:
           type: ["string", "null"]
           format: date-time
+    GoogleStatus:
+      type: object
+      required: [configured, connected, needsReconnect, account, connectedAt, redirectUri]
+      properties:
+        configured:
+          type: boolean
+        connected:
+          type: boolean
+        needsReconnect:
+          type: boolean
+        account:
+          type: ["string", "null"]
+        connectedAt:
+          type: ["string", "null"]
+          format: date-time
+        redirectUri:
+          type: string
+    SearchConsoleMetricRow:
+      type: object
+      required: [key, clicks, impressions, ctr, position]
+      properties:
+        key:
+          type: string
+        clicks:
+          type: number
+        impressions:
+          type: number
+        ctr:
+          type: number
+        position:
+          type: number
+    SearchConsoleDecliningPage:
+      type: object
+      required: [page, clicks, previousClicks, change]
+      properties:
+        page:
+          type: string
+        clicks:
+          type: number
+        previousClicks:
+          type: number
+        change:
+          type: number
+    SearchConsolePeriod:
+      type: object
+      required: [startDate, endDate]
+      properties:
+        startDate:
+          type: string
+        endDate:
+          type: string
+    SearchConsoleTotals:
+      type: object
+      required: [clicks, impressions, ctr, position]
+      properties:
+        clicks:
+          type: number
+        impressions:
+          type: number
+        ctr:
+          type: number
+        position:
+          type: number
+    SearchConsoleOverview:
+      type: object
+      required: [status, account, property, message, period, totals, topQueries, topPages, opportunities, decliningPages]
+      properties:
+        status:
+          type: string
+          enum: [not_configured, not_connected, no_property, ok, error]
+        account:
+          type: ["string", "null"]
+        property:
+          type: ["string", "null"]
+        message:
+          type: ["string", "null"]
+        period:
+          oneOf:
+            - $ref: "#/components/schemas/SearchConsolePeriod"
+            - type: "null"
+        totals:
+          oneOf:
+            - $ref: "#/components/schemas/SearchConsoleTotals"
+            - type: "null"
+        topQueries:
+          type: array
+          items:
+            $ref: "#/components/schemas/SearchConsoleMetricRow"
+        topPages:
+          type: array
+          items:
+            $ref: "#/components/schemas/SearchConsoleMetricRow"
+        opportunities:
+          type: array
+          items:
+            $ref: "#/components/schemas/SearchConsoleMetricRow"
+        decliningPages:
+          type: array
+          items:
+            $ref: "#/components/schemas/SearchConsoleDecliningPage"
+    SearchConsoleTopicPage:
+      type: object
+      required: [page, clicks, impressions, position, queries]
+      properties:
+        page:
+          type: string
+        clicks:
+          type: number
+        impressions:
+          type: number
+        position:
+          type: number
+        queries:
+          type: array
+          items:
+            type: string
+    SearchConsoleTopicData:
+      type: object
+      required: [property, pages]
+      properties:
+        property:
+          type: string
+        pages:
+          type: array
+          items:
+            $ref: "#/components/schemas/SearchConsoleTopicPage"
     HealthStatus:
       type: object
       properties:

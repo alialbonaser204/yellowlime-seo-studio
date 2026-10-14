@@ -98,15 +98,94 @@ export const TopicCheckResultVerdict = {
   unknown: 'unknown',
 } as const;
 
+export interface SearchConsoleTopicPage {
+  page: string;
+  clicks: number;
+  impressions: number;
+  position: number;
+  queries: string[];
+}
+
+export interface SearchConsoleTopicData {
+  property: string;
+  pages: SearchConsoleTopicPage[];
+}
+
 export interface TopicCheckResult {
   verdict: TopicCheckResultVerdict;
   explanation: string;
   matches: TopicMatch[];
   alternatives: string[];
   googleRanking: GoogleRanking | null;
+  searchConsole: SearchConsoleTopicData | null;
   articlesChecked: number;
   /** @nullable */
   lastScanAt: string | null;
+}
+
+export interface GoogleStatus {
+  configured: boolean;
+  connected: boolean;
+  needsReconnect: boolean;
+  /** @nullable */
+  account: string | null;
+  /** @nullable */
+  connectedAt: string | null;
+  redirectUri: string;
+}
+
+export interface SearchConsoleMetricRow {
+  key: string;
+  clicks: number;
+  impressions: number;
+  ctr: number;
+  position: number;
+}
+
+export interface SearchConsoleDecliningPage {
+  page: string;
+  clicks: number;
+  previousClicks: number;
+  change: number;
+}
+
+export interface SearchConsolePeriod {
+  startDate: string;
+  endDate: string;
+}
+
+export interface SearchConsoleTotals {
+  clicks: number;
+  impressions: number;
+  ctr: number;
+  position: number;
+}
+
+export type SearchConsoleOverviewStatus = typeof SearchConsoleOverviewStatus[keyof typeof SearchConsoleOverviewStatus];
+
+
+export const SearchConsoleOverviewStatus = {
+  not_configured: 'not_configured',
+  not_connected: 'not_connected',
+  no_property: 'no_property',
+  ok: 'ok',
+  error: 'error',
+} as const;
+
+export interface SearchConsoleOverview {
+  status: SearchConsoleOverviewStatus;
+  /** @nullable */
+  account: string | null;
+  /** @nullable */
+  property: string | null;
+  /** @nullable */
+  message: string | null;
+  period: SearchConsolePeriod | null;
+  totals: SearchConsoleTotals | null;
+  topQueries: SearchConsoleMetricRow[];
+  topPages: SearchConsoleMetricRow[];
+  opportunities: SearchConsoleMetricRow[];
+  decliningPages: SearchConsoleDecliningPage[];
 }
 
 export interface HealthStatus {
@@ -498,4 +577,15 @@ export interface UploadUrlResponse {
   objectPath: string;
   metadata: UploadUrlRequest;
 }
+
+export type GetPartnerSearchConsoleParams = {
+/**
+ * Number of days (28, 90 or 180). Defaults to 90.
+ */
+days?: number;
+/**
+ * Set to 1 to bypass the cache.
+ */
+refresh?: string;
+};
 

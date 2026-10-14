@@ -89,6 +89,33 @@ test("scans a website into the database, updates it, and checks topics against i
     assert.equal(fresh?.verdict, "new");
     assert.equal(fresh?.googleRanking, null);
 
+    // Search Console shows a page for the topic: it becomes related, and Semrush is not asked.
+    let semrushCalled = false;
+    const withGsc = await checkTopic(
+      { partnerId: partner.id, subject: "Fietsverzekering" },
+      {
+        runner: async () => '{"verdict":"new","explanation":"Nieuw onderwerp.","matches":[],"alternatives":["a","b","c"]}',
+        semrushTransport: async () => {
+          semrushCalled = true;
+          return new Response("ERROR 50 :: NOTHING FOUND");
+        },
+        searchConsoleLookup: async () => ({
+          property: "sc-domain:atlas-test.nl",
+          pages: [
+            { page: "https://www.atlas-test.nl/verzekering", clicks: 40, impressions: 900, position: 6.2, queries: ["fietsverzekering", "fietsverzekering e-bike"] },
+            { page: "https://www.atlas-test.nl/blog/x", clicks: 0, impressions: 5, position: 40, queries: ["fietsverzekering kosten"] },
+          ],
+        }),
+      },
+    );
+    assert.equal(withGsc?.verdict, "related");
+    assert.equal(semrushCalled, false);
+    assert.equal(withGsc?.matches.length, 1, "pages with few impressions or a low position are not flagged");
+    assert.equal(withGsc?.matches[0].url, "https://www.atlas-test.nl/verzekering");
+    assert.match(withGsc?.matches[0].reason ?? "", /"fietsverzekering".*900 vertoningen.*positie 6.2/);
+    assert.equal(withGsc?.searchConsole?.pages.length, 2);
+    assert.match(withGsc?.explanation ?? "", /Search Console/);
+
     // When Claude is unavailable the word-overlap fallback still flags the similar article.
     const fallback = await checkTopic(
       { partnerId: partner.id, subject: "e-bike onderhoud ketting" },

@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { GoogleRanking } from './googleRanking';
+import type { SearchConsoleTopicData } from './searchConsoleTopicData';
 import type { TopicCheckResultVerdict } from './topicCheckResultVerdict';
 import type { TopicMatch } from './topicMatch';
 
@@ -15,6 +16,7 @@ export interface TopicCheckResult {
   matches: TopicMatch[];
   alternatives: string[];
   googleRanking: GoogleRanking | null;
+  searchConsole: SearchConsoleTopicData | null;
   articlesChecked: number;
   /** @nullable */
   lastScanAt: Date | null;

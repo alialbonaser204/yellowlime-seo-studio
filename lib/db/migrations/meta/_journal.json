@@ -15,6 +15,13 @@
       "when": 1791963410958,
       "tag": "0001_website_articles",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1791982258490,
+      "tag": "0002_google_connections",
+      "breakpoints": true
     }
   ]
 }
