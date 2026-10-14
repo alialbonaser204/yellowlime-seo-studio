@@ -24,5 +24,5 @@ ENV NODE_ENV=production \
     PORT=8080
 EXPOSE 8080
 
-# Database schema updates: run `pnpm db:push` (e.g. as a pre-deploy command).
+# Database schema updates: run `pnpm db:migrate` (e.g. as a pre-deploy command).
 CMD ["node", "--enable-source-maps", "apps/api/dist/index.mjs"]

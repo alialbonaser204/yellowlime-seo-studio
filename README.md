@@ -30,7 +30,7 @@ Eén server draait alles: de API staat op `/api`, de website op alle andere pade
 corepack enable
 pnpm install
 cp .env.example .env      # vul DATABASE_URL en de API-sleutels in
-pnpm db:push              # maakt/actualiseert de databasetabellen
+pnpm db:migrate           # maakt/actualiseert de databasetabellen
 pnpm dev                  # API op :8080, website op http://localhost:5173
 ```
 
@@ -43,7 +43,8 @@ Handige commando's:
 | `pnpm start` | Start de gebouwde app (API + website) op `PORT` |
 | `pnpm test` | Unit-tests (geen database nodig) |
 | `pnpm --filter @yellowlime/api test:db` | Tests die een database gebruiken |
-| `pnpm db:push` | Databaseschema bijwerken na wijzigingen in `lib/db` |
+| `pnpm db:migrate` | Voert nieuwe databasemigraties uit (lokaal en op de server) |
+| `pnpm db:generate` | Maakt een nieuwe migratie na een wijziging in `lib/db/src/schema` |
 | `pnpm codegen` | API-types opnieuw genereren na wijzigingen in `openapi.yaml` |
 
 ## Instellingen (omgevingsvariabelen)
@@ -76,7 +77,7 @@ De app is één Node.js-dienst plus een PostgreSQL-database. De meegeleverde `Do
 2. Maak op [railway.com](https://railway.com) een project → *Deploy from GitHub repo*. Railway gebruikt automatisch de `Dockerfile`.
 3. Voeg in hetzelfde project een **PostgreSQL**-database toe.
 4. Zet bij de app-dienst onder *Variables*: `DATABASE_URL` (verwijzing naar de Railway-database), `ANTHROPIC_API_KEY` en `SEMRUSH_API_KEY`.
-5. Zet onder *Settings → Deploy* de **Pre-deploy command** op `pnpm db:push`.
+5. Zet onder *Settings → Deploy* de **Pre-deploy command** op `pnpm db:migrate`.
 6. Onder *Settings → Networking* krijg je een tijdelijk adres om te testen.
 
 ### Render
@@ -84,14 +85,14 @@ De app is één Node.js-dienst plus een PostgreSQL-database. De meegeleverde `Do
 1. *New → Web Service* → koppel je GitHub-repository, kies *Docker*.
 2. Maak een *PostgreSQL*-database aan en zet de *Internal Database URL* als `DATABASE_URL`.
 3. Voeg `ANTHROPIC_API_KEY` en `SEMRUSH_API_KEY` toe.
-4. Health check path: `/api/healthz`. Pre-deploy command (betaalde pakketten): `pnpm db:push`. Anders voer je `pnpm db:push` één keer uit vanaf je eigen computer met de *External Database URL* in je `.env`.
+4. Health check path: `/api/healthz`. Pre-deploy command (betaalde pakketten): `pnpm db:migrate`. Anders voer je `pnpm db:migrate` één keer uit vanaf je eigen computer met de *External Database URL* in je `.env`.
 
 ### Eigen server (VPS)
 
 ```bash
 docker build -t yellowlime-studio .
 docker run -d --name yellowlime -p 8080:8080 --env-file .env --restart unless-stopped yellowlime-studio
-docker run --rm --env-file .env yellowlime-studio pnpm db:push   # schema bijwerken
+docker run --rm --env-file .env yellowlime-studio pnpm db:migrate   # schema bijwerken
 ```
 
 Zet er een reverse proxy met HTTPS voor (bijv. Caddy of Nginx).
@@ -105,5 +106,19 @@ Zet er een reverse proxy met HTTPS voor (bijv. Caddy of Nginx).
 
 ## Database
 
-Het schema staat in `lib/db/src/schema`. Na een wijziging: `pnpm db:push`.
+Het schema staat in `lib/db/src/schema`. Wijzigingen gaan via migraties in `lib/db/migrations`:
+
+1. Pas het schema aan in `lib/db/src/schema`.
+2. Maak een migratie: `pnpm db:generate`. Controleer het nieuwe `.sql`-bestand en commit het.
+3. Bij een deploy voert `pnpm db:migrate` alleen de nieuwe migraties uit.
+
+`0000_baseline` is het schema zoals het was vóór de overstap op migraties. Op een bestaande database wordt die automatisch als uitgevoerd gemarkeerd.
+
+`pnpm db:push` (direct synchroniseren zonder migraties) is alleen bedoeld om lokaal snel te experimenteren. Gebruik het niet op de server: met PostgreSQL 18 leest drizzle-kit de kolomvolgorde van samengestelde unieke constraints verkeerd uit en blijft het om bevestiging vragen.
+
 Geüploade profielfoto's (max. 2 MB, JPEG/PNG/WebP) worden in de tabel `uploads` bewaard, dus er is geen aparte bestandsopslag nodig.
+
+## Artikeloverzicht en dubbel-check
+
+- Op de partnerpagina scant **Website scannen** de gepubliceerde artikelen van de partner (via de sitemap, RSS-feed of blogpagina's; robots.txt wordt gerespecteerd). Maximaal 250 artikelen per scan.
+- Bij **Nieuwe opdracht** controleert Limey het onderwerp tegen die artikelen (Claude) en kijkt hij of de partner al in de Google top 10 staat (Semrush). Een onderwerp dat al bestaat kan alleen na bevestiging gebruikt worden.

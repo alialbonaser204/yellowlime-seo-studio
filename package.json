@@ -12,6 +12,8 @@
     "build": "pnpm run typecheck && pnpm -r --if-present run build",
     "start": "pnpm --filter @yellowlime/api run start",
     "test": "pnpm --filter @yellowlime/api run test",
+    "db:migrate": "pnpm --filter @yellowlime/db run migrate",
+    "db:generate": "pnpm --filter @yellowlime/db run generate",
     "db:push": "pnpm --filter @yellowlime/db run push",
     "codegen": "pnpm --filter @yellowlime/api-spec run codegen",
     "typecheck:libs": "tsc --build",
