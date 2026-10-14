@@ -601,6 +601,8 @@ function PartnerDetailPage() {
       />
 
       <div className="fade-up">
+        {/* Search Console works for every partner, also without a partner profile. */}
+        <div style={{ marginBottom: 20 }}><SearchConsoleSection partnerId={Number(id)} /></div>
         {isBuilding && (
           <div className="empty-state card" data-testid="profile-loading" style={{ margin: '40px 0' }}>
             <RefreshCw size={28} className="animate-spin" style={{ color: 'hsl(var(--primary))' }} />
@@ -722,7 +724,6 @@ function PartnerDetailPage() {
             </div>
           </div>
         )}
-        <SearchConsoleSection partnerId={Number(id)} />
         <WebsiteArticlesSection partnerId={Number(id)} />
       </div>
     </>

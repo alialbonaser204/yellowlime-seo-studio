@@ -127,7 +127,7 @@ export function SearchConsoleSection({ partnerId }: { partnerId: number }) {
       : 'Hoe de website nu presteert in Google';
 
   return (
-    <div className="card" style={{ padding: 20, marginTop: 20 }} data-testid="search-console">
+    <div className="card" style={{ padding: 20, marginTop: 0 }} data-testid="search-console">
       <div className="section-title">
         <div>
           <h2>Google Search Console</h2>
