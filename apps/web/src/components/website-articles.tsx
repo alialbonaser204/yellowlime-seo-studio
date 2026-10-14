@@ -179,6 +179,9 @@ export function TopicCheckCard({
         {result.googleRanking && (
           <span className="status-pill status-review" data-testid="google-ranking">Google: positie {result.googleRanking.position ?? '?'}</span>
         )}
+        {result.searchConsole && (
+          <span className="status-pill" data-testid="search-console-checked" title={result.searchConsole.property}>Gecontroleerd met Search Console</span>
+        )}
       </div>
       <p style={{ fontSize: 13, lineHeight: 1.5, margin: '0 0 10px' }}>{result.explanation}</p>
 

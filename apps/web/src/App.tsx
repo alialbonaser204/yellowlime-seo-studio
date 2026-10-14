@@ -40,6 +40,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import NotFound from '@/pages/not-found';
 import { YellowlimersPage } from './pages/yellowlimers-page';
 import { TopicCheckCard, WebsiteArticlesSection, useTopicCheck } from './components/website-articles';
+import { SearchConsoleSection } from './components/search-console';
 import { ICONS } from './pages/yellowlimers-page';
 import { UserCircle } from 'lucide-react';
 
@@ -721,6 +722,7 @@ function PartnerDetailPage() {
             </div>
           </div>
         )}
+        <SearchConsoleSection partnerId={Number(id)} />
         <WebsiteArticlesSection partnerId={Number(id)} />
       </div>
     </>

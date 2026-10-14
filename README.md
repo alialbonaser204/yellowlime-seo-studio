@@ -55,6 +55,9 @@ Handige commando's:
 | `ANTHROPIC_API_KEY` | ja | Voor partnerprofielen en artikelen (model `claude-sonnet-5`). |
 | `SEMRUSH_API_KEY` | ja | Semrush → *Subscription info* → *API units*. |
 | `SEMRUSH_MODE` | nee | `mcp` (standaard) of `api`. Zie hieronder. |
+| `GOOGLE_CLIENT_ID` | nee | OAuth-client uit Google Cloud, voor Search Console. Zie hieronder. |
+| `GOOGLE_CLIENT_SECRET` | nee | Hoort bij `GOOGLE_CLIENT_ID`. Wordt ook gebruikt om de opgeslagen Google-token te versleutelen. |
+| `GOOGLE_REDIRECT_URI` | nee | Alleen nodig als de app achter een ander adres draait dan Google terugstuurt; standaard `https://<host>/api/google/callback`. |
 | `PORT` | nee | Poort van de server, standaard `8080`. |
 | `SEMRUSH_MCP_URL` | nee | Standaard `https://mcp.semrush.com/v2/mcp`. |
 | `CORS_ORIGIN` | nee | Alleen nodig als de website op een ander domein staat dan de API. |
@@ -121,4 +124,15 @@ Geüploade profielfoto's (max. 2 MB, JPEG/PNG/WebP) worden in de tabel `uploads`
 ## Artikeloverzicht en dubbel-check
 
 - Op de partnerpagina scant **Website scannen** de gepubliceerde artikelen van de partner (via de sitemap, RSS-feed of blogpagina's; robots.txt wordt gerespecteerd). Maximaal 250 artikelen per scan.
-- Bij **Nieuwe opdracht** controleert Limey het onderwerp tegen die artikelen (Claude) en kijkt hij of de partner al in de Google top 10 staat (Semrush). Een onderwerp dat al bestaat kan alleen na bevestiging gebruikt worden.
+- Bij **Nieuwe opdracht** controleert Limey het onderwerp tegen die artikelen (Claude) en kijkt hij welke pagina's van de partner Google al toont voor het onderwerp (Search Console; zonder Search Console de Google top 10 via Semrush). Een onderwerp dat al bestaat kan alleen na bevestiging gebruikt worden.
+
+## Google Search Console
+
+Eén Google-account wordt verbonden voor de hele werkruimte; de app ziet alle websites waar dat account in Search Console toegang toe heeft (alleen lezen).
+
+1. Maak in Google Cloud een project, zet de **Google Search Console API** aan en stel het toestemmingsscherm in (bij voorkeur *Internal*).
+2. Maak een **OAuth client ID** van het type *Web application* met als redirect-URI `https://<jouw-domein>/api/google/callback`.
+3. Zet `GOOGLE_CLIENT_ID` en `GOOGLE_CLIENT_SECRET` in de omgeving.
+4. Open een partner en klik op **Verbinden met Google**.
+
+Op de partnerpagina staan daarna klikken, vertoningen, de beste zoekwoorden en pagina's, *kansen* (zoekwoorden op positie 4–20) en pagina's die klikken verliezen. De gegevens worden 6 uur in het geheugen bewaard. De Search Console API is gratis.
