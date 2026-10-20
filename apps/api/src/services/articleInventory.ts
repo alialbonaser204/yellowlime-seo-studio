@@ -296,7 +296,7 @@ export async function scanWebsiteArticles(websiteUrl: string, options: ScanOptio
   const site = await validateWebsiteUrl(websiteUrl, options.resolver);
   const fetcher = options.fetcher ?? fetchSafe;
   const robots = await fetchRobots(site, { ...options, fetcher });
-  if (robots.unavailable) throw new InventoryError("robots.txt kon niet worden gelezen.");
+  if (robots.unavailable) throw new InventoryError("De website kon niet worden bereikt vanaf onze server. Mogelijk blokkeert een beveiliging van de website automatische bezoekers.");
   if (!robots.allowed(site.toString())) throw new InventoryError("De website blokkeert scanners via robots.txt.");
 
   const fetchOk = async (url: string, extra: SafeHttpOptions = {}): Promise<SafeResponse | null> => {

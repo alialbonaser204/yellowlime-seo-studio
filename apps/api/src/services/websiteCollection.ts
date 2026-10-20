@@ -40,7 +40,7 @@ export async function collectWebsite(
   const fetcher = options.fetcher ?? fetchSafe;
   const robots = await fetchRobots(origin, { ...options, fetcher });
   if (robots.unavailable) {
-    throw new Error("robots.txt kon niet veilig worden gelezen.");
+    throw new Error(`De website kon niet worden bereikt (robots.txt: ${robots.reason ?? "onbekend"}).`);
   }
   const homepage = origin.toString();
   if (!robots.allowed(homepage)) throw new Error("De website blokkeert deze analyse via robots.txt.");

@@ -4,7 +4,14 @@ import type { IncomingMessage } from "node:http";
 import robotsParser from "robots-parser";
 import { validateWebsiteUrl, resolvePublicAddresses, sameRegistrableDomain, type AddressResolver, WebsitePolicyError } from "./websiteUrlPolicy";
 
-export const USER_AGENT = "LimeyPartnerResearchBot/1.0";
+/** Product token used to match robots.txt rules. */
+export const ROBOTS_AGENT = "LimeyBot";
+/**
+ * Sent with every request. It still identifies the bot clearly, but has the
+ * usual "Mozilla/5.0 (compatible; ...)" form; many website firewalls block
+ * requests whose user agent does not look like that.
+ */
+export const USER_AGENT = "Mozilla/5.0 (compatible; LimeyBot/1.0; +https://yellowlime.nl)";
 export const MAX_HTML_BYTES = 2 * 1024 * 1024;
 
 export interface SafeResponse {
@@ -139,19 +146,30 @@ export async function fetchSafe(
 export async function fetchRobots(
   origin: URL,
   options: SafeHttpOptions = {},
-): Promise<{ allowed: (url: string) => boolean; unavailable: boolean; sitemaps: string[] }> {
+): Promise<{ allowed: (url: string) => boolean; unavailable: boolean; sitemaps: string[]; reason?: string }> {
   const robotsUrl = new URL("/robots.txt", origin);
   try {
-    const response = await (options.fetcher ?? fetchSafe)(robotsUrl.toString(), { ...options, maxBytes: 128 * 1024, maxRedirects: 2 });
-    if (response.status === 404) return { allowed: () => true, unavailable: false, sitemaps: [] };
-    if (response.status < 200 || response.status >= 300) return { allowed: () => false, unavailable: true, sitemaps: [] };
+    const response = await (options.fetcher ?? fetchSafe)(robotsUrl.toString(), {
+      ...options,
+      maxBytes: 128 * 1024,
+      maxRedirects: 2,
+      accept: "text/plain,*/*;q=0.8",
+    });
+    // RFC 9309: a 4xx answer means there are no rules (crawling allowed);
+    // a 5xx answer or no answer at all means everything must be treated as disallowed.
+    if (response.status >= 400 && response.status < 500 && response.status !== 429) {
+      return { allowed: () => true, unavailable: false, sitemaps: [] };
+    }
+    if (response.status < 200 || response.status >= 300) {
+      return { allowed: () => false, unavailable: true, sitemaps: [], reason: `http_${response.status}` };
+    }
     const parser = robotsParser(robotsUrl.toString(), response.body);
     return {
-      allowed: (url) => parser.isAllowed(url, USER_AGENT) !== false,
+      allowed: (url) => parser.isAllowed(url, ROBOTS_AGENT) !== false,
       unavailable: false,
       sitemaps: parser.getSitemaps(),
     };
-  } catch {
-    return { allowed: () => false, unavailable: true, sitemaps: [] };
+  } catch (error) {
+    return { allowed: () => false, unavailable: true, sitemaps: [], reason: error instanceof Error ? error.message : "unknown" };
   }
 }

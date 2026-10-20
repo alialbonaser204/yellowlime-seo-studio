@@ -141,6 +141,18 @@ test("robots-parser honors disallow, allows 404, and fails closed when unavailab
   });
   assert.equal(unavailable.unavailable, true);
   assert.equal(unavailable.allowed("https://example.com/about"), false);
+  // RFC 9309: a firewall answering 403 on robots.txt means "no rules", a 5xx means "stay away".
+  const forbidden = await fetchRobots(origin, { fetcher: async (url) => ({ url, status: 403, headers: {}, body: "" }) });
+  assert.equal(forbidden.unavailable, false);
+  assert.equal(forbidden.allowed("https://example.com/about"), true);
+  const serverError = await fetchRobots(origin, { fetcher: async (url) => ({ url, status: 503, headers: {}, body: "" }) });
+  assert.equal(serverError.unavailable, true);
+  assert.equal(serverError.reason, "http_503");
+  // Rules for our bot are matched on its product token.
+  const ownRules = await fetchRobots(origin, {
+    fetcher: async (url) => ({ url, status: 200, headers: {}, body: "User-agent: LimeyBot\nDisallow: /" }),
+  });
+  assert.equal(ownRules.allowed("https://example.com/about"), false);
 });
 
 test("maps Claude worker failures to safe Dutch messages", () => {

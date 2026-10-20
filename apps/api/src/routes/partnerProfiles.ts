@@ -125,7 +125,7 @@ function manualReviewProfile(
 
 function canContinueWithManualProfile(error: unknown): boolean {
   const message = error instanceof Error ? error.message : "";
-  return /robots|publieke HTML|leesbare tekst|reageert te traag/i.test(message);
+  return /robots|niet worden bereikt|publieke HTML|leesbare tekst|reageert te traag/i.test(message);
 }
 
 async function findProfile(partnerId: number): Promise<ProfileRow | undefined> {
@@ -198,7 +198,7 @@ router.post("/partners/:partnerId/profile/analyze", async (req, res): Promise<vo
         failureMessage: null,
       }).where(eq(partnerProfilesTable.id, pending.id));
     } catch (error) {
-      req.log.error({ code: "partner_profile_analysis_failed", errorType: error instanceof Error ? error.name : typeof error }, "Partnerprofiel-analyse mislukt");
+      req.log.error({ code: "partner_profile_analysis_failed", reason: error instanceof Error ? error.message.slice(0, 200) : typeof error }, "Partnerprofiel-analyse mislukt");
       const safeMessage = claudeErrorMessage(error);
       const manualProfile = canContinueWithManualProfile(error)
         ? manualReviewProfile(partner.companyName, partner.websiteUrl, safeMessage)
@@ -290,7 +290,7 @@ router.post("/partners/:partnerId/profile/generate", async (req, res): Promise<v
   try {
     collection = await profilePages(partner, body.data.refresh === true);
   } catch (error) {
-    req.log.warn({ code: "profile_generate_collect_failed", errorType: error instanceof Error ? error.name : typeof error }, "Website kon niet worden gelezen");
+    req.log.warn({ code: "profile_generate_collect_failed", reason: error instanceof Error ? error.message.slice(0, 200) : typeof error }, "Website kon niet worden gelezen");
     res.status(422).json({ error: claudeErrorMessage(error) });
     return;
   }

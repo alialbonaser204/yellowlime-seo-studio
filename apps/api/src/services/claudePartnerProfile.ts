@@ -14,7 +14,8 @@ export function claudeErrorMessage(error: unknown): string {
   if (code === "invalid_claude_json" || code === "invented_source_url" || code === "invented_profile_fact") return "De AI leverde geen veilig profiel op.";
   if (code === "claude_timeout") return "De AI-analyse duurde te lang.";
   if (code === "claude_api_error") return "De AI-service is tijdelijk niet beschikbaar.";
-  if (code.includes("robots")) return "De website staat deze analyse niet toe.";
+  if (code.includes("niet worden bereikt")) return "De website kon niet worden bereikt vanaf onze server. Mogelijk blokkeert een beveiliging (firewall) van de website automatische bezoekers.";
+  if (code.includes("robots")) return "De website staat deze analyse niet toe (robots.txt).";
   if (code.includes("HTML")) return "De website levert geen bruikbare HTML.";
   if (code.includes("leesbare")) return "De website bevat geen leesbare tekst.";
   if (code.includes("traag")) return "De website reageert te traag.";
