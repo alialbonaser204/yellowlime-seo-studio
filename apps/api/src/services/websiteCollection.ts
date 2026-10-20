@@ -26,7 +26,12 @@ export interface CollectOptions extends SafeHttpOptions {
   /** Article URLs that are already known (e.g. from the website scan). */
   knownArticleUrls?: string[];
   maxTotalText?: number;
+  /** Add footer, <address> and schema.org contact details (once per site) to the text. */
+  includeContactDetails?: boolean;
 }
+
+/** Contact and location pages; always read first when collecting for a partner profile. */
+const CONTACT_PATH = /(^|[\/-])(contact|neem-contact-op|vestiging(en)?|locatie(s)?|winkels?|showroom|adres|route|openingstijden|over-ons|about)([\/-]|$)/;
 
 const ARTICLE_PATH = /\/(blog|nieuws|news|artikel|artikelen|kennisbank|tips|magazine|inspiratie|verhalen)\//;
 
@@ -73,6 +78,20 @@ export async function collectWebsite(
       .filter((url): url is URL => Boolean(url) && registrableDomain(url!.hostname) === registrableDomain(origin.hostname) && robots.allowed(url!.toString())),
     ...candidates.filter(isArticle),
   ].slice(0, articleSlots * 3);
+  // Ignore #fragments so the same page is not read twice.
+  for (const url of candidates) url.hash = "";
+  if (options.includeContactDetails) {
+    // Contact/location pages first: that is where addresses and service areas are.
+    const order = ["contact", "vestiging", "locatie", "winkel", "showroom", "adres", "route", "openingstijden", "over-ons", "about"];
+    const rank = (url: URL) => {
+      const i = order.findIndex((word) => url.pathname.toLowerCase().includes(word));
+      return i === -1 ? order.length : i;
+    };
+    const contactFirst = candidates
+      .filter((url) => CONTACT_PATH.test(url.pathname.toLowerCase()))
+      .sort((a, b) => rank(a) - rank(b));
+    candidates.splice(0, candidates.length, ...contactFirst, ...candidates.filter((url) => !contactFirst.includes(url)));
+  }
   const regular = candidates.filter((url) => !isArticle(url));
   const regularSlots = maxPages - 1 - articleSlots;
   // Without article slots the original priority order is kept unchanged.
@@ -102,6 +121,17 @@ export async function collectWebsite(
       }
     } catch {
       // One unavailable secondary page must not discard useful collected pages.
+    }
+  }
+  if (options.includeContactDetails) {
+    // Footer/address text is the same on every page: add each unique block once.
+    const seenContact = new Set<string>();
+    for (const page of pages) {
+      const block = page.contactText?.trim();
+      if (!block || [...seenContact].some((seen) => seen.includes(block))) continue;
+      seenContact.add(block);
+      // Put it first so it is never cut off when long pages are shortened.
+      page.text = `Contactgegevens (footer/adres): ${block}\n\n${page.text}`;
     }
   }
   let remaining = options.maxTotalText ?? MAX_TOTAL_TEXT;

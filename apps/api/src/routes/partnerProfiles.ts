@@ -61,10 +61,11 @@ async function profilePages(partner: { id: number; websiteUrl: string }, refresh
     .where(eq(websiteArticlesTable.partnerId, partner.id))
     .orderBy(desc(websiteArticlesTable.publishedAt)).limit(4);
   const collection = await collectWebsite(partner.websiteUrl, {
-    maxPages: 8,
-    articlePages: 2,
+    maxPages: 16,
+    articlePages: 3,
     knownArticleUrls: articles.map((a) => a.url),
-    maxTotalText: 80_000,
+    maxTotalText: 160_000,
+    includeContactDetails: true,
   });
   pageCache.set(partner.id, { url: partner.websiteUrl, at: Date.now(), collection });
   return collection;

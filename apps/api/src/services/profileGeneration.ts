@@ -113,7 +113,7 @@ export const FIELD_SPECS: Record<GeneratableField, FieldSpec> = {
     kind: "fact",
     scalar: false,
     maxItems: 10,
-    guide: "Vestigingen, winkels, plaatsen of het werkgebied, alleen zoals letterlijk op de website genoemd.",
+    guide: "Vestigingen, winkels, adressen, plaatsen of het werkgebied, zoals letterlijk op de website genoemd. Kijk vooral op de contactpagina en bij 'Contactgegevens (footer/adres)'. Noteer per vestiging plaats en zo mogelijk adres (bijv. 'Hoofdkantoor: Industrieweg 5, Zeist'), en een genoemd werkgebied apart.",
   },
 };
 
@@ -180,13 +180,13 @@ export function isArticlePage(url: string): boolean {
 
 // ---------------------------------------------------------------------- prompt
 
-const MAX_PROMPT_TEXT = 60_000;
+const MAX_PROMPT_TEXT = 130_000;
 
 function pagesBlock(pages: SourcePage[]): string {
   let remaining = MAX_PROMPT_TEXT;
   return pages
     .map((page) => {
-      const text = page.text.slice(0, Math.max(0, Math.min(page.text.length, remaining, 14_000)));
+      const text = page.text.slice(0, Math.max(0, Math.min(page.text.length, remaining, 8_000)));
       remaining -= text.length;
       const s = textSignals(page.text);
       const kind = isArticlePage(page.url) ? "blog/artikel" : "pagina";
@@ -352,7 +352,7 @@ export type TextRunner = (input: string, timeoutMs: number) => Promise<string>;
 export async function generateProfileFields(
   input: { companyName: string; websiteUrl: string; fields: GeneratableField[]; pages: SourcePage[] },
   runner: TextRunner,
-  timeoutMs = 150_000,
+  timeoutMs = 240_000,
 ): Promise<GeneratedProfile> {
   const raw = await runner(makeProfileFieldsPrompt(input.companyName, input.websiteUrl, input.fields, input.pages), timeoutMs);
   return parseGeneratedProfile(raw, input.fields, input.pages);
@@ -389,7 +389,7 @@ export async function generateAllProfileFields(
   const empty = first.fields.filter(isEmptyField).map((f) => f.field);
   if (empty.length === 0) return first;
   const retries = await Promise.all(
-    empty.map((field) => generateProfileFields({ ...input, fields: [field] }, runner, 120_000).catch(() => null)),
+    empty.map((field) => generateProfileFields({ ...input, fields: [field] }, runner, 180_000).catch(() => null)),
   );
   return mergeRetries(first, retries.filter((r): r is GeneratedProfile => r !== null));
 }

@@ -175,3 +175,29 @@ test("filling everything asks empty fields again on their own and merges the ans
   // one call for everything + one focused call per empty field (8 empty fields here)
   assert.equal(prompts.length, 1 + 8);
 });
+
+test("reads contact pages first and keeps footer and schema.org addresses", async () => {
+  const resolver = async () => [{ address: "93.184.216.34", family: 4 as const }];
+  const links = ["/a", "/b", "/c", "/d", "/e", "/contact", "/over-ons"];
+  const footer = `<footer><address>Warmtebouw B.V.<br>Industrieweg 5<br>3401 MA IJsselstein</address></footer>`;
+  const jsonLd = `<script type="application/ld+json">{"@type":"LocalBusiness","name":"Warmtebouw","address":{"@type":"PostalAddress","streetAddress":"Industrieweg 5","postalCode":"3401 MA","addressLocality":"IJsselstein"},"areaServed":"Midden-Nederland"}</script>`;
+  const fetcher = async (url: string) => {
+    if (url.endsWith("/robots.txt")) return { url, status: 404, headers: {}, body: "" };
+    const path = new URL(url).pathname;
+    return {
+      url,
+      status: 200,
+      headers: { "content-type": "text/html" },
+      body: `<html><head>${path === "/" ? jsonLd : ""}</head><title>${path}</title><body><main><p>Tekst van ${path}.</p>${path === "/" ? links.map((l) => `<a href="${l}">x</a><a href="${l}#top">y</a>`).join("") : ""}</main>${footer}</body></html>`,
+    };
+  };
+  const result = await collectWebsite("https://example.com", { resolver, fetcher, maxPages: 3, includeContactDetails: true });
+  const paths = result.pages.map((p) => new URL(p.url).pathname);
+  assert.deepEqual(paths, ["/", "/contact", "/over-ons"], "contact and about pages come first, #fragments are not read twice");
+  const home = result.pages[0].text;
+  assert.match(home, /^Contactgegevens \(footer\/adres\): .*Industrieweg 5/);
+  assert.match(home, /IJsselstein/);
+  assert.match(home, /Werkgebied: Midden-Nederland/);
+  // the same footer is added only once
+  assert.equal(result.pages.filter((p) => p.text.includes("Contactgegevens")).length, 1);
+});
