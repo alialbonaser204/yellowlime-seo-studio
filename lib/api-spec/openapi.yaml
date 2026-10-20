@@ -71,6 +71,53 @@ paths:
                 $ref: "#/components/schemas/Partner"
         "400":
           description: Invalid partner
+  /partners/{partnerId}:
+    put:
+      operationId: updatePartner
+      tags: [partners]
+      summary: Change a partner's name or website
+      parameters:
+        - name: partnerId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PartnerInput"
+      responses:
+        "200":
+          description: Partner updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Partner"
+        "400":
+          description: Invalid partner
+        "404":
+          description: Partner not found
+    delete:
+      operationId: removePartner
+      tags: [partners]
+      summary: Delete a partner and everything that belongs to it
+      parameters:
+        - name: partnerId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Partner deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RemovePartnerResult"
+        "404":
+          description: Partner not found
   /partners/{partnerId}/profile:
     get:
       operationId: getPartnerProfile
@@ -987,6 +1034,24 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/ProfileSourcePage"
+    RemovePartnerResult:
+      type: object
+      required: [id, deleted, removed]
+      properties:
+        id:
+          type: integer
+        deleted:
+          type: boolean
+        removed:
+          type: object
+          required: [briefings, articles, websiteArticles]
+          properties:
+            briefings:
+              type: integer
+            articles:
+              type: integer
+            websiteArticles:
+              type: integer
     HealthStatus:
       type: object
       properties:

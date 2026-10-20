@@ -67,6 +67,8 @@ import {
   getGetSeoResearchQueryKey,
   useRunSeoResearch,
   useGetPartnerProfile,
+  useUpdatePartner,
+  useRemovePartner,
   getGetPartnerProfileQueryKey,
   useAnalyzePartnerWebsite,
   useSavePartnerProfileReview,
@@ -220,7 +222,11 @@ function App() {
   const value = useMemo<StudioContextValue>(() => ({
     data, toast, addToast: setToast,
     updatePartner: (partner) => setData((current) => ({ ...current, partners: current.partners.some((item) => item.id === partner.id) ? current.partners.map((item) => item.id === partner.id ? partner : item) : [...current.partners, partner] })),
-    deletePartner: (partnerId) => setData((current) => ({ ...current, partners: current.partners.filter((item) => item.id !== partnerId) })),
+    deletePartner: (partnerId) => setData((current) => ({
+      ...current,
+      partners: current.partners.filter((item) => item.id !== partnerId),
+      assignments: current.assignments.filter((item) => String(item.partnerId) !== String(partnerId)),
+    })),
     addAssignment: (assignment) => setData((current) => ({ ...current, assignments: [assignment, ...current.assignments] })),
     updateAssignment: (assignment) => setData((current) => ({ ...current, assignments: current.assignments.map((item) => item.id === assignment.id ? assignment : item) })),
   }), [data, toast]);
@@ -305,12 +311,13 @@ function DashboardPage() {
   </>;
 }
 
-function PartnerModal({ onClose }: { onClose: () => void }) {
+function PartnerModal({ onClose, partner }: { onClose: () => void; partner?: { id: number; companyName: string; websiteUrl: string } }) {
   const { addToast } = useStudio();
   const queryClient = useQueryClient();
   const createPartner = useCreatePartner();
+  const updatePartner = useUpdatePartner();
   
-  const [form, setForm] = useState({ companyName: '', websiteUrl: '' });
+  const [form, setForm] = useState({ companyName: partner?.companyName ?? '', websiteUrl: partner?.websiteUrl ?? '' });
   const [errors, setErrors] = useState({ companyName: '', websiteUrl: '' });
 
   const validateUrl = (url: string) => {
@@ -334,6 +341,17 @@ function PartnerModal({ onClose }: { onClose: () => void }) {
     setErrors(newErrors);
     if (!isValid) return;
 
+    if (partner) {
+      updatePartner.mutate({ partnerId: partner.id, data: { companyName: form.companyName, websiteUrl: form.websiteUrl } }, {
+        onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: getListPartnersQueryKey() });
+          addToast('Partner is bijgewerkt.');
+          onClose();
+        },
+        onError: () => addToast('Er is een fout opgetreden bij het bijwerken van de partner.'),
+      });
+      return;
+    }
     createPartner.mutate({ data: { companyName: form.companyName, websiteUrl: form.websiteUrl } }, {
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: getListPartnersQueryKey() });
@@ -345,6 +363,7 @@ function PartnerModal({ onClose }: { onClose: () => void }) {
       }
     });
   };
+  const pending = createPartner.isPending || updatePartner.isPending;
 
   return (
     <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.currentTarget === event.target) onClose(); }}>
@@ -352,7 +371,7 @@ function PartnerModal({ onClose }: { onClose: () => void }) {
         <div className="modal-header">
           <div>
             <div className="eyebrow">Partner context</div>
-            <h2>Partner toevoegen</h2>
+            <h2>{partner ? 'Partner bewerken' : 'Partner toevoegen'}</h2>
             <p>Deze context blijft gescheiden van de artikelwerkstroom en informeert elke briefing.</p>
           </div>
           <button type="button" className="icon-button" onClick={onClose} data-testid="button-close-partner-modal"><X /></button>
@@ -371,8 +390,8 @@ function PartnerModal({ onClose }: { onClose: () => void }) {
         </div>
         <div className="form-actions">
           <button type="button" className="button button-ghost" onClick={onClose} data-testid="button-cancel-partner">Annuleren</button>
-          <button type="submit" className="button button-primary" data-testid="button-save-partner" disabled={createPartner.isPending}>
-            {createPartner.isPending ? 'Bezig met toevoegen...' : <><Check size={15} /> Partner toevoegen</>}
+          <button type="submit" className="button button-primary" data-testid="button-save-partner" disabled={pending}>
+            {pending ? 'Bezig met opslaan...' : <><Check size={15} /> {partner ? 'Opslaan' : 'Partner toevoegen'}</>}
           </button>
         </div>
       </form>
@@ -384,9 +403,34 @@ function PartnerModal({ onClose }: { onClose: () => void }) {
 function PartnersPage() {
   const { data: dbPartners = [], isLoading, isError } = useListPartners();
   const [adding, setAdding] = useState(false);
+  const [editingId, setEditingId] = useState<number | null>(null);
   const [search, setSearch] = useState('');
+  const queryClient = useQueryClient();
+  const removeMutation = useRemovePartner();
+  const { addToast, deletePartner } = useStudio();
   
   const partners = dbPartners.filter((partner) => partner.companyName.toLowerCase().includes(search.toLowerCase()));
+
+  const handleRemove = (partner: { id: number; companyName: string }) => {
+    const sure = window.confirm(
+      `Weet je zeker dat je ${partner.companyName} wilt verwijderen?\n\n` +
+      'Hiermee verwijder je ook het partnerprofiel, alle briefings, artikelen en reviews en de gescande website-artikelen van deze partner. Dit kan niet ongedaan worden gemaakt.',
+    );
+    if (!sure) return;
+    removeMutation.mutate({ partnerId: partner.id }, {
+      onSuccess: (result) => {
+        deletePartner(String(partner.id));
+        queryClient.invalidateQueries({ queryKey: getListPartnersQueryKey() });
+        const parts = [
+          result.removed.briefings && `${result.removed.briefings} briefing(s)`,
+          result.removed.articles && `${result.removed.articles} artikel(en)`,
+          result.removed.websiteArticles && `${result.removed.websiteArticles} website-artikel(en)`,
+        ].filter(Boolean);
+        addToast(`${partner.companyName} is verwijderd${parts.length ? `, samen met ${parts.join(', ')}` : ''}.`);
+      },
+      onError: () => addToast('Fout bij verwijderen van de partner.'),
+    });
+  };
 
   return (
     <>
@@ -411,16 +455,22 @@ function PartnersPage() {
       ) : partners.length ? (
         <div className="partner-grid">
           {partners.map((partner) => (
-            <Link href={`/partners/${partner.id}`} className="card partner-card block" key={partner.id} data-testid={`card-partner-${partner.id}`} style={{ display: 'flex', flexDirection: 'column', color: 'inherit', textDecoration: 'none' }}>
-              <div className="partner-top">
-                <div className="partner-symbol">{partner.companyName.slice(0, 1).toUpperCase() || 'P'}</div>
-                <PartnerStatusBadge status={partner.profileStatus} />
-              </div>
-              <h3>{partner.companyName || 'Naamloze partner'}</h3>
-              <div className="card-foot" style={{ marginTop: 'auto', paddingTop: 17, display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderTop: '1px solid hsl(var(--border))' }}>
+            <article className="card partner-card" key={partner.id} data-testid={`card-partner-${partner.id}`} style={{ display: 'flex', flexDirection: 'column' }}>
+              <Link href={`/partners/${partner.id}`} style={{ color: 'inherit', textDecoration: 'none', display: 'block' }} data-testid={`link-partner-${partner.id}`}>
+                <div className="partner-top">
+                  <div className="partner-symbol">{partner.companyName.slice(0, 1).toUpperCase() || 'P'}</div>
+                  <PartnerStatusBadge status={partner.profileStatus} />
+                </div>
+                <h3>{partner.companyName || 'Naamloze partner'}</h3>
+              </Link>
+              <div className="card-foot" style={{ marginTop: 'auto', paddingTop: 17, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, borderTop: '1px solid hsl(var(--border))' }}>
                 <span className="link-muted" style={{ wordBreak: 'break-all' }}>{partner.websiteUrl || 'Geen URL'}</span>
+                <div style={{ display: 'flex', gap: 8, flex: '0 0 auto' }}>
+                  <button type="button" className="icon-button" onClick={() => setEditingId(partner.id)} data-testid={`button-edit-partner-${partner.id}`} title="Bewerken"><FileEdit size={14} /></button>
+                  <button type="button" className="icon-button" style={{ color: 'hsl(var(--destructive))' }} onClick={() => handleRemove(partner)} data-testid={`button-remove-partner-${partner.id}`} disabled={removeMutation.isPending} title="Verwijderen"><Trash2 size={14} /></button>
+                </div>
               </div>
-            </Link>
+            </article>
           ))}
         </div>
       ) : (
@@ -433,6 +483,7 @@ function PartnersPage() {
       )}
       
       {adding && <PartnerModal onClose={() => setAdding(false)} />}
+      {editingId !== null && <PartnerModal partner={dbPartners.find((p) => p.id === editingId)} onClose={() => setEditingId(null)} />}
     </>
   );
 }

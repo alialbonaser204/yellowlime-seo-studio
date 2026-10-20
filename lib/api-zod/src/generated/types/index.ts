@@ -40,6 +40,8 @@ export * from './partnerProfileStatus';
 export * from './partnerWebsitePage';
 export * from './profileEvidence';
 export * from './profileSourcePage';
+export * from './removePartnerResult';
+export * from './removePartnerResultRemoved';
 export * from './searchConsoleDecliningPage';
 export * from './searchConsoleMetricRow';
 export * from './searchConsoleOverview';

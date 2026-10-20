@@ -247,6 +247,18 @@ export interface GeneratedProfileResult {
   pagesUsed: ProfileSourcePage[];
 }
 
+export type RemovePartnerResultRemoved = {
+  briefings: number;
+  articles: number;
+  websiteArticles: number;
+};
+
+export interface RemovePartnerResult {
+  id: number;
+  deleted: boolean;
+  removed: RemovePartnerResultRemoved;
+}
+
 export interface HealthStatus {
   status: string;
 }

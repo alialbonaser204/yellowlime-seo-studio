@@ -53,6 +53,49 @@ export const CreatePartnerResponse = zod.object({
 
 
 /**
+ * @summary Change a partner's name or website
+ */
+export const UpdatePartnerParams = zod.object({
+  "partnerId": zod.coerce.number().int()
+})
+
+
+
+
+export const UpdatePartnerBody = zod.object({
+  "companyName": zod.string().min(1),
+  "websiteUrl": zod.string().url()
+})
+
+export const UpdatePartnerResponse = zod.object({
+  "id": zod.number().int(),
+  "companyName": zod.string(),
+  "websiteUrl": zod.string().url(),
+  "profileStatus": zod.enum(['Nog niet opgebouwd', 'Wordt opgebouwd', 'Wacht op controle', 'Goedgekeurd', 'Afgekeurd', 'Analyse mislukt']),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Delete a partner and everything that belongs to it
+ */
+export const RemovePartnerParams = zod.object({
+  "partnerId": zod.coerce.number().int()
+})
+
+export const RemovePartnerResponse = zod.object({
+  "id": zod.number().int(),
+  "deleted": zod.boolean(),
+  "removed": zod.object({
+  "briefings": zod.number().int(),
+  "articles": zod.number().int(),
+  "websiteArticles": zod.number().int()
+})
+})
+
+
+/**
  * @summary Get the generated and approved profile for a partner
  */
 export const GetPartnerProfileParams = zod.object({

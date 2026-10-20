@@ -36,6 +36,7 @@ import type {
   PartnerInput,
   PartnerProfile,
   PartnerProfileReviewInput,
+  RemovePartnerResult,
   SearchConsoleOverview,
   SeoResearch,
   TopicCheckInput,
@@ -318,6 +319,169 @@ export const useCreatePartner = <TError = ErrorType<void>,
         TContext
       > => {
       return useMutation(getCreatePartnerMutationOptions(options));
+    }
+
+export const getUpdatePartnerUrl = (partnerId: number,) => {
+
+
+
+
+  return `/api/partners/${partnerId}`
+}
+
+/**
+ * @summary Change a partner's name or website
+ */
+export const updatePartner = async (partnerId: number,
+    partnerInput: PartnerInput, options?: Parameters<typeof customFetch>[1]): Promise<Partner> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<Partner>(getUpdatePartnerUrl(partnerId),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(partnerInput)
+  }
+);}
+
+
+
+
+
+export const getUpdatePartnerMutationKey = () => ['updatePartner'] as const;
+
+export const getUpdatePartnerMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updatePartner>>, TError,UpdatePartnerMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updatePartner>>, TError,UpdatePartnerMutationVariables, TContext> => {
+
+const mutationKey = getUpdatePartnerMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updatePartner>>, UpdatePartnerMutationVariables> = (props) => {
+          const {partnerId,data} = props ?? {};
+
+          return  updatePartner(partnerId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdatePartnerMutationResult = NonNullable<Awaited<ReturnType<typeof updatePartner>>>
+    export type UpdatePartnerMutationBody = BodyType<PartnerInput>
+    export type UpdatePartnerMutationError = ErrorType<void>
+    export type UpdatePartnerMutationVariables = {partnerId: number;data: BodyType<PartnerInput>}
+
+    /**
+ * @summary Change a partner's name or website
+ */
+export const useUpdatePartner = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updatePartner>>, TError,UpdatePartnerMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updatePartner>>,
+        TError,
+        UpdatePartnerMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUpdatePartnerMutationOptions(options));
+    }
+
+export const getRemovePartnerUrl = (partnerId: number,) => {
+
+
+
+
+  return `/api/partners/${partnerId}`
+}
+
+/**
+ * @summary Delete a partner and everything that belongs to it
+ */
+export const removePartner = async (partnerId: number, options?: Parameters<typeof customFetch>[1]): Promise<RemovePartnerResult> => {
+
+  return customFetch<RemovePartnerResult>(getRemovePartnerUrl(partnerId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getRemovePartnerMutationKey = () => ['removePartner'] as const;
+
+export const getRemovePartnerMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof removePartner>>, TError,RemovePartnerMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof removePartner>>, TError,RemovePartnerMutationVariables, TContext> => {
+
+const mutationKey = getRemovePartnerMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof removePartner>>, RemovePartnerMutationVariables> = (props) => {
+          const {partnerId} = props ?? {};
+
+          return  removePartner(partnerId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RemovePartnerMutationResult = NonNullable<Awaited<ReturnType<typeof removePartner>>>
+
+    export type RemovePartnerMutationError = ErrorType<void>
+    export type RemovePartnerMutationVariables = {partnerId: number}
+
+    /**
+ * @summary Delete a partner and everything that belongs to it
+ */
+export const useRemovePartner = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof removePartner>>, TError,RemovePartnerMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof removePartner>>,
+        TError,
+        RemovePartnerMutationVariables,
+        TContext
+      > => {
+      return useMutation(getRemovePartnerMutationOptions(options));
     }
 
 export const getGetPartnerProfileUrl = (partnerId: number,) => {
