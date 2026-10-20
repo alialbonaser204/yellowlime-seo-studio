@@ -61,6 +61,31 @@ function readBody(response: IncomingMessage, maxBytes: number, timeoutMs: number
   });
 }
 
+type LookupCallback = (error: Error | null, address: string | Array<{ address: string; family: number }>, family?: number) => void;
+
+/**
+ * DNS lookup for outgoing requests that only returns public addresses.
+ *
+ * Node 20+ asks for all addresses at once ({ all: true }) to try IPv4 and IPv6
+ * in parallel; answering with a single address then fails every request with
+ * "Invalid IP address: undefined". Both call styles are supported, and IPv4
+ * addresses are tried first because many hosts have no IPv6 route.
+ */
+export function safeLookup(resolver?: AddressResolver) {
+  return (hostname: string, opts: { all?: boolean } | number | undefined, callback: LookupCallback) => {
+    resolvePublicAddresses(hostname, resolver)
+      .then((addresses) => {
+        const sorted = [...addresses].sort((a, b) => a.family - b.family);
+        if (typeof opts === "object" && opts?.all) {
+          callback(null, sorted.map(({ address, family }) => ({ address, family })));
+        } else {
+          callback(null, sorted[0].address, sorted[0].family);
+        }
+      })
+      .catch((error) => callback(error as Error, "", 0));
+  };
+}
+
 async function oneRequest(url: URL, options: SafeHttpOptions): Promise<SafeResponse> {
   const resolver = options.resolver;
   const validated = await validateWebsiteUrl(url.toString(), resolver);
@@ -90,11 +115,7 @@ async function oneRequest(url: URL, options: SafeHttpOptions): Promise<SafeRespo
         headers: { "user-agent": USER_AGENT, accept: options.accept ?? "text/html,application/xhtml+xml" },
         timeout: options.timeoutMs ?? 10_000,
         servername: validated.hostname,
-        lookup: (hostname, _opts, callback) => {
-          resolvePublicAddresses(hostname, resolver)
-            .then((addresses) => callback(null, addresses[0].address, addresses[0].family))
-            .catch((error) => callback(error as Error, "", 0));
-        },
+        lookup: safeLookup(resolver),
       },
       async (response) => {
         try {

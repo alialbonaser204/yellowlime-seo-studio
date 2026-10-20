@@ -231,3 +231,32 @@ test("fails safely for wrong content type, oversized body, and empty cleaned con
     : { url, status: 200, headers: { "content-type": "text/html" }, body: "<nav>only menu</nav><footer>only footer</footer>" };
   await assert.rejects(() => collectWebsite("https://example.com", { resolver, fetcher: empty }), /geen leesbare tekst/);
 });
+test("DNS lookup works with Node's all-addresses mode and prefers IPv4", async () => {
+  const { safeLookup } = await import("./safeHttp");
+  const http = await import("node:http");
+  const resolver2 = async () => [
+    { address: "2606:2800:220:1:248:1893:25c8:1946", family: 6 as const },
+    { address: "93.184.216.34", family: 4 as const },
+  ];
+  const lookup = safeLookup(resolver2);
+  const all = await new Promise<unknown>((resolve) => lookup("example.com", { all: true }, (_e, a) => resolve(a)));
+  assert.deepEqual((all as Array<{ family: number }>).map((a) => a.family), [4, 6]);
+  const single = await new Promise<unknown[]>((resolve) => lookup("example.com", 0, (_e, a, f) => resolve([a, f])));
+  assert.deepEqual(single, ["93.184.216.34", 4]);
+
+  // A real request through Node's HTTP client with this lookup (the public
+  // address is swapped for the local test server, keeping the answer's shape).
+  const server = http.createServer((_q, s) => s.end("ok")).listen(0, "127.0.0.1");
+  await new Promise((r) => server.once("listening", r));
+  const port = (server.address() as { port: number }).port;
+  const body = await new Promise<string>((resolve, reject) => {
+    const req = http.request({
+      hostname: "example.com", port, path: "/",
+      lookup: (h: string, o: never, cb: (e: Error | null, a: unknown, f?: number) => void) =>
+        lookup(h, o, (e, a, f) => cb(e, Array.isArray(a) ? a.map((x) => ({ ...x, address: "127.0.0.1", family: 4 })) : "127.0.0.1", f && 4)),
+    } as never, (res) => { let b = ""; res.on("data", (d) => (b += d)); res.on("end", () => resolve(b)); });
+    req.on("error", reject); req.end();
+  });
+  server.close();
+  assert.equal(body, "ok");
+});
