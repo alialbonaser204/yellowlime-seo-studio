@@ -41,6 +41,9 @@ import type {
   SeoResearch,
   TopicCheckInput,
   TopicCheckResult,
+  TopicIdeasInput,
+  TopicIdeasResult,
+  TopicThemes,
   UploadUrlRequest,
   UploadUrlResponse,
   WebsiteArticlesOverview,
@@ -1543,6 +1546,172 @@ export const useGeneratePartnerProfileFields = <TError = ErrorType<void>,
         TContext
       > => {
       return useMutation(getGeneratePartnerProfileFieldsMutationOptions(options));
+    }
+
+export const getGetTopicThemesUrl = (partnerId: number,) => {
+
+
+
+
+  return `/api/partners/${partnerId}/topic-themes`
+}
+
+/**
+ * @summary Themes and data sources for the topic wizard
+ */
+export const getTopicThemes = async (partnerId: number, options?: Parameters<typeof customFetch>[1]): Promise<TopicThemes> => {
+
+  return customFetch<TopicThemes>(getGetTopicThemesUrl(partnerId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetTopicThemesQueryKey = (partnerId: number,) => {
+    return [
+    `/api/partners/${partnerId}/topic-themes`
+    ] as const;
+    }
+
+
+export const getGetTopicThemesQueryOptions = <TData = Awaited<ReturnType<typeof getTopicThemes>>, TError = ErrorType<void>>(partnerId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getTopicThemes>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetTopicThemesQueryKey(partnerId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getTopicThemes>>> = ({ signal }) => getTopicThemes(partnerId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: partnerId !== null && partnerId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getTopicThemes>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetTopicThemesQueryResult = NonNullable<Awaited<ReturnType<typeof getTopicThemes>>>
+export type GetTopicThemesQueryError = ErrorType<void>
+
+
+/**
+ * @summary Themes and data sources for the topic wizard
+ */
+
+export function useGetTopicThemes<TData = Awaited<ReturnType<typeof getTopicThemes>>, TError = ErrorType<void>>(
+ partnerId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getTopicThemes>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetTopicThemesQueryOptions(partnerId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetTopicIdeasUrl = (partnerId: number,) => {
+
+
+
+
+  return `/api/partners/${partnerId}/topic-ideas`
+}
+
+/**
+ * @summary Data-backed topic ideas (Search Console + Semrush) for the topic wizard
+ */
+export const getTopicIdeas = async (partnerId: number,
+    topicIdeasInput: TopicIdeasInput, options?: Parameters<typeof customFetch>[1]): Promise<TopicIdeasResult> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<TopicIdeasResult>(getGetTopicIdeasUrl(partnerId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(topicIdeasInput)
+  }
+);}
+
+
+
+
+
+export const getGetTopicIdeasMutationKey = () => ['getTopicIdeas'] as const;
+
+export const getGetTopicIdeasMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof getTopicIdeas>>, TError,GetTopicIdeasMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof getTopicIdeas>>, TError,GetTopicIdeasMutationVariables, TContext> => {
+
+const mutationKey = getGetTopicIdeasMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof getTopicIdeas>>, GetTopicIdeasMutationVariables> = (props) => {
+          const {partnerId,data} = props ?? {};
+
+          return  getTopicIdeas(partnerId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type GetTopicIdeasMutationResult = NonNullable<Awaited<ReturnType<typeof getTopicIdeas>>>
+    export type GetTopicIdeasMutationBody = BodyType<TopicIdeasInput>
+    export type GetTopicIdeasMutationError = ErrorType<void>
+    export type GetTopicIdeasMutationVariables = {partnerId: number;data: BodyType<TopicIdeasInput>}
+
+    /**
+ * @summary Data-backed topic ideas (Search Console + Semrush) for the topic wizard
+ */
+export const useGetTopicIdeas = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof getTopicIdeas>>, TError,GetTopicIdeasMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof getTopicIdeas>>,
+        TError,
+        GetTopicIdeasMutationVariables,
+        TContext
+      > => {
+      return useMutation(getGetTopicIdeasMutationOptions(options));
     }
 
 export const getListBriefingsUrl = () => {

@@ -245,3 +245,56 @@ export function clearSearchConsoleCache(): void {
   overviewCache.clear();
   sitesCache = null;
 }
+
+export interface QueryPageRow {
+  query: string;
+  page: string;
+  clicks: number;
+  impressions: number;
+  ctr: number;
+  position: number;
+}
+
+/**
+ * Query + page rows (last 90 days) and clicks per page now and in the 90 days
+ * before, for the topic wizard. Optionally limited to queries matching a
+ * regex. Returns null when Search Console is not available for the website.
+ */
+export async function searchConsoleQueryData(
+  websiteUrl: string,
+  queryRegex: string | null,
+  fetcher: Fetcher = fetch,
+): Promise<{ property: string; rows: QueryPageRow[]; pagesNow: MetricRow[]; pagesBefore: MetricRow[] } | null> {
+  try {
+    if (!googleConfig()) return null;
+    const resolved = await resolveProperty(websiteUrl, fetcher);
+    if (!resolved.ok) return null;
+    const period = reportPeriod(90);
+    const filter = queryRegex
+      ? { dimensionFilterGroups: [{ filters: [{ dimension: "query", operator: "includingRegex", expression: queryRegex }] }] }
+      : {};
+    const [rows, pagesNow, pagesBefore] = await Promise.all([
+      query(resolved.property, { startDate: period.startDate, endDate: period.endDate, dimensions: ["query", "page"], rowLimit: 2000, ...filter }, fetcher),
+      query(resolved.property, { startDate: period.startDate, endDate: period.endDate, dimensions: ["page"], rowLimit: 500 }, fetcher),
+      query(resolved.property, { startDate: period.previousStartDate, endDate: period.previousEndDate, dimensions: ["page"], rowLimit: 500 }, fetcher),
+    ]);
+    return {
+      property: resolved.property,
+      rows: rows
+        .filter((r) => r.keys?.[0] && r.keys?.[1])
+        .map((r) => ({
+          query: r.keys![0],
+          page: r.keys![1],
+          clicks: r.clicks ?? 0,
+          impressions: r.impressions ?? 0,
+          ctr: r.ctr ?? 0,
+          position: Math.round((r.position ?? 0) * 10) / 10,
+        })),
+      pagesNow: toMetricRows(pagesNow),
+      pagesBefore: toMetricRows(pagesBefore),
+    };
+  } catch (error) {
+    logger.warn({ errorType: error instanceof Error ? error.message : typeof error }, "Search Console query data failed");
+    return null;
+  }
+}

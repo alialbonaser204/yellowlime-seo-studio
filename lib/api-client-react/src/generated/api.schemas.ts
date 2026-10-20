@@ -259,6 +259,103 @@ export interface RemovePartnerResult {
   removed: RemovePartnerResultRemoved;
 }
 
+export type TopicGoal = typeof TopicGoal[keyof typeof TopicGoal];
+
+
+export const TopicGoal = {
+  verkeer: 'verkeer',
+  kansen: 'kansen',
+  opfrissen: 'opfrissen',
+  product: 'product',
+  seizoen: 'seizoen',
+} as const;
+
+export type TopicThemeSource = typeof TopicThemeSource[keyof typeof TopicThemeSource];
+
+
+export const TopicThemeSource = {
+  profiel: 'profiel',
+  'search-console': 'search-console',
+} as const;
+
+export interface TopicTheme {
+  label: string;
+  source: TopicThemeSource;
+}
+
+export type TopicThemesAvailable = {
+  searchConsole: boolean;
+  semrush: boolean;
+  profile: boolean;
+  websiteArticles: number;
+};
+
+export interface TopicThemes {
+  themes: TopicTheme[];
+  available: TopicThemesAvailable;
+}
+
+/**
+ * @nullable
+ */
+export type TopicIdeasInputDirection = typeof TopicIdeasInputDirection[keyof typeof TopicIdeasInputDirection] | null;
+
+
+export const TopicIdeasInputDirection = {
+  specifieker: 'specifieker',
+  breder: 'breder',
+} as const;
+
+export interface TopicIdeasInput {
+  goal: TopicGoal;
+  /**
+     * @maxLength 120
+     * @nullable
+     */
+  theme?: string | null;
+  exclude?: string[];
+  /**
+     * @maxLength 300
+     * @nullable
+     */
+  like?: string | null;
+  /** @nullable */
+  direction?: TopicIdeasInputDirection;
+}
+
+export type TopicIdeaType = typeof TopicIdeaType[keyof typeof TopicIdeaType];
+
+
+export const TopicIdeaType = {
+  nieuw: 'nieuw',
+  update: 'update',
+} as const;
+
+export interface TopicIdea {
+  title: string;
+  keyword: string;
+  type: TopicIdeaType;
+  /** @nullable */
+  updateUrl: string | null;
+  angle: string;
+  why: string[];
+  evidence: string[];
+  supportingKeywords: string[];
+  score: number;
+  sources: string[];
+}
+
+export interface TopicIdeasResult {
+  ideas: TopicIdea[];
+  goal: TopicGoal;
+  /** @nullable */
+  theme: string | null;
+  usedSearchConsole: boolean;
+  usedSemrush: boolean;
+  candidatesConsidered: number;
+  notes: string[];
+}
+
 export interface HealthStatus {
   status: string;
 }

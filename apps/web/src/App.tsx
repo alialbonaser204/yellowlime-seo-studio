@@ -42,6 +42,7 @@ import { YellowlimersPage } from './pages/yellowlimers-page';
 import { TopicCheckCard, WebsiteArticlesSection, useTopicCheck } from './components/website-articles';
 import { SearchConsoleSection } from './components/search-console';
 import { AI_FIELDS, AiEvidence, AiFieldButton, AiPagesUsed, useProfileAi } from './components/profile-ai';
+import { TopicWizard } from './components/topic-wizard';
 import { ICONS } from './pages/yellowlimers-page';
 import { UserCircle } from 'lucide-react';
 
@@ -992,6 +993,16 @@ function NewAssignmentPage() {
               </SelectContent>
             </Select>
             {errors.reviewerId && <span className="text-destructive text-xs" style={{ color: 'hsl(var(--destructive))', fontSize: '11px' }} data-testid="error-assignment-reviewer">{errors.reviewerId}</span>}
+          </div>
+
+          <div className="field full">
+            <TopicWizard
+              partnerId={form.partnerId}
+              onChoose={(subject, contentGoal) => {
+                setForm((current) => ({ ...current, subject, contentGoal }));
+                setErrors((current) => ({ ...current, subject: '', contentGoal: '' }));
+              }}
+            />
           </div>
 
           <div className="field full">

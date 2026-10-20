@@ -491,3 +491,41 @@ export async function findDomainInTopResults(
   });
   return match ? { position: match.position, url: match.url } : null;
 }
+
+/**
+ * Metrics for many keywords in one request (phrase_these, up to 100 keywords;
+ * Semrush charges per returned row). Keywords Semrush has no data for are
+ * simply missing from the result.
+ */
+export async function keywordMetrics(
+  phrases: string[],
+  transport: SemrushTransport = defaultSemrushTransport,
+  timeoutMs = REQUEST_TIMEOUT_MS,
+): Promise<SemrushKeyword[]> {
+  const unique = [...new Set(phrases.map((p) => p.trim().toLowerCase()).filter((p) => p && !p.includes(";")))].slice(0, 100);
+  if (unique.length === 0) return [];
+  const raw = await requestReport(reportPath("phrase_these", unique.join(";"), "Ph,Nq,Kd,In,Td"), transport, timeoutMs);
+  return raw ? parseKeywordReport(raw) : [];
+}
+
+/** Semantically related keywords for a seed keyword (phrase_related), most searched first. */
+export async function relatedKeywords(
+  seed: string,
+  limit: number,
+  transport: SemrushTransport = defaultSemrushTransport,
+  timeoutMs = REQUEST_TIMEOUT_MS,
+): Promise<SemrushKeyword[]> {
+  const raw = await requestReport(reportPath("phrase_related", seed, "Ph,Nq,Kd,In,Td", { limit: String(limit), sort: "nq_desc" }), transport, timeoutMs);
+  return raw ? parseKeywordReport(raw) : [];
+}
+
+/** Questions people search for around a seed keyword (phrase_questions), most searched first. */
+export async function questionKeywords(
+  seed: string,
+  limit: number,
+  transport: SemrushTransport = defaultSemrushTransport,
+  timeoutMs = REQUEST_TIMEOUT_MS,
+): Promise<SemrushKeyword[]> {
+  const raw = await requestReport(reportPath("phrase_questions", seed, "Ph,Nq,Kd,In,Td", { limit: String(limit), sort: "nq_desc" }), transport, timeoutMs);
+  return raw ? parseKeywordReport(raw) : [];
+}

@@ -407,6 +407,54 @@ paths:
           description: The website could not be read
         "502":
           description: The AI could not generate the profile
+  /partners/{partnerId}/topic-themes:
+    get:
+      operationId: getTopicThemes
+      tags: [partners]
+      summary: Themes and data sources for the topic wizard
+      parameters:
+        - name: partnerId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Themes
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TopicThemes"
+        "404":
+          description: Partner not found
+  /partners/{partnerId}/topic-ideas:
+    post:
+      operationId: getTopicIdeas
+      tags: [partners]
+      summary: Data-backed topic ideas (Search Console + Semrush) for the topic wizard
+      parameters:
+        - name: partnerId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TopicIdeasInput"
+      responses:
+        "200":
+          description: Topic ideas
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TopicIdeasResult"
+        "404":
+          description: Partner not found
+        "502":
+          description: The AI could not create ideas
   /briefings:
     get:
       operationId: listBriefings
@@ -1052,6 +1100,112 @@ components:
               type: integer
             websiteArticles:
               type: integer
+    TopicGoal:
+      type: string
+      enum: [verkeer, kansen, opfrissen, product, seizoen]
+    TopicTheme:
+      type: object
+      required: [label, source]
+      properties:
+        label:
+          type: string
+        source:
+          type: string
+          enum: [profiel, search-console]
+    TopicThemes:
+      type: object
+      required: [themes, available]
+      properties:
+        themes:
+          type: array
+          items:
+            $ref: "#/components/schemas/TopicTheme"
+        available:
+          type: object
+          required: [searchConsole, semrush, profile, websiteArticles]
+          properties:
+            searchConsole:
+              type: boolean
+            semrush:
+              type: boolean
+            profile:
+              type: boolean
+            websiteArticles:
+              type: integer
+    TopicIdeasInput:
+      type: object
+      required: [goal]
+      properties:
+        goal:
+          $ref: "#/components/schemas/TopicGoal"
+        theme:
+          type: ["string", "null"]
+          maxLength: 120
+        exclude:
+          type: array
+          items:
+            type: string
+        like:
+          type: ["string", "null"]
+          maxLength: 300
+        direction:
+          type: ["string", "null"]
+          enum: [specifieker, breder, null]
+    TopicIdea:
+      type: object
+      required: [title, keyword, type, updateUrl, angle, why, evidence, supportingKeywords, score, sources]
+      properties:
+        title:
+          type: string
+        keyword:
+          type: string
+        type:
+          type: string
+          enum: [nieuw, update]
+        updateUrl:
+          type: ["string", "null"]
+        angle:
+          type: string
+        why:
+          type: array
+          items:
+            type: string
+        evidence:
+          type: array
+          items:
+            type: string
+        supportingKeywords:
+          type: array
+          items:
+            type: string
+        score:
+          type: integer
+        sources:
+          type: array
+          items:
+            type: string
+    TopicIdeasResult:
+      type: object
+      required: [ideas, goal, theme, usedSearchConsole, usedSemrush, candidatesConsidered, notes]
+      properties:
+        ideas:
+          type: array
+          items:
+            $ref: "#/components/schemas/TopicIdea"
+        goal:
+          $ref: "#/components/schemas/TopicGoal"
+        theme:
+          type: ["string", "null"]
+        usedSearchConsole:
+          type: boolean
+        usedSemrush:
+          type: boolean
+        candidatesConsidered:
+          type: integer
+        notes:
+          type: array
+          items:
+            type: string
     HealthStatus:
       type: object
       properties:

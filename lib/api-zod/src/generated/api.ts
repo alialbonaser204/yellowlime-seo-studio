@@ -749,6 +749,70 @@ export const GeneratePartnerProfileFieldsResponse = zod.object({
 
 
 /**
+ * @summary Themes and data sources for the topic wizard
+ */
+export const GetTopicThemesParams = zod.object({
+  "partnerId": zod.coerce.number().int()
+})
+
+export const GetTopicThemesResponse = zod.object({
+  "themes": zod.array(zod.object({
+  "label": zod.string(),
+  "source": zod.enum(['profiel', 'search-console'])
+})),
+  "available": zod.object({
+  "searchConsole": zod.boolean(),
+  "semrush": zod.boolean(),
+  "profile": zod.boolean(),
+  "websiteArticles": zod.number().int()
+})
+})
+
+
+/**
+ * @summary Data-backed topic ideas (Search Console + Semrush) for the topic wizard
+ */
+export const GetTopicIdeasParams = zod.object({
+  "partnerId": zod.coerce.number().int()
+})
+
+export const getTopicIdeasBodyThemeMax = 120;
+
+export const getTopicIdeasBodyLikeMax = 300;
+
+
+
+export const GetTopicIdeasBody = zod.object({
+  "goal": zod.enum(['verkeer', 'kansen', 'opfrissen', 'product', 'seizoen']),
+  "theme": zod.string().max(getTopicIdeasBodyThemeMax).nullish(),
+  "exclude": zod.array(zod.string()).optional(),
+  "like": zod.string().max(getTopicIdeasBodyLikeMax).nullish(),
+  "direction": zod.union([zod.literal('specifieker'),zod.literal('breder'),zod.literal(null)]).nullish()
+})
+
+export const GetTopicIdeasResponse = zod.object({
+  "ideas": zod.array(zod.object({
+  "title": zod.string(),
+  "keyword": zod.string(),
+  "type": zod.enum(['nieuw', 'update']),
+  "updateUrl": zod.string().nullable(),
+  "angle": zod.string(),
+  "why": zod.array(zod.string()),
+  "evidence": zod.array(zod.string()),
+  "supportingKeywords": zod.array(zod.string()),
+  "score": zod.number().int(),
+  "sources": zod.array(zod.string())
+})),
+  "goal": zod.enum(['verkeer', 'kansen', 'opfrissen', 'product', 'seizoen']),
+  "theme": zod.string().nullable(),
+  "usedSearchConsole": zod.boolean(),
+  "usedSemrush": zod.boolean(),
+  "candidatesConsidered": zod.number().int(),
+  "notes": zod.array(zod.string())
+})
+
+
+/**
  * @summary List briefings
  */
 export const ListBriefingsResponseItem = zod.object({
