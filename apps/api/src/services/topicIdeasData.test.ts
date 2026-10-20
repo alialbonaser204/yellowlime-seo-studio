@@ -59,8 +59,9 @@ test("evidence lines only use the data", () => {
     "Zoekintentie: informatief",
     "Nu positie 12,4 in Google, 340 vertoningen en 3 klikken in 90 dagen (Search Console) met /diensten/onderhoud/",
     "Zoekvraag piekt in maart (over 5 maanden)",
-    "Nog niet behandeld op de website",
   ]);
+  assert.ok(evidenceLines(cand({})).includes("Nog niet behandeld op de website"));
+  assert.ok(!evidenceLines(cand({}), false).includes("Nog niet behandeld op de website"), "unknown when the website was not scanned");
 });
 
 test("recognises when a keyword is already covered on the website", () => {
@@ -132,4 +133,12 @@ test("reads the ideas JSON also with text, fences or trailing remarks around it"
   assert.deepEqual(extractIdeasJson(`Hier zijn de ideeën:\n${json}\nSucces!`), JSON.parse(json));
   assert.deepEqual(extractIdeasJson("```json\n" + json + "\n```\nToelichting {x}"), JSON.parse(json));
   assert.throws(() => extractIdeasJson('{"ideas": [{"candidate": "k1"'), /invalid_claude_json/);
+});
+
+test("leaves out brand and navigation-only searches", async () => {
+  const { isUnsuitableKeyword } = await import("./topicIdeasData");
+  assert.ok(isUnsuitableKeyword("warmtebouw vacatures", ["Warmtebouw", "warmtebouw"], "1"));
+  assert.ok(isUnsuitableKeyword("amac utrecht", ["Warmtebouw"], "2"));
+  assert.ok(!isUnsuitableKeyword("warmtepomp onderhoud", ["Warmtebouw"], "1"));
+  assert.ok(!isUnsuitableKeyword("capaciteit afas live", ["Warmtebouw"], "1,2"), "mixed intent is left to Claude");
 });

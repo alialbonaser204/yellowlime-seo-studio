@@ -8,6 +8,7 @@ import { keywordMetrics, questionKeywords, relatedKeywords, safeSemrushError, ty
 import {
   covering,
   GOALS,
+  isUnsuitableKeyword,
   makeIdeasPrompt,
   parseIdeas,
   parseTrend,
@@ -217,7 +218,11 @@ async function collect(
     notes.push("Semrush is niet ingesteld; zoekvolumes ontbreken.");
   }
 
-  // 3. Candidates with all data, scored per goal.
+  // 3. Candidates with all data, scored per goal. Searches for the partner's own
+  // name, or navigation-only searches (a client, a venue), are left out.
+  let host = "";
+  try { host = new URL(partner.websiteUrl).hostname.replace(/^www\./, "").split(".")[0]; } catch { /* ignore */ }
+  const brandWords = [partner.companyName, host].filter(Boolean);
   const candidates: Candidate[] = [...pool.entries()].map(([keyword, entry]) => {
     const s = semrush.get(keyword);
     const trend = parseTrend(s?.trend);
@@ -233,6 +238,7 @@ async function collect(
     return { ...base, id: "", score: scoreCandidate(base, goal) };
   })
     .filter((c) => c.semrush || c.gsc)
+    .filter((c) => !isUnsuitableKeyword(c.keyword, brandWords, c.semrush?.intent))
     .sort((a, b) => b.score - a.score)
     .slice(0, MAX_CANDIDATES)
     .map((c, i) => ({ ...c, id: `k${i + 1}` }));
@@ -290,7 +296,7 @@ export async function topicIdeas(partnerId: number, input: TopicIdeasInput, deps
   );
   let ideas: TopicIdea[];
   try {
-    ideas = parseIdeas(raw, candidates, knownUrls, IDEA_COUNT);
+    ideas = parseIdeas(raw, candidates, knownUrls, IDEA_COUNT, articles.length > 0);
   } catch (error) {
     logger.warn({ rawLength: raw.length, head: raw.slice(0, 160), tail: raw.slice(-160) }, "Topic ideas: Claude answer could not be read");
     throw error;

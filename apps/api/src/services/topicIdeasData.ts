@@ -115,6 +115,13 @@ export function covering(keyword: string, articles: Array<{ url: string; title: 
   return best ? { url: best.url, title: best.title } : null;
 }
 
+/** Brand or navigation-only searches are not topics to write about. */
+export function isUnsuitableKeyword(keyword: string, brandWords: string[], intent: string | null | undefined): boolean {
+  const tokens = new Set(topicTokens(keyword));
+  if (brandWords.some((brand) => topicTokens(brand).some((t) => t.length >= 4 && tokens.has(t)))) return true;
+  return intentLabel(intent) === "navigatie";
+}
+
 /** Opportunity score 0–100 from the data, weighted per goal. */
 export function scoreCandidate(c: Omit<Candidate, "score" | "id">, goal: TopicGoal): number {
   const volume = c.semrush?.volume ?? null;
@@ -148,7 +155,7 @@ function pathOf(url: string): string {
 }
 
 /** Short, factual evidence lines for a candidate (shown to the user and to Claude). */
-export function evidenceLines(c: Candidate): string[] {
+export function evidenceLines(c: Candidate, websiteScanned = true): string[] {
   const lines: string[] = [];
   if (c.semrush?.volume !== null && c.semrush?.volume !== undefined) {
     lines.push(`${nf.format(c.semrush.volume)} zoekopdrachten per maand (Semrush)`);
@@ -170,7 +177,8 @@ export function evidenceLines(c: Candidate): string[] {
   if (c.peak) {
     lines.push(c.peak.monthsUntil === 0 ? `Zoekvraag piekt nu, in ${c.peak.month}` : `Zoekvraag piekt in ${c.peak.month} (over ${c.peak.monthsUntil} ${c.peak.monthsUntil === 1 ? "maand" : "maanden"})`);
   }
-  lines.push(c.covered ? `Lijkt op bestaand artikel "${c.covered.title}"` : "Nog niet behandeld op de website");
+  if (c.covered) lines.push(`Lijkt op bestaand artikel "${c.covered.title}"`);
+  else if (!c.gsc?.page && websiteScanned) lines.push("Nog niet behandeld op de website");
   return lines;
 }
 
@@ -189,7 +197,7 @@ export function makeIdeasPrompt(input: {
   count: number;
 }): string {
   const g = GOALS[input.goal];
-  const lines = input.candidates.map((c) => `[${c.id}] "${c.keyword}" — score ${c.score} — ${evidenceLines(c).join("; ")}`);
+  const lines = input.candidates.map((c) => `[${c.id}] "${c.keyword}" — score ${c.score} — ${evidenceLines(c, input.articles.length > 0).join("; ")}`);
   return [
     "Je bent een ervaren SEO-contentstrateeg bij een Nederlands bureau. Je helpt een collega een onderwerp kiezen voor een artikel voor een partner.",
     `Partner: ${input.companyName}.`,
@@ -214,7 +222,7 @@ export function makeIdeasPrompt(input: {
       : "Er is geen lijst met bestaande artikelen.",
     `Kies de ${input.count} beste onderwerpen. Regels:`,
     "1. Elk idee is gebaseerd op precies één hoofdkandidaat (candidate) en eventueel maximaal 3 ondersteunende kandidaten (supporting), via hun id.",
-    "2. Kies onderwerpen die passen bij de producten, diensten en doelgroep van de partner. Sla kandidaten over die niets met de partner te maken hebben.",
+    "2. Kies onderwerpen die passen bij de producten, diensten en doelgroep van de partner. Sla kandidaten over die niets met de partner te maken hebben, en zoekwoorden die vooral een naam zijn van een klant, project, gebouw, evenementenlocatie of ander merk (mensen die daarop zoeken, zoeken niet de partner). Gebruik de paden van de pagina's (bijv. /diensten/...) om te begrijpen wat de partner doet.",
     "3. Geen twee ideeën met dezelfde zoekintentie of hetzelfde hoofdzoekwoord. Zorg voor variatie.",
     "4. type is \"update\" als een bestaande pagina beter bijgewerkt kan worden (geef dan update_url, alleen een URL uit de kandidaten of artikelen hierboven); anders \"nieuw\". Een kandidaat die al op de website staat wordt nooit \"nieuw\".",
     "5. title: een concrete werktitel in het Nederlands die het hoofdzoekwoord bevat, geen clickbait.",
@@ -301,7 +309,7 @@ export function extractIdeasJson(raw: string): unknown {
   throw new Error("invalid_claude_json");
 }
 
-export function parseIdeas(raw: string, candidates: Candidate[], knownUrls: Set<string>, count: number): TopicIdea[] {
+export function parseIdeas(raw: string, candidates: Candidate[], knownUrls: Set<string>, count: number, websiteScanned = true): TopicIdea[] {
   let decoded: unknown;
   try {
     decoded = extractIdeasJson(raw);
@@ -347,7 +355,7 @@ export function parseIdeas(raw: string, candidates: Candidate[], knownUrls: Set<
       updateUrl,
       angle: typeof entry.angle === "string" ? entry.angle.trim() : "",
       why,
-      evidence: evidenceLines(main),
+      evidence: evidenceLines(main, websiteScanned),
       supportingKeywords: supporting.map((c) => c.keyword),
       score: main.score,
       sources: main.sources,
