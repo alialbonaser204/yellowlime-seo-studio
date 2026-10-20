@@ -7,7 +7,7 @@ import {
   type GeneratedProfileResult,
 } from '@yellowlime/api-client-react';
 
-/** Profile fields that Limey can fill in from the partner's website. */
+/** Profile fields that Yellowlime AI Agent can fill in from the partner's website. */
 export const AI_FIELDS: GeneratableProfileField[] = [
   'companyName', 'companyDescription', 'products', 'services', 'targetAudience',
   'toneOfVoice', 'writingStyle', 'importantFacts', 'locations',
@@ -23,7 +23,7 @@ type Info = Pick<GeneratedProfileField, 'evidence' | 'confidence' | 'note'>;
 
 function errorMessage(error: unknown): string {
   const data = (error as { data?: { error?: string } } | null)?.data;
-  return data?.error ?? 'Limey kon dit niet invullen. Probeer het opnieuw.';
+  return data?.error ?? 'Yellowlime AI Agent kon dit niet invullen. Probeer het opnieuw.';
 }
 
 function isFilled(value: unknown): boolean {
@@ -95,7 +95,7 @@ export function AiFieldButton({ busy, disabled, onClick }: { busy: boolean; disa
       style={{ minHeight: 26, padding: '0 8px', fontSize: 11 }}
       onClick={onClick}
       disabled={disabled}
-      title="Laat Limey dit vakje invullen op basis van de website"
+      title="Laat Yellowlime AI Agent dit vakje invullen op basis van de website"
       data-testid="ai-field"
     >
       {busy ? <RefreshCw size={12} className="animate-spin" /> : <Sparkles size={12} />}
@@ -118,7 +118,7 @@ function pathOf(url: string): string {
   }
 }
 
-/** Shows what an AI answer is based on: quotes from the website and how sure Limey is. */
+/** Shows what an AI answer is based on: quotes from the website and how sure Yellowlime AI Agent is. */
 export function AiEvidence({ info }: { info?: Info }) {
   if (!info) return null;
   const c = CONFIDENCE[info.confidence];
@@ -145,7 +145,7 @@ export function AiPagesUsed({ pages }: { pages: GeneratedProfileResult['pagesUse
   if (!pages.length) return null;
   return (
     <p style={{ fontSize: 11, color: 'hsl(var(--muted-foreground))', margin: '0 0 12px' }} data-testid="ai-pages">
-      Limey las {pages.length} pagina’s: {pages.map((p) => pathOf(p.url)).join(', ')}
+      Yellowlime AI Agent las {pages.length} pagina’s: {pages.map((p) => pathOf(p.url)).join(', ')}
     </p>
   );
 }

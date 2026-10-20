@@ -150,7 +150,7 @@ test("robots-parser honors disallow, allows 404, and fails closed when unavailab
   assert.equal(serverError.reason, "http_503");
   // Rules for our bot are matched on its product token.
   const ownRules = await fetchRobots(origin, {
-    fetcher: async (url) => ({ url, status: 200, headers: {}, body: "User-agent: LimeyBot\nDisallow: /" }),
+    fetcher: async (url) => ({ url, status: 200, headers: {}, body: "User-agent: YellowlimeBot\nDisallow: /" }),
   });
   assert.equal(ownRules.allowed("https://example.com/about"), false);
 });

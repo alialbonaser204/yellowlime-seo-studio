@@ -69,7 +69,7 @@ export function WebsiteArticlesSection({ partnerId }: { partnerId: number }) {
   }, [articles, filter, showAll]);
 
   const subtitle = running
-    ? 'Limey leest de website…'
+    ? 'Yellowlime AI Agent leest de website…'
     : scan?.status === 'completed'
       ? `${articles.length} artikelen · laatst gescand ${formatDate(scan.finishedAt)} via ${SOURCE_LABEL[scan.source ?? ''] ?? 'de website'}`
       : articles.length
@@ -101,11 +101,11 @@ export function WebsiteArticlesSection({ partnerId }: { partnerId: number }) {
       ) : articles.length === 0 ? (
         <div className="empty-state" style={{ padding: '30px 20px' }}>
           {running ? <RefreshCw size={26} className="animate-spin" /> : <Globe size={26} />}
-          <h3>{running ? 'Limey leest de website' : 'Nog geen artikelen bekend'}</h3>
+          <h3>{running ? 'Yellowlime AI Agent leest de website' : 'Nog geen artikelen bekend'}</h3>
           <p>
             {running
-              ? 'Limey zoekt via de sitemap, RSS-feed of blogpagina’s naar gepubliceerde artikelen. Dit kan een paar minuten duren.'
-              : 'Scan de website, zodat Limey kan voorkomen dat je over een onderwerp schrijft dat al op de website staat.'}
+              ? 'Yellowlime AI Agent zoekt via de sitemap, RSS-feed of blogpagina’s naar gepubliceerde artikelen. Dit kan een paar minuten duren.'
+              : 'Scan de website, zodat Yellowlime AI Agent kan voorkomen dat je over een onderwerp schrijft dat al op de website staat.'}
           </p>
         </div>
       ) : (

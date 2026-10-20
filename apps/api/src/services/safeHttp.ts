@@ -5,13 +5,13 @@ import robotsParser from "robots-parser";
 import { validateWebsiteUrl, resolvePublicAddresses, sameRegistrableDomain, type AddressResolver, WebsitePolicyError } from "./websiteUrlPolicy";
 
 /** Product token used to match robots.txt rules. */
-export const ROBOTS_AGENT = "LimeyBot";
+export const ROBOTS_AGENT = "YellowlimeBot";
 /**
  * Sent with every request. It still identifies the bot clearly, but has the
  * usual "Mozilla/5.0 (compatible; ...)" form; many website firewalls block
  * requests whose user agent does not look like that.
  */
-export const USER_AGENT = "Mozilla/5.0 (compatible; LimeyBot/1.0; +https://yellowlime.nl)";
+export const USER_AGENT = "Mozilla/5.0 (compatible; YellowlimeBot/1.0; +https://yellowlime.nl)";
 export const MAX_HTML_BYTES = 2 * 1024 * 1024;
 
 export interface SafeResponse {

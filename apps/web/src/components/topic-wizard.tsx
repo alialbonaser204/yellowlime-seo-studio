@@ -29,7 +29,7 @@ function pathOf(url: string): string {
 }
 
 function errorMessage(error: unknown): string {
-  return (error as { data?: { error?: string } } | null)?.data?.error ?? 'Limey kon geen ideeën maken. Probeer het opnieuw.';
+  return (error as { data?: { error?: string } } | null)?.data?.error ?? 'Yellowlime AI Agent kon geen ideeën maken. Probeer het opnieuw.';
 }
 
 export function contentGoalFor(idea: TopicIdea): string {
@@ -142,10 +142,10 @@ export function TopicWizard({ partnerId, onChoose }: { partnerId: string; onChoo
       <div className="card" style={{ padding: '12px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, background: 'hsl(var(--primary) / .08)' }} data-testid="topic-wizard-collapsed">
         <span style={{ fontSize: 12.5 }}>
           <Lightbulb size={14} style={{ verticalAlign: '-2px', marginRight: 6 }} />
-          {chosen ? <>Gekozen met Limey: <strong>{chosen.title}</strong></> : 'Hulp nodig bij het kiezen van een onderwerp?'}
+          {chosen ? <>Gekozen met Yellowlime AI Agent: <strong>{chosen.title}</strong></> : 'Hulp nodig bij het kiezen van een onderwerp?'}
         </span>
         <button type="button" className="button button-ghost button-small" onClick={() => setOpen(true)} data-testid="topic-wizard-open">
-          <ChevronDown size={13} /> {chosen ? 'Ander onderwerp kiezen' : 'Kies samen met Limey'}
+          <ChevronDown size={13} /> {chosen ? 'Ander onderwerp kiezen' : 'Kies samen met Yellowlime AI Agent'}
         </button>
       </div>
     );
@@ -161,7 +161,7 @@ export function TopicWizard({ partnerId, onChoose }: { partnerId: string; onChoo
     <div className="card" style={{ padding: 18, border: '1px solid hsl(var(--primary) / .5)' }} data-testid="topic-wizard">
       <div className="section-title" style={{ marginBottom: 12 }}>
         <div>
-          <h2 style={{ display: 'flex', alignItems: 'center', gap: 7 }}><Sparkles size={16} /> Kies samen met Limey een onderwerp</h2>
+          <h2 style={{ display: 'flex', alignItems: 'center', gap: 7 }}><Sparkles size={16} /> Kies samen met Yellowlime AI Agent een onderwerp</h2>
           <p>Elke suggestie is onderbouwd met cijfers uit Google Search Console en Semrush.</p>
         </div>
         <button type="button" className="button button-ghost button-small" onClick={() => setOpen(false)} data-testid="topic-wizard-close">
@@ -232,7 +232,7 @@ export function TopicWizard({ partnerId, onChoose }: { partnerId: string; onChoo
           {ideas.isPending && (
             <div className="empty-state" style={{ padding: '28px 18px' }} data-testid="ideas-loading">
               <RefreshCw size={24} className="animate-spin" />
-              <h3>Limey zoekt de beste onderwerpen</h3>
+              <h3>Yellowlime AI Agent zoekt de beste onderwerpen</h3>
               <p>Hij haalt zoekwoorden, posities en zoekvolumes op uit Search Console en Semrush, vergelijkt ze met de artikelen die al op de website staan en kiest de sterkste. Dit duurt ongeveer een minuut.</p>
             </div>
           )}

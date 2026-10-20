@@ -124,7 +124,7 @@ Geüploade profielfoto's (max. 2 MB, JPEG/PNG/WebP) worden in de tabel `uploads`
 ## Artikeloverzicht en dubbel-check
 
 - Op de partnerpagina scant **Website scannen** de gepubliceerde artikelen van de partner (via de sitemap, RSS-feed of blogpagina's; robots.txt wordt gerespecteerd). Maximaal 250 artikelen per scan.
-- Bij **Nieuwe opdracht** controleert Limey het onderwerp tegen die artikelen (Claude) en kijkt hij welke pagina's van de partner Google al toont voor het onderwerp (Search Console; zonder Search Console de Google top 10 via Semrush). Een onderwerp dat al bestaat kan alleen na bevestiging gebruikt worden.
+- Bij **Nieuwe opdracht** controleert Yellowlime AI Agent het onderwerp tegen die artikelen (Claude) en kijkt hij welke pagina's van de partner Google al toont voor het onderwerp (Search Console; zonder Search Console de Google top 10 via Semrush). Een onderwerp dat al bestaat kan alleen na bevestiging gebruikt worden.
 
 ## Google Search Console
 

@@ -220,7 +220,7 @@ export function SearchConsoleSection({ partnerId }: { partnerId: number }) {
           </h3>
           <p>
             {status === 'not_connected' && !data.message?.includes('verlopen')
-              ? 'Verbind één keer het Google-account waarmee je Search Console bekijkt. Limey ziet dan voor elke partner welke zoekwoorden en pagina’s goed presteren.'
+              ? 'Verbind één keer het Google-account waarmee je Search Console bekijkt. Yellowlime AI Agent ziet dan voor elke partner welke zoekwoorden en pagina’s goed presteren.'
               : data.message}
           </p>
           {status === 'not_connected' && (

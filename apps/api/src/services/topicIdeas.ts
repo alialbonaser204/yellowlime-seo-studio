@@ -203,7 +203,7 @@ async function collect(
           for (const k of questions) { semrush.set(k.keyword.toLowerCase(), k); add(k.keyword, "Semrush (vraag)"); }
           usedSemrush = true;
         } else {
-          notes.push("Kies een thema, of vul het partnerprofiel in, zodat Limey weet waar hij in Semrush moet zoeken.");
+          notes.push("Kies een thema, of vul het partnerprofiel in, zodat Yellowlime AI Agent weet waar hij in Semrush moet zoeken.");
         }
       }
       const missing = [...pool.keys()].filter((k) => !semrush.has(k)).slice(0, 25);
@@ -244,7 +244,7 @@ async function collect(
     .map((c, i) => ({ ...c, id: `k${i + 1}` }));
 
   if (goal === "seizoen" && !candidates.some((c) => c.peak && c.peak.monthsUntil >= 1 && c.peak.monthsUntil <= 3)) {
-    notes.push("Voor dit thema vond Limey geen duidelijke seizoenspiek in de komende maanden.");
+    notes.push("Voor dit thema vond Yellowlime AI Agent geen duidelijke seizoenspiek in de komende maanden.");
   }
   return { at: Date.now(), candidates, notes, usedSearchConsole: Boolean(gsc), usedSemrush };
 }

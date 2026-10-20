@@ -33,9 +33,9 @@ router.post("/partners/:partnerId/topic-ideas", async (req, res): Promise<void> 
     const code = error instanceof Error ? error.message : "";
     res.status(502).json({
       error: code === "invalid_claude_json"
-        ? "Limey gaf een onleesbaar antwoord. Probeer het nog een keer."
+        ? "Yellowlime AI Agent gaf een onleesbaar antwoord. Probeer het nog een keer."
         : code === "claude_timeout"
-          ? "Limey had te veel tijd nodig. Probeer het nog een keer, of kies een specifieker thema."
+          ? "Yellowlime AI Agent had te veel tijd nodig. Probeer het nog een keer, of kies een specifieker thema."
           : claudeErrorMessage(error),
     });
   }

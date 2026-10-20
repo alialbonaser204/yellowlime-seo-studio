@@ -297,7 +297,7 @@ function DashboardPage() {
   const { data: dbPartners = [] } = useListPartners();
   const counts = { active: data.assignments.filter((item) => ['draft', 'brief_ready', 'in_review'].includes(item.status)).length, review: data.assignments.filter((item) => item.status === 'in_review').length, approved: data.assignments.filter((item) => ['approved', 'ready'].includes(item.status)).length };
   const activities = data.assignments.flatMap((item) => item.logs.map((log) => ({ ...log, subject: item.subject }))).sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 5);
-  return <><PageHeader eyebrow="Redactionele operaties / Maandag, 09:42" title="Hoi beste yellowlimer!" description="Ik ben Limey, jouw slimme schrijfhulp. Geef mij een briefing, dan help ik je stap voor stap naar een sterk SEO-artikel." action={<Link href="/assignments/new" className="button button-primary" data-testid="button-create-assignment"><Plus size={16} />Opdracht aanmaken</Link>} />
+  return <><PageHeader eyebrow="Redactionele operaties / Maandag, 09:42" title="Hoi beste yellowlimer!" description="Ik ben de Yellowlime AI Agent, jouw slimme schrijfhulp. Geef mij een briefing, dan help ik je stap voor stap naar een sterk SEO-artikel." action={<Link href="/assignments/new" className="button button-primary" data-testid="button-create-assignment"><Plus size={16} />Opdracht aanmaken</Link>} />
     <div className="stat-grid fade-up delay-1">
       <div className="card stat-card"><div className="eyebrow">Actieve opdrachten</div><div className="stat-value" data-testid="metric-active">{counts.active}</div><div className="stat-label">In de studiowachtrij</div></div>
       <div className="card stat-card"><div className="eyebrow">Wacht op beoordeling</div><div className="stat-value" data-testid="metric-review">{counts.review}</div><div className="stat-label">Menselijke goedkeuring vereist</div></div>
@@ -562,7 +562,7 @@ function PartnerDetailPage() {
   const profileAi = useProfileAi(Number(id), (message) => addToast(message));
   const draftHasContent = Boolean(draft && AI_FIELDS.some((key) => key !== 'companyName' && (Array.isArray(draft[key]) ? draft[key].length : draft[key])));
   const handleGenerateAll = () => {
-    if (draftHasContent && !window.confirm('Limey vult alle vakjes opnieuw in op basis van de website. Wat er nu staat wordt vervangen. Doorgaan?')) return;
+    if (draftHasContent && !window.confirm('Yellowlime AI Agent vult alle vakjes opnieuw in op basis van de website. Wat er nu staat wordt vervangen. Doorgaan?')) return;
     profileAi.generate('all', setDraft);
   };
 
@@ -669,7 +669,7 @@ function PartnerDetailPage() {
         {isBuilding && (
           <div className="empty-state card" data-testid="profile-loading" style={{ margin: '40px 0' }}>
             <RefreshCw size={28} className="animate-spin" style={{ color: 'hsl(var(--primary))' }} />
-            <h3 style={{ marginTop: 15 }}>Limey onderzoekt de website van deze partner.</h3>
+            <h3 style={{ marginTop: 15 }}>Yellowlime AI Agent onderzoekt de website van deze partner.</h3>
             <p>Dit kan even duren. De status wordt automatisch bijgewerkt.</p>
           </div>
         )}
@@ -712,7 +712,7 @@ function PartnerDetailPage() {
               <div className="section-title">
                 <div>
                   <h2>{showApproved ? "Door medewerker goedgekeurd profiel" : notBuilt ? "Partnerprofiel invullen" : "Review & Bewerken"}</h2>
-                  <p>{showApproved ? "Huidige goedgekeurde versie" : "Vul zelf in, of laat Limey per vakje of alles in één keer invullen op basis van de website"}</p>
+                  <p>{showApproved ? "Huidige goedgekeurde versie" : "Vul zelf in, of laat Yellowlime AI Agent per vakje of alles in één keer invullen op basis van de website"}</p>
                 </div>
                 {!showApproved && (
                   <button
@@ -722,7 +722,7 @@ function PartnerDetailPage() {
                     data-testid="ai-all"
                   >
                     {profileAi.busy === 'all' ? <RefreshCw size={14} className="animate-spin" /> : <Sparkles size={14} />}
-                    {profileAi.busy === 'all' ? 'Limey leest de website…' : 'Alles invullen met AI'}
+                    {profileAi.busy === 'all' ? 'Yellowlime AI Agent leest de website…' : 'Alles invullen met AI'}
                   </button>
                 )}
               </div>
@@ -744,7 +744,7 @@ function PartnerDetailPage() {
               {!showApproved && profileAi.busy === 'all' && (
                 <div className="callout" style={{ marginBottom: 12 }}>
                   <RefreshCw size={14} className="animate-spin" />
-                  <span>Limey leest tot 16 pagina’s van de website (altijd ook de contactpagina en de footer met adresgegevens) en een paar blogartikelen, en vult daarna alle vakjes in. Lege vakjes probeert hij nog een keer apart. Dit kan 2 tot 4 minuten duren.</span>
+                  <span>Yellowlime AI Agent leest tot 16 pagina’s van de website (altijd ook de contactpagina en de footer met adresgegevens) en een paar blogartikelen, en vult daarna alle vakjes in. Lege vakjes probeert hij nog een keer apart. Dit kan 2 tot 4 minuten duren.</span>
                 </div>
               )}
               {!showApproved && <AiPagesUsed pages={profileAi.pagesUsed} />}
@@ -846,7 +846,7 @@ function NewAssignmentPage() {
     if (!check && form.subject.trim().length >= 3) {
       check = await runTopicCheck();
       if (check && (check.verdict === 'related' || check.verdict === 'duplicate')) {
-        addToast('Limey vond overlap met bestaande artikelen. Bekijk het resultaat en klik opnieuw om door te gaan.');
+        addToast('Yellowlime AI Agent vond overlap met bestaande artikelen. Bekijk het resultaat en klik opnieuw om door te gaan.');
         return;
       }
     }
@@ -1018,7 +1018,7 @@ function NewAssignmentPage() {
                 data-testid="check-topic"
               >
                 {topicCheck.isChecking ? <RefreshCw size={14} className="animate-spin" /> : <Search size={14} />}
-                {topicCheck.isChecking ? 'Limey vergelijkt met de website…' : 'Controleer of dit onderwerp al bestaat'}
+                {topicCheck.isChecking ? 'Yellowlime AI Agent vergelijkt met de website…' : 'Controleer of dit onderwerp al bestaat'}
               </button>
               {topicCheck.failed && !topicCheck.isChecking && <span style={{ fontSize: 11, color: 'hsl(var(--muted-foreground))' }}>De controle lukte niet. Je kunt gewoon doorgaan.</span>}
             </div>
@@ -1041,7 +1041,7 @@ function NewAssignmentPage() {
         <div className="form-actions">
           <Link href="/" className="button button-ghost" data-testid="button-cancel-assignment">Annuleren</Link>
           <button type="submit" className="button button-primary" data-testid="button-submit-assignment" disabled={createBriefing.isPending || topicCheck.isChecking}>
-            {createBriefing.isPending ? 'Bezig met aanmaken...' : topicCheck.isChecking ? 'Limey controleert het onderwerp…' : <><ArrowRight size={15} /> Briefing aanmaken</>}
+            {createBriefing.isPending ? 'Bezig met aanmaken...' : topicCheck.isChecking ? 'Yellowlime AI Agent controleert het onderwerp…' : <><ArrowRight size={15} /> Briefing aanmaken</>}
           </button>
         </div>
       </form>
@@ -1141,7 +1141,7 @@ function BriefPage() {
         ) : (!seoResearch || seoResearch.apiStatus === 'pending') ? (
           <div className="empty-state" data-testid="research-status-pending">
             <RefreshCw size={28} className="animate-spin" style={{ color: 'hsl(var(--primary))', marginBottom: 10, marginInline: 'auto' }} />
-            <p>Limey onderzoekt de zoekmogelijkheden.</p>
+            <p>Yellowlime AI Agent onderzoekt de zoekmogelijkheden.</p>
           </div>
         ) : seoResearch.apiStatus === 'failed' ? (
           <div className="empty-state" data-testid="research-status-failed" style={{ borderColor: 'hsl(var(--destructive)/.5)' }}>
@@ -1284,7 +1284,7 @@ function ArticlePage() {
       if (latestGen.articleStatus === 'Artikel wordt geschreven') {
         logStep = 'Artikel wordt geschreven';
         logStatus = 'current';
-        logDetail = 'Limey schrijft het conceptartikel.';
+        logDetail = 'Yellowlime AI Agent schrijft het conceptartikel.';
       } else if (latestGen.articleStatus === 'Wacht op controle' || latestGen.articleStatus === 'Concept gereed') {
         nextStatus = 'in_review';
         logStep = 'Wacht op controle';
@@ -1356,7 +1356,7 @@ function ArticlePage() {
         eyebrow={`Gegenereerd artikel / ${partnerName}`} 
         title={assignment.subject} 
         description="Een AI gegenereerd concept gebaseerd op de briefing en goedgekeurde partnercontext." 
-        action={<span className="status-pill status-review"><Sparkles size={12} />Limey Generatie</span>} 
+        action={<span className="status-pill status-review"><Sparkles size={12} />Yellowlime AI Agent</span>} 
       />
 
       <div className="article-layout">
@@ -1412,7 +1412,7 @@ function ArticlePage() {
           {isPending && (
             <div className="card empty-state" data-testid="article-generation-loading">
               <RefreshCw size={28} className="animate-spin" style={{ color: 'hsl(var(--primary))', marginBottom: 10, marginInline: 'auto' }} />
-              <p>Limey schrijft het conceptartikel.</p>
+              <p>Yellowlime AI Agent schrijft het conceptartikel.</p>
             </div>
           )}
 
@@ -1468,7 +1468,7 @@ function ArticlePage() {
                 {generations.map((gen, idx) => (
                   <div className="version-row" key={gen.id}>
                     <div>
-                      <strong>v{generations.length - idx} · Limey AI</strong>
+                      <strong>v{generations.length - idx} · Yellowlime AI Agent</strong>
                       <span>{gen.articleStatus}</span>
                     </div>
                     <span>{dateLabel(gen.generatedAt)}</span>
