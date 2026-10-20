@@ -30,7 +30,14 @@ router.post("/partners/:partnerId/topic-ideas", async (req, res): Promise<void> 
     res.json(GetTopicIdeasResponse.parse(result));
   } catch (error) {
     req.log.warn({ code: "topic_ideas_failed", reason: error instanceof Error ? error.message.slice(0, 200) : typeof error }, "Topic ideas failed");
-    res.status(502).json({ error: claudeErrorMessage(error) });
+    const code = error instanceof Error ? error.message : "";
+    res.status(502).json({
+      error: code === "invalid_claude_json"
+        ? "Limey gaf een onleesbaar antwoord. Probeer het nog een keer."
+        : code === "claude_timeout"
+          ? "Limey had te veel tijd nodig. Probeer het nog een keer, of kies een specifieker thema."
+          : claudeErrorMessage(error),
+    });
   }
 });
 

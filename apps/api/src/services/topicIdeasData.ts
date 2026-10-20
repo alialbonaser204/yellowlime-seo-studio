@@ -220,7 +220,7 @@ export function makeIdeasPrompt(input: {
     "5. title: een concrete werktitel in het Nederlands die het hoofdzoekwoord bevat, geen clickbait.",
     "6. angle: één zin met de invalshoek en wat de lezer leert of kan doen.",
     "7. why: 2 korte zinnen waarom dit nu een slimme keuze is voor deze partner. Gebruik ALLEEN getallen die letterlijk in de kandidaten staan; verzin geen cijfers.",
-    "Antwoord met alleen JSON:",
+    "Denk niet hardop na en geef geen uitleg. Begin je antwoord direct met { en antwoord met alleen JSON in deze vorm:",
     '{"ideas": [{"candidate": "k1", "supporting": ["k4"], "title": "...", "type": "nieuw", "update_url": null, "angle": "...", "why": ["...", "..."]}]}',
   ].filter(Boolean).join("\n\n");
 }
@@ -278,12 +278,33 @@ export function numbersGrounded(sentence: string, cs: Candidate[]): boolean {
   return numbersIn(sentence).every((n) => n <= 12 || (n >= 2000 && n <= 2100) || allowed.has(n) || allowed.has(Math.round(n)));
 }
 
+/** Finds the {"ideas": [...]} object, also when Claude wrote text or a code fence around it. */
+export function extractIdeasJson(raw: string): unknown {
+  const text = raw.trim();
+  const fenced = text.match(/```(?:json)?\s*\n([\s\S]*?)\n```/i);
+  const attempts = [fenced?.[1], text];
+  for (const candidate of attempts) {
+    if (!candidate) continue;
+    const starts = [...candidate.matchAll(/\{\s*"ideas"\s*:/g)].map((m) => m.index ?? 0);
+    for (const start of starts.length ? starts : [candidate.indexOf("{")]) {
+      if (start < 0) continue;
+      // Try the longest closing brace first, then shorter ones.
+      for (let end = candidate.lastIndexOf("}"); end > start; end = candidate.lastIndexOf("}", end - 1)) {
+        try {
+          return JSON.parse(candidate.slice(start, end + 1));
+        } catch {
+          // keep trying
+        }
+      }
+    }
+  }
+  throw new Error("invalid_claude_json");
+}
+
 export function parseIdeas(raw: string, candidates: Candidate[], knownUrls: Set<string>, count: number): TopicIdea[] {
   let decoded: unknown;
   try {
-    const trimmed = raw.trim();
-    const fenced = trimmed.match(/```(?:json)?\s*\n([\s\S]*?)\n```/i);
-    decoded = JSON.parse(fenced ? fenced[1] : trimmed.slice(trimmed.indexOf("{"), trimmed.lastIndexOf("}") + 1));
+    decoded = extractIdeasJson(raw);
   } catch {
     throw new Error("invalid_claude_json");
   }

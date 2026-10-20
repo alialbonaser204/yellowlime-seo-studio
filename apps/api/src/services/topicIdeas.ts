@@ -30,7 +30,7 @@ import { listWebsiteArticles } from "./websiteScan";
 
 const CACHE_MS = 6 * 60 * 60_000;
 const IDEA_COUNT = 6;
-const MAX_CANDIDATES = 30;
+const MAX_CANDIDATES = 25;
 
 interface Collected {
   at: number;
@@ -288,7 +288,13 @@ export async function topicIdeas(partnerId: number, input: TopicIdeasInput, deps
     }),
     180_000,
   );
-  const ideas = parseIdeas(raw, candidates, knownUrls, IDEA_COUNT);
+  let ideas: TopicIdea[];
+  try {
+    ideas = parseIdeas(raw, candidates, knownUrls, IDEA_COUNT);
+  } catch (error) {
+    logger.warn({ rawLength: raw.length, head: raw.slice(0, 160), tail: raw.slice(-160) }, "Topic ideas: Claude answer could not be read");
+    throw error;
+  }
   logger.info({ partnerId, goal: input.goal, candidates: candidates.length, ideas: ideas.length }, "Topic ideas generated");
   return { ...base, ideas, notes: collected.notes };
 }

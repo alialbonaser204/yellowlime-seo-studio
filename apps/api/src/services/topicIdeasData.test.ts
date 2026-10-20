@@ -125,3 +125,11 @@ test("finds themes in Search Console queries, without the brand", () => {
   ];
   assert.deepEqual(queryThemes(rows, ["Warmtebouw"], 3), ["warmtepomp", "onderhoud", "kosten"]);
 });
+
+test("reads the ideas JSON also with text, fences or trailing remarks around it", async () => {
+  const { extractIdeasJson } = await import("./topicIdeasData");
+  const json = '{"ideas": [{"candidate": "k1", "title": "Titel met {haakjes}"}]}';
+  assert.deepEqual(extractIdeasJson(`Hier zijn de ideeën:\n${json}\nSucces!`), JSON.parse(json));
+  assert.deepEqual(extractIdeasJson("```json\n" + json + "\n```\nToelichting {x}"), JSON.parse(json));
+  assert.throws(() => extractIdeasJson('{"ideas": [{"candidate": "k1"'), /invalid_claude_json/);
+});
