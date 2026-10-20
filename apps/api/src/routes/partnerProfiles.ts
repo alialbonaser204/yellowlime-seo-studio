@@ -32,6 +32,7 @@ import { collectWebsite, type WebsiteCollection } from "../services/websiteColle
 import { defaultClaudeTextRunner } from "../services/claudeRunner";
 import {
   GENERATABLE_FIELDS,
+  generateAllProfileFields,
   generateProfileFields,
   PROFILE_GENERATION_PROMPT_VERSION,
   toProfileContent,
@@ -184,8 +185,8 @@ router.post("/partners/:partnerId/profile/analyze", async (req, res): Promise<vo
   void (async () => {
     try {
       const collection = await profilePages(partner, true);
-      const generated = await generateProfileFields(
-        { companyName: partner.companyName, websiteUrl: partner.websiteUrl, fields: GENERATABLE_FIELDS, pages: collection.pages },
+      const generated = await generateAllProfileFields(
+        { companyName: partner.companyName, websiteUrl: partner.websiteUrl, pages: collection.pages },
         defaultClaudeTextRunner,
       );
       const claude = toProfileContent(generated, partner.companyName, partner.websiteUrl);
@@ -295,10 +296,10 @@ router.post("/partners/:partnerId/profile/generate", async (req, res): Promise<v
     return;
   }
   try {
-    const generated = await generateProfileFields(
-      { companyName: partner.companyName, websiteUrl: partner.websiteUrl, fields, pages: collection.pages },
-      defaultClaudeTextRunner,
-    );
+    const input = { companyName: partner.companyName, websiteUrl: partner.websiteUrl, pages: collection.pages };
+    const generated = fields.length === GENERATABLE_FIELDS.length
+      ? await generateAllProfileFields(input, defaultClaudeTextRunner)
+      : await generateProfileFields({ ...input, fields }, defaultClaudeTextRunner);
     req.log.info({ fields: fields.length, pages: collection.pages.length }, "Partner profile fields generated");
     res.json(GeneratePartnerProfileFieldsResponse.parse({
       ...generated,

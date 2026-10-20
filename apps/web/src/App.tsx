@@ -692,7 +692,7 @@ function PartnerDetailPage() {
               {!showApproved && profileAi.busy === 'all' && (
                 <div className="callout" style={{ marginBottom: 12 }}>
                   <RefreshCw size={14} className="animate-spin" />
-                  <span>Limey leest de belangrijkste pagina’s en een paar blogartikelen van de website en vult daarna alle vakjes in. Dit duurt meestal 30 tot 90 seconden.</span>
+                  <span>Limey leest de belangrijkste pagina’s en een paar blogartikelen van de website en vult daarna alle vakjes in. Lege vakjes probeert hij daarna nog een keer apart. Dit duurt meestal 1 tot 2 minuten.</span>
                 </div>
               )}
               {!showApproved && <AiPagesUsed pages={profileAi.pagesUsed} />}

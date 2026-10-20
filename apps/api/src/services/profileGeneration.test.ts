@@ -145,3 +145,33 @@ test("collects extra pages and a couple of blog articles for the writing style",
   assert.equal(paths.filter((p) => p.startsWith("/blog/")).length, 2);
   assert.ok(paths.includes("/over-ons") && paths.includes("/assortiment") && paths.includes("/contact"));
 });
+
+test("filling everything asks empty fields again on their own and merges the answers", async () => {
+  const { generateAllProfileFields } = await import("./profileGeneration");
+  const prompts: string[] = [];
+  const runner = async (input: string) => {
+    prompts.push(input);
+    const asksAll = input.includes("- companyName (") && input.includes("- locations (");
+    if (asksAll) {
+      return JSON.stringify({
+        fields: {
+          companyName: { text: "Atlas Fietsen", evidence: [{ quote: "Welkom bij Atlas Fietsen", url: "https://atlas.nl/" }], confidence: "hoog" },
+          locations: { items: [], evidence: [], confidence: "laag", note: "Niet gevonden" },
+        },
+        missing_information: [],
+      });
+    }
+    if (input.includes("- locations (")) {
+      return JSON.stringify({ fields: { locations: { items: ["Amersfoort"], evidence: [{ quote: "onze winkel in Amersfoort", url: "https://atlas.nl/" }], confidence: "hoog" } } });
+    }
+    return JSON.stringify({ fields: {} }); // other empty fields stay empty
+  };
+  const result = await generateAllProfileFields({ companyName: "Atlas", websiteUrl: "https://atlas.nl", pages }, runner);
+  const get = (f: string) => result.fields.find((x) => x.field === f)!;
+  assert.equal(get("companyName").text, "Atlas Fietsen");
+  assert.deepEqual(get("locations").items, ["Amersfoort"]);
+  assert.ok(!result.missingInformation.some((m) => m.startsWith("Locaties")));
+  assert.ok(result.missingInformation.some((m) => m.startsWith("Producten")));
+  // one call for everything + one focused call per empty field (8 empty fields here)
+  assert.equal(prompts.length, 1 + 8);
+});

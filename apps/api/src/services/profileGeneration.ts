@@ -54,7 +54,7 @@ export const FIELD_SPECS: Record<GeneratableField, FieldSpec> = {
     scalar: false,
     maxItems: 12,
     guide:
-      "Concrete producten of productcategorieën die op de website worden verkocht of aangeboden, zoals ze daar genoemd worden. Diensten horen niet hier.",
+      "Concrete producten of productcategorieën die op de website worden verkocht of aangeboden, zoals ze daar genoemd worden. Bij een dienstverlener of installateur: de concrete systemen, installaties, oplossingen of vaste pakketten die worden geleverd (bijv. warmtepompen, sprinklerinstallaties, een energiescan). Algemene diensten zoals advies of onderhoud horen bij Diensten.",
   },
   services: {
     label: "Diensten",
@@ -221,7 +221,7 @@ export function makeProfileFieldsPrompt(
     "Regels:",
     "1. Gebruik alleen de pagina's hieronder. Verzin niets en vul niets aan met algemene kennis over de branche.",
     "2. Onderbouw elk veld met 1 tot 3 LETTERLIJKE citaten (maximaal 20 woorden, precies zoals in de tekst) en de bron-URL waar het citaat staat.",
-    "3. Is er te weinig informatie voor een veld? Geef dan een lege waarde (null of []), lege evidence, confidence \"laag\" en leg in note kort uit wat er ontbreekt.",
+    "3. Probeer elk gevraagd veld in te vullen; zoek daarvoor over alle pagina's heen. Alleen als er echt niets over op de website staat: geef een lege waarde (null of []), lege evidence, confidence \"laag\" en leg in note kort uit wat er ontbreekt.",
     "4. Schrijf in het Nederlands. Wees specifiek en bruikbaar voor een schrijver; vermijd vage marketingtaal.",
     "5. confidence: \"hoog\" als het letterlijk of duidelijk op meerdere plekken staat, \"middel\" als het een redelijke afleiding is, \"laag\" als het onzeker is.",
     "Velden:",
@@ -356,6 +356,42 @@ export async function generateProfileFields(
 ): Promise<GeneratedProfile> {
   const raw = await runner(makeProfileFieldsPrompt(input.companyName, input.websiteUrl, input.fields, input.pages), timeoutMs);
   return parseGeneratedProfile(raw, input.fields, input.pages);
+}
+
+export function isEmptyField(field: GeneratedField): boolean {
+  return FIELD_SPECS[field.field].scalar ? !field.text : field.items.length === 0;
+}
+
+/**
+ * Filling all fields in one go makes Claude more cautious than asking about a
+ * single field. Fields that stay empty are therefore asked again, each on its
+ * own (in parallel), and the answers are merged into the first result.
+ */
+export function mergeRetries(first: GeneratedProfile, retries: GeneratedProfile[]): GeneratedProfile {
+  const better = new Map<GeneratableField, GeneratedField>();
+  for (const retry of retries) {
+    for (const field of retry.fields) if (!isEmptyField(field)) better.set(field.field, field);
+  }
+  const fields = first.fields.map((field) => (isEmptyField(field) && better.has(field.field) ? better.get(field.field)! : field));
+  const filledLabels = [...better.keys()].map((key) => FIELD_SPECS[key].label.toLowerCase());
+  return {
+    fields,
+    sourceUrls: [...new Set([...first.sourceUrls, ...[...better.values()].flatMap((f) => f.evidence.map((e) => e.url))])],
+    missingInformation: first.missingInformation.filter((line) => !filledLabels.some((label) => line.toLowerCase().startsWith(label))),
+  };
+}
+
+export async function generateAllProfileFields(
+  input: { companyName: string; websiteUrl: string; pages: SourcePage[] },
+  runner: TextRunner,
+): Promise<GeneratedProfile> {
+  const first = await generateProfileFields({ ...input, fields: GENERATABLE_FIELDS }, runner);
+  const empty = first.fields.filter(isEmptyField).map((f) => f.field);
+  if (empty.length === 0) return first;
+  const retries = await Promise.all(
+    empty.map((field) => generateProfileFields({ ...input, fields: [field] }, runner, 120_000).catch(() => null)),
+  );
+  return mergeRetries(first, retries.filter((r): r is GeneratedProfile => r !== null));
 }
 
 /** Turns a full generation into the stored profile shape. */
