@@ -270,7 +270,10 @@ export async function topicIdeas(partnerId: number, input: TopicIdeasInput, deps
     ...articles.map((a) => a.url),
     ...candidates.flatMap((c) => [c.gsc?.page, c.declining?.page, c.covered?.url].filter((u): u is string => Boolean(u))),
   ]);
-  const raw = await (deps.runner ?? defaultClaudeTextRunner)(
+  // Choosing between many candidates can take Claude a while before the first
+  // token, so the usual 60-second silence limit is raised for this call.
+  const runner = deps.runner ?? ((text: string, timeoutMs: number) => defaultClaudeTextRunner(text, timeoutMs, 170_000));
+  const raw = await runner(
     makeIdeasPrompt({
       companyName: partner.companyName,
       goal: input.goal,
@@ -283,7 +286,7 @@ export async function topicIdeas(partnerId: number, input: TopicIdeasInput, deps
       direction: input.direction ?? null,
       count: IDEA_COUNT,
     }),
-    150_000,
+    180_000,
   );
   const ideas = parseIdeas(raw, candidates, knownUrls, IDEA_COUNT);
   logger.info({ partnerId, goal: input.goal, candidates: candidates.length, ideas: ideas.length }, "Topic ideas generated");

@@ -48,7 +48,9 @@ export async function defaultClaudeTextRunner(
   };
   const totalTimer = setTimeout(abort, timeoutMs);
   let idleTimer = setTimeout(abort, Math.min(idleTimeoutMs, timeoutMs));
+  let firstEventMs: number | null = null;
   const resetIdleTimer = () => {
+    if (firstEventMs === null) firstEventMs = Date.now() - startedAt;
     clearTimeout(idleTimer);
     idleTimer = setTimeout(abort, Math.min(idleTimeoutMs, timeoutMs));
   };
@@ -68,6 +70,7 @@ export async function defaultClaudeTextRunner(
     logger.info(
       {
         durationMs: Date.now() - startedAt,
+        firstEventMs,
         outputTokens: result.usage.output_tokens,
         stopReason: result.stop_reason,
       },
@@ -87,6 +90,7 @@ export async function defaultClaudeTextRunner(
     logger.warn(
       {
         durationMs: Date.now() - startedAt,
+        firstEventMs,
         code,
         errorType: error instanceof Error ? error.constructor.name : typeof error,
         status: error instanceof Anthropic.APIError ? error.status : undefined,
