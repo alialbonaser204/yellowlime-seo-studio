@@ -188,6 +188,65 @@ export interface SearchConsoleOverview {
   decliningPages: SearchConsoleDecliningPage[];
 }
 
+export type GeneratableProfileField = typeof GeneratableProfileField[keyof typeof GeneratableProfileField];
+
+
+export const GeneratableProfileField = {
+  companyName: 'companyName',
+  companyDescription: 'companyDescription',
+  products: 'products',
+  services: 'services',
+  targetAudience: 'targetAudience',
+  toneOfVoice: 'toneOfVoice',
+  writingStyle: 'writingStyle',
+  importantFacts: 'importantFacts',
+  locations: 'locations',
+} as const;
+
+export interface GenerateProfileFieldsInput {
+  /** Fields to generate. Leave empty to generate all fields. */
+  fields?: GeneratableProfileField[];
+  /** Read the website again instead of using the pages read in the last two hours. */
+  refresh?: boolean;
+}
+
+export interface ProfileEvidence {
+  quote: string;
+  url: string;
+}
+
+export type GeneratedProfileFieldConfidence = typeof GeneratedProfileFieldConfidence[keyof typeof GeneratedProfileFieldConfidence];
+
+
+export const GeneratedProfileFieldConfidence = {
+  hoog: 'hoog',
+  middel: 'middel',
+  laag: 'laag',
+} as const;
+
+export interface GeneratedProfileField {
+  field: GeneratableProfileField;
+  /** @nullable */
+  text: string | null;
+  items: string[];
+  evidence: ProfileEvidence[];
+  confidence: GeneratedProfileFieldConfidence;
+  /** @nullable */
+  note: string | null;
+}
+
+export interface ProfileSourcePage {
+  url: string;
+  title: string;
+}
+
+export interface GeneratedProfileResult {
+  fields: GeneratedProfileField[];
+  sourceUrls: string[];
+  missingInformation: string[];
+  pagesUsed: ProfileSourcePage[];
+}
+
 export interface HealthStatus {
   status: string;
 }

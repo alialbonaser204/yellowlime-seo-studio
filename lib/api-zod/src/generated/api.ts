@@ -673,6 +673,39 @@ export const GetPartnerSearchConsoleResponse = zod.object({
 
 
 /**
+ * @summary Fill one, several or all partner-profile fields from the partner's website with AI
+ */
+export const GeneratePartnerProfileFieldsParams = zod.object({
+  "partnerId": zod.coerce.number().int()
+})
+
+export const GeneratePartnerProfileFieldsBody = zod.object({
+  "fields": zod.array(zod.enum(['companyName', 'companyDescription', 'products', 'services', 'targetAudience', 'toneOfVoice', 'writingStyle', 'importantFacts', 'locations'])).optional().describe('Fields to generate. Leave empty to generate all fields.'),
+  "refresh": zod.boolean().optional().describe('Read the website again instead of using the pages read in the last two hours.')
+})
+
+export const GeneratePartnerProfileFieldsResponse = zod.object({
+  "fields": zod.array(zod.object({
+  "field": zod.enum(['companyName', 'companyDescription', 'products', 'services', 'targetAudience', 'toneOfVoice', 'writingStyle', 'importantFacts', 'locations']),
+  "text": zod.string().nullable(),
+  "items": zod.array(zod.string()),
+  "evidence": zod.array(zod.object({
+  "quote": zod.string(),
+  "url": zod.string()
+})),
+  "confidence": zod.enum(['hoog', 'middel', 'laag']),
+  "note": zod.string().nullable()
+})),
+  "sourceUrls": zod.array(zod.string()),
+  "missingInformation": zod.array(zod.string()),
+  "pagesUsed": zod.array(zod.object({
+  "url": zod.string(),
+  "title": zod.string()
+}))
+})
+
+
+/**
  * @summary List briefings
  */
 export const ListBriefingsResponseItem = zod.object({

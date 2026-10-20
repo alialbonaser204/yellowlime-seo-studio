@@ -330,6 +330,36 @@ paths:
                 $ref: "#/components/schemas/SearchConsoleOverview"
         "404":
           description: Partner not found
+  /partners/{partnerId}/profile/generate:
+    post:
+      operationId: generatePartnerProfileFields
+      tags: [partners]
+      summary: Fill one, several or all partner-profile fields from the partner's website with AI
+      parameters:
+        - name: partnerId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GenerateProfileFieldsInput"
+      responses:
+        "200":
+          description: Generated values with evidence from the website
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GeneratedProfileResult"
+        "404":
+          description: Partner not found
+        "422":
+          description: The website could not be read
+        "502":
+          description: The AI could not generate the profile
   /briefings:
     get:
       operationId: listBriefings
@@ -886,6 +916,77 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/SearchConsoleTopicPage"
+    GeneratableProfileField:
+      type: string
+      enum: [companyName, companyDescription, products, services, targetAudience, toneOfVoice, writingStyle, importantFacts, locations]
+    GenerateProfileFieldsInput:
+      type: object
+      properties:
+        fields:
+          type: array
+          description: Fields to generate. Leave empty to generate all fields.
+          items:
+            $ref: "#/components/schemas/GeneratableProfileField"
+        refresh:
+          type: boolean
+          description: Read the website again instead of using the pages read in the last two hours.
+    ProfileEvidence:
+      type: object
+      required: [quote, url]
+      properties:
+        quote:
+          type: string
+        url:
+          type: string
+    GeneratedProfileField:
+      type: object
+      required: [field, text, items, evidence, confidence, note]
+      properties:
+        field:
+          $ref: "#/components/schemas/GeneratableProfileField"
+        text:
+          type: ["string", "null"]
+        items:
+          type: array
+          items:
+            type: string
+        evidence:
+          type: array
+          items:
+            $ref: "#/components/schemas/ProfileEvidence"
+        confidence:
+          type: string
+          enum: [hoog, middel, laag]
+        note:
+          type: ["string", "null"]
+    ProfileSourcePage:
+      type: object
+      required: [url, title]
+      properties:
+        url:
+          type: string
+        title:
+          type: string
+    GeneratedProfileResult:
+      type: object
+      required: [fields, sourceUrls, missingInformation, pagesUsed]
+      properties:
+        fields:
+          type: array
+          items:
+            $ref: "#/components/schemas/GeneratedProfileField"
+        sourceUrls:
+          type: array
+          items:
+            type: string
+        missingInformation:
+          type: array
+          items:
+            type: string
+        pagesUsed:
+          type: array
+          items:
+            $ref: "#/components/schemas/ProfileSourcePage"
     HealthStatus:
       type: object
       properties:

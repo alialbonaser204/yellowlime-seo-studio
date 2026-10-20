@@ -10,6 +10,9 @@ import {
   GetPartnerProfileResponse,
   GeneratePartnerProfileDraftParams,
   GeneratePartnerProfileDraftResponse,
+  GeneratePartnerProfileFieldsBody,
+  GeneratePartnerProfileFieldsParams,
+  GeneratePartnerProfileFieldsResponse,
   RejectPartnerProfileBody,
   RejectPartnerProfileParams,
   RejectPartnerProfileResponse,
@@ -17,13 +20,23 @@ import {
   SavePartnerProfileReviewParams,
   SavePartnerProfileReviewResponse,
 } from "@yellowlime/api-zod";
+import { desc } from "drizzle-orm";
 import {
   db,
   partnerProfilesTable,
   partnersTable,
+  websiteArticlesTable,
   yellowlimersTable,
 } from "@yellowlime/db";
-import { collectWebsite } from "../services/websiteCollection";
+import { collectWebsite, type WebsiteCollection } from "../services/websiteCollection";
+import { defaultClaudeTextRunner } from "../services/claudeRunner";
+import {
+  GENERATABLE_FIELDS,
+  generateProfileFields,
+  PROFILE_GENERATION_PROMPT_VERSION,
+  toProfileContent,
+  type GeneratableField,
+} from "../services/profileGeneration";
 import {
   CLAUDE_MODEL,
   claudeErrorMessage,
@@ -34,6 +47,33 @@ import {
 } from "../services/claudePartnerProfile";
 
 const router: IRouter = Router();
+
+// Website pages read for a partner are reused for two hours, so filling the
+// profile field by field does not read the whole website every time.
+const PAGE_CACHE_MS = 2 * 60 * 60_000;
+const pageCache = new Map<number, { url: string; at: number; collection: WebsiteCollection }>();
+
+async function profilePages(partner: { id: number; websiteUrl: string }, refresh = false): Promise<WebsiteCollection> {
+  const cached = pageCache.get(partner.id);
+  if (!refresh && cached && cached.url === partner.websiteUrl && Date.now() - cached.at < PAGE_CACHE_MS) return cached.collection;
+  const articles = await db.select({ url: websiteArticlesTable.url }).from(websiteArticlesTable)
+    .where(eq(websiteArticlesTable.partnerId, partner.id))
+    .orderBy(desc(websiteArticlesTable.publishedAt)).limit(4);
+  const collection = await collectWebsite(partner.websiteUrl, {
+    maxPages: 8,
+    articlePages: 2,
+    knownArticleUrls: articles.map((a) => a.url),
+    maxTotalText: 80_000,
+  });
+  pageCache.set(partner.id, { url: partner.websiteUrl, at: Date.now(), collection });
+  return collection;
+}
+
+function isClaudeFailure(error: unknown): boolean {
+  const code = error instanceof Error ? error.message : "";
+  return ["missing_key", "invalid_key", "claude_timeout", "claude_api_error", "invalid_claude_json"].includes(code);
+}
+
 type ProfileRow = typeof partnerProfilesTable.$inferSelect;
 type ProfilePayload = {
   companyName: string | null;
@@ -134,7 +174,7 @@ router.post("/partners/:partnerId/profile/analyze", async (req, res): Promise<vo
     reviewProfile: null,
     profileStatus: "Wordt opgebouwd" as const,
     claudeModelName: CLAUDE_MODEL,
-    promptVersion: PROMPT_VERSION,
+    promptVersion: PROFILE_GENERATION_PROMPT_VERSION,
     failureMessage: null,
   };
   const pending = existing
@@ -143,8 +183,12 @@ router.post("/partners/:partnerId/profile/analyze", async (req, res): Promise<vo
   res.status(202).json(AnalyzePartnerWebsiteResponse.parse(response(pending)));
   void (async () => {
     try {
-      const collection = await collectWebsite(partner.websiteUrl);
-      const claude = await generatePartnerProfile(collection.pages);
+      const collection = await profilePages(partner, true);
+      const generated = await generateProfileFields(
+        { companyName: partner.companyName, websiteUrl: partner.websiteUrl, fields: GENERATABLE_FIELDS, pages: collection.pages },
+        defaultClaudeTextRunner,
+      );
+      const claude = toProfileContent(generated, partner.companyName, partner.websiteUrl);
       await db.update(partnerProfilesTable).set({
         websitePages: collection.pages,
         websiteText: collection.text,
@@ -233,15 +277,57 @@ router.post("/partners/:partnerId/profile/generate-draft", async (req, res): Pro
   ));
 });
 
+
+router.post("/partners/:partnerId/profile/generate", async (req, res): Promise<void> => {
+  const params = GeneratePartnerProfileFieldsParams.safeParse(req.params);
+  const body = GeneratePartnerProfileFieldsBody.safeParse(req.body ?? {});
+  if (!params.success || !body.success) { res.status(400).json({ error: "Ongeldige aanvraag." }); return; }
+  const [partner] = await db.select().from(partnersTable).where(eq(partnersTable.id, params.data.partnerId));
+  if (!partner) { res.status(404).json({ error: "Partner niet gevonden." }); return; }
+  const fields = (body.data.fields?.length ? [...new Set(body.data.fields)] : GENERATABLE_FIELDS) as GeneratableField[];
+
+  let collection: WebsiteCollection;
+  try {
+    collection = await profilePages(partner, body.data.refresh === true);
+  } catch (error) {
+    req.log.warn({ code: "profile_generate_collect_failed", errorType: error instanceof Error ? error.name : typeof error }, "Website kon niet worden gelezen");
+    res.status(422).json({ error: claudeErrorMessage(error) });
+    return;
+  }
+  try {
+    const generated = await generateProfileFields(
+      { companyName: partner.companyName, websiteUrl: partner.websiteUrl, fields, pages: collection.pages },
+      defaultClaudeTextRunner,
+    );
+    req.log.info({ fields: fields.length, pages: collection.pages.length }, "Partner profile fields generated");
+    res.json(GeneratePartnerProfileFieldsResponse.parse({
+      ...generated,
+      pagesUsed: collection.pages.map((page) => ({ url: page.url, title: page.title })),
+    }));
+  } catch (error) {
+    req.log.warn({ code: "profile_generate_failed", errorType: error instanceof Error ? error.message : typeof error }, "AI kon het profiel niet invullen");
+    res.status(isClaudeFailure(error) ? 502 : 500).json({ error: claudeErrorMessage(error) });
+  }
+});
+
 router.put("/partners/:partnerId/profile", async (req, res): Promise<void> => {
   const params = SavePartnerProfileReviewParams.safeParse(req.params);
   const body = SavePartnerProfileReviewBody.safeParse(req.body);
   if (!params.success || !body.success) { res.status(400).json({ error: "Ongeldig partnerprofiel." }); return; }
-  const profile = await profileOr404(params.data.partnerId, res);
-  if (!profile) return;
   if (!(await ensureReviewer(body.data.reviewerId))) { res.status(400).json({ error: "De Yellowlimer bestaat niet of is niet actief." }); return; }
-  const [saved] = await db.update(partnerProfilesTable).set({ reviewProfile: body.data.profile })
-    .where(eq(partnerProfilesTable.id, profile.id)).returning();
+  const [partner] = await db.select({ id: partnersTable.id }).from(partnersTable).where(eq(partnersTable.id, params.data.partnerId));
+  if (!partner) { res.status(404).json({ error: "Partner niet gevonden." }); return; }
+  const profile = await findProfile(partner.id);
+  const [saved] = profile
+    ? await db.update(partnerProfilesTable).set({ reviewProfile: body.data.profile })
+        .where(eq(partnerProfilesTable.id, profile.id)).returning()
+    : await db.insert(partnerProfilesTable).values({
+        partnerId: partner.id,
+        reviewProfile: body.data.profile,
+        profileStatus: "Wacht op controle",
+        claudeModelName: CLAUDE_MODEL,
+        promptVersion: PROFILE_GENERATION_PROMPT_VERSION,
+      }).returning();
   res.json(SavePartnerProfileReviewResponse.parse(response(saved)));
 });
 
@@ -249,8 +335,16 @@ router.post("/partners/:partnerId/profile/approve", async (req, res): Promise<vo
   const params = ApprovePartnerProfileParams.safeParse(req.params);
   const body = ApprovePartnerProfileBody.safeParse(req.body);
   if (!params.success || !body.success) { res.status(400).json({ error: "Ongeldig partnerprofiel." }); return; }
-  const profile = await profileOr404(params.data.partnerId, res);
-  if (!profile) return;
+  const [partner] = await db.select({ id: partnersTable.id }).from(partnersTable).where(eq(partnersTable.id, params.data.partnerId));
+  if (!partner) { res.status(404).json({ error: "Partner niet gevonden." }); return; }
+  // A profile that was filled in by hand or with AI may not have been saved yet.
+  const profile = (await findProfile(partner.id)) ?? (await db.insert(partnerProfilesTable).values({
+    partnerId: partner.id,
+    reviewProfile: body.data.profile,
+    profileStatus: "Wacht op controle",
+    claudeModelName: CLAUDE_MODEL,
+    promptVersion: PROFILE_GENERATION_PROMPT_VERSION,
+  }).returning())[0];
   if (!(await ensureReviewer(body.data.reviewerId))) { res.status(400).json({ error: "De Yellowlimer bestaat niet of is niet actief." }); return; }
   const [saved] = await db.update(partnerProfilesTable).set({
     reviewProfile: body.data.profile,

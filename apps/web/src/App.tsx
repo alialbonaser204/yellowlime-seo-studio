@@ -41,6 +41,7 @@ import NotFound from '@/pages/not-found';
 import { YellowlimersPage } from './pages/yellowlimers-page';
 import { TopicCheckCard, WebsiteArticlesSection, useTopicCheck } from './components/website-articles';
 import { SearchConsoleSection } from './components/search-console';
+import { AI_FIELDS, AiEvidence, AiFieldButton, AiPagesUsed, useProfileAi } from './components/profile-ai';
 import { ICONS } from './pages/yellowlimers-page';
 import { UserCircle } from 'lucide-react';
 
@@ -68,7 +69,6 @@ import {
   useGetPartnerProfile,
   getGetPartnerProfileQueryKey,
   useAnalyzePartnerWebsite,
-  useGeneratePartnerProfileDraft,
   useSavePartnerProfileReview,
   useApprovePartnerProfile,
   useRejectPartnerProfile,
@@ -444,9 +444,9 @@ const PROFILE_FIELDS = [
   { key: 'companyDescription', label: 'Bedrijfsomschrijving', type: 'textarea' },
   { key: 'products', label: 'Producten', type: 'array' },
   { key: 'services', label: 'Diensten', type: 'array' },
-  { key: 'targetAudience', label: 'Doelgroep', type: 'textarea' },
-  { key: 'toneOfVoice', label: 'Tone of Voice', type: 'textarea' },
-  { key: 'writingStyle', label: 'Schrijfstijl', type: 'textarea' },
+  { key: 'targetAudience', label: 'Doelgroep', type: 'array' },
+  { key: 'toneOfVoice', label: 'Tone of Voice', type: 'array' },
+  { key: 'writingStyle', label: 'Schrijfstijl', type: 'array' },
   { key: 'importantFacts', label: 'Belangrijke feiten', type: 'array' },
   { key: 'locations', label: 'Locaties', type: 'array' },
   { key: 'sourceUrls', label: 'Bron URL\'s', type: 'array' },
@@ -481,7 +481,6 @@ function PartnerDetailPage() {
   });
 
   const analyzeMutation = useAnalyzePartnerWebsite();
-  const generateDraftMutation = useGeneratePartnerProfileDraft();
   const saveMutation = useSavePartnerProfileReview();
   const approveMutation = useApprovePartnerProfile();
   const rejectMutation = useRejectPartnerProfile();
@@ -498,8 +497,22 @@ function PartnerDetailPage() {
         setDraft(source);
         initializedFor.current = Number(id);
       }
+    } else if (profile === null && partner && initializedFor.current !== Number(id)) {
+      // No profile yet: start with an empty form that can be filled by hand or with AI.
+      setDraft({
+        companyName: partner.companyName, companyDescription: null, products: [], services: [], targetAudience: [],
+        toneOfVoice: [], writingStyle: [], importantFacts: [], locations: [], sourceUrls: [partner.websiteUrl], missingInformation: [],
+      });
+      initializedFor.current = Number(id);
     }
-  }, [profile, id, isBuilding]);
+  }, [profile, id, isBuilding, partner]);
+
+  const profileAi = useProfileAi(Number(id), (message) => addToast(message));
+  const draftHasContent = Boolean(draft && AI_FIELDS.some((key) => key !== 'companyName' && (Array.isArray(draft[key]) ? draft[key].length : draft[key])));
+  const handleGenerateAll = () => {
+    if (draftHasContent && !window.confirm('Limey vult alle vakjes opnieuw in op basis van de website. Wat er nu staat wordt vervangen. Doorgaan?')) return;
+    profileAi.generate('all', setDraft);
+  };
 
   useEffect(() => {
     if (profile && profile.profileStatus !== 'Wordt opgebouwd') {
@@ -510,7 +523,8 @@ function PartnerDetailPage() {
   const handleDraftChange = (key: string, type: string, value: string) => {
     setDraft((prev: any) => {
       if (!prev) return prev;
-      return { ...prev, [key]: type === 'array' ? value.split('\n').filter(Boolean) : value };
+      // Keep empty lines while typing so a new line can be started; they are removed when saving.
+      return { ...prev, [key]: type === 'array' ? value.split('\n') : value };
     });
   };
 
@@ -531,31 +545,26 @@ function PartnerDetailPage() {
     }
   };
 
-  const handleGenerateDraft = () => {
-    generateDraftMutation.mutate({ partnerId: Number(id) }, {
-      onSuccess: () => {
-        initializedFor.current = null;
-        addToast('Sonnet maakt een veilig profielconcept.');
-        queryClient.invalidateQueries({ queryKey: getListPartnersQueryKey() });
-        queryClient.invalidateQueries({ queryKey: getGetPartnerProfileQueryKey(Number(id)) });
-      },
-      onError: () => addToast('Het AI-concept kon niet worden gestart.'),
-    });
-  };
+  const cleanDraft = (value: any) => Object.fromEntries(Object.entries(value).map(([key, v]) => [
+    key,
+    Array.isArray(v) ? v.map((line: string) => line.trim()).filter(Boolean) : typeof v === 'string' ? (v.trim() || null) : v,
+  ]));
 
   const handleSave = () => {
     if (!draft) return;
-    saveMutation.mutate({ partnerId: Number(id), data: { profile: draft, reviewerId: Number(reviewerId) } }, {
+    saveMutation.mutate({ partnerId: Number(id), data: { profile: cleanDraft(draft) as any, reviewerId: Number(reviewerId) } }, {
       onSuccess: () => {
         addToast('Wijzigingen opgeslagen.');
+        queryClient.invalidateQueries({ queryKey: getListPartnersQueryKey() });
         queryClient.invalidateQueries({ queryKey: getGetPartnerProfileQueryKey(Number(id)) });
-      }
+      },
+      onError: () => addToast('Opslaan is mislukt. Controleer de velden.'),
     });
   };
 
   const handleApprove = () => {
     if (!draft || !reviewerId) { addToast('Selecteer een reviewer voordat je goedkeurt.'); return; }
-    approveMutation.mutate({ partnerId: Number(id), data: { profile: draft, reviewerId: Number(reviewerId) } }, {
+    approveMutation.mutate({ partnerId: Number(id), data: { profile: cleanDraft(draft) as any, reviewerId: Number(reviewerId) } }, {
       onSuccess: () => {
         addToast('Profiel goedgekeurd.');
         queryClient.invalidateQueries({ queryKey: getListPartnersQueryKey() });
@@ -566,7 +575,7 @@ function PartnerDetailPage() {
 
   const handleReject = () => {
     if (!draft || !reviewerId) { addToast('Selecteer een reviewer voordat je afkeurt.'); return; }
-    rejectMutation.mutate({ partnerId: Number(id), data: { profile: draft, reviewerId: Number(reviewerId) } }, {
+    rejectMutation.mutate({ partnerId: Number(id), data: { profile: cleanDraft(draft) as any, reviewerId: Number(reviewerId) } }, {
       onSuccess: () => {
         addToast('Profiel afgekeurd.');
         queryClient.invalidateQueries({ queryKey: getListPartnersQueryKey() });
@@ -579,7 +588,9 @@ function PartnerDetailPage() {
 
   const showDraft = ['Wacht op controle', 'Afgekeurd'].includes(partner.profileStatus || '');
   const showApproved = partner.profileStatus === 'Goedgekeurd';
-  const showContent = (showDraft || showApproved || partner.profileStatus === 'Afgekeurd' || partner.profileStatus === 'Wacht op controle' || (profile && profile.claudeProfile));
+  const notBuilt = (partner.profileStatus === 'Nog niet opgebouwd' || !partner.profileStatus) && !isBuilding;
+  const showContent = (notBuilt || showDraft || showApproved || partner.profileStatus === 'Afgekeurd' || partner.profileStatus === 'Wacht op controle' || (profile && profile.claudeProfile));
+  const showClaudeColumn = Boolean(profile?.claudeProfile);
 
   return (
     <>
@@ -620,24 +631,15 @@ function PartnerDetailPage() {
           </div>
         )}
 
-        {(partner.profileStatus === 'Nog niet opgebouwd' || !partner.profileStatus) && !isBuilding && (
-          <div className="empty-state card" style={{ margin: '40px 0' }}>
-            <Search size={28} color="hsl(var(--muted-foreground))" />
-            <h3 style={{ marginTop: 15 }}>Geen profiel gevonden</h3>
-            <p>Start de analyse om een AI-gegenereerd profiel voor deze partner te maken.</p>
-            <button className="button button-primary" onClick={handleAnalyze} data-testid="build-profile">Partnerprofiel opbouwen</button>
-          </div>
-        )}
-
         {showContent && (
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: showClaudeColumn ? '1fr 1fr' : '1fr', gap: '20px' }}>
             {profile?.failureMessage && showDraft && (
               <div className="callout" style={{ gridColumn: '1 / -1' }} data-testid="profile-manual-fallback">
                 <TriangleAlert size={16} />
                 <span>{profile.failureMessage}</span>
               </div>
             )}
-            <div className="card form-card" style={{ maxWidth: '100%', padding: 20 }} data-testid="claude-profile">
+            {showClaudeColumn && <div className="card form-card" style={{ maxWidth: '100%', padding: 20 }} data-testid="claude-profile">
               <div className="section-title">
                 <h2>{profile?.claudeProfile ? 'Door Claude gemaakt profiel' : 'Automatische analyse niet beschikbaar'}</h2>
                 <p>{profile?.claudeProfile ? 'Oorspronkelijke output (alleen-lezen)' : 'Vul het profiel handmatig aan in het formulier hiernaast'}</p>
@@ -652,23 +654,23 @@ function PartnerDetailPage() {
                   </div>
                 ))}
               </div>
-            </div>
+            </div>}
 
             <div className="card form-card" style={{ maxWidth: '100%', padding: 20, position: 'relative' }} data-testid="profile-form">
               <div className="section-title">
                 <div>
-                  <h2>{showApproved ? "Door medewerker goedgekeurd profiel" : "Review & Bewerken"}</h2>
-                  <p>{showApproved ? "Huidige goedgekeurde versie" : "Beoordeel en pas aan"}</p>
+                  <h2>{showApproved ? "Door medewerker goedgekeurd profiel" : notBuilt ? "Partnerprofiel invullen" : "Review & Bewerken"}</h2>
+                  <p>{showApproved ? "Huidige goedgekeurde versie" : "Vul zelf in, of laat Limey per vakje of alles in één keer invullen op basis van de website"}</p>
                 </div>
                 {!showApproved && (
                   <button
-                    className="button button-ghost button-small"
-                    onClick={handleGenerateDraft}
-                    disabled={generateDraftMutation.isPending || isBuilding}
-                    data-testid="generate-profile-draft"
+                    className="button button-primary button-small"
+                    onClick={handleGenerateAll}
+                    disabled={profileAi.busy !== null || isBuilding}
+                    data-testid="ai-all"
                   >
-                    <Sparkles size={14} />
-                    {generateDraftMutation.isPending || isBuilding ? 'Sonnet werkt...' : 'Met Sonnet invullen'}
+                    {profileAi.busy === 'all' ? <RefreshCw size={14} className="animate-spin" /> : <Sparkles size={14} />}
+                    {profileAi.busy === 'all' ? 'Limey leest de website…' : 'Alles invullen met AI'}
                   </button>
                 )}
               </div>
@@ -687,10 +689,26 @@ function PartnerDetailPage() {
                 </div>
               )}
 
+              {!showApproved && profileAi.busy === 'all' && (
+                <div className="callout" style={{ marginBottom: 12 }}>
+                  <RefreshCw size={14} className="animate-spin" />
+                  <span>Limey leest de belangrijkste pagina’s en een paar blogartikelen van de website en vult daarna alle vakjes in. Dit duurt meestal 30 tot 90 seconden.</span>
+                </div>
+              )}
+              {!showApproved && <AiPagesUsed pages={profileAi.pagesUsed} />}
               <div style={{ display: 'grid', gap: 14 }}>
                 {PROFILE_FIELDS.map(field => (
                   <div key={`draft-${field.key}`} className="field full">
-                    <label>{field.label}</label>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+                      <label>{field.label}{field.type === 'array' && !showApproved && <span className="text-muted-foreground" style={{ fontWeight: 400 }}> · één per regel</span>}</label>
+                      {!showApproved && (AI_FIELDS as string[]).includes(field.key) && (
+                        <AiFieldButton
+                          busy={profileAi.busy === field.key}
+                          disabled={profileAi.busy !== null || !draft}
+                          onClick={() => profileAi.generate([field.key as (typeof AI_FIELDS)[number]], setDraft)}
+                        />
+                      )}
+                    </div>
                     {showApproved ? (
                        <div data-testid="approved-profile" style={{ fontSize: 13, background: 'hsl(var(--background) / 0.5)', padding: '10px 11px', borderRadius: 7, border: '1px solid hsl(var(--border))', minHeight: field.type === 'textarea' || field.type === 'array' ? 80 : 38, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
                          {profile?.approvedProfile ? getFieldValue(profile.approvedProfile, field.key, field.type) || <span className="text-muted-foreground">Geen gegevens</span> : 'Geen gegevens'}
@@ -710,6 +728,7 @@ function PartnerDetailPage() {
                         />
                       )
                     )}
+                    {!showApproved && <AiEvidence info={profileAi.info[field.key]} />}
                   </div>
                 ))}
               </div>

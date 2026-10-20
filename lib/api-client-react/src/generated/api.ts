@@ -27,6 +27,8 @@ import type {
   ArticleReviewInput,
   Briefing,
   BriefingInput,
+  GenerateProfileFieldsInput,
+  GeneratedProfileResult,
   GetPartnerSearchConsoleParams,
   GoogleStatus,
   HealthStatus,
@@ -1289,6 +1291,95 @@ export function useGetPartnerSearchConsole<TData = Awaited<ReturnType<typeof get
 
 
 
+
+export const getGeneratePartnerProfileFieldsUrl = (partnerId: number,) => {
+
+
+
+
+  return `/api/partners/${partnerId}/profile/generate`
+}
+
+/**
+ * @summary Fill one, several or all partner-profile fields from the partner's website with AI
+ */
+export const generatePartnerProfileFields = async (partnerId: number,
+    generateProfileFieldsInput: GenerateProfileFieldsInput, options?: Parameters<typeof customFetch>[1]): Promise<GeneratedProfileResult> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<GeneratedProfileResult>(getGeneratePartnerProfileFieldsUrl(partnerId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(generateProfileFieldsInput)
+  }
+);}
+
+
+
+
+
+export const getGeneratePartnerProfileFieldsMutationKey = () => ['generatePartnerProfileFields'] as const;
+
+export const getGeneratePartnerProfileFieldsMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof generatePartnerProfileFields>>, TError,GeneratePartnerProfileFieldsMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof generatePartnerProfileFields>>, TError,GeneratePartnerProfileFieldsMutationVariables, TContext> => {
+
+const mutationKey = getGeneratePartnerProfileFieldsMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof generatePartnerProfileFields>>, GeneratePartnerProfileFieldsMutationVariables> = (props) => {
+          const {partnerId,data} = props ?? {};
+
+          return  generatePartnerProfileFields(partnerId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type GeneratePartnerProfileFieldsMutationResult = NonNullable<Awaited<ReturnType<typeof generatePartnerProfileFields>>>
+    export type GeneratePartnerProfileFieldsMutationBody = BodyType<GenerateProfileFieldsInput>
+    export type GeneratePartnerProfileFieldsMutationError = ErrorType<void>
+    export type GeneratePartnerProfileFieldsMutationVariables = {partnerId: number;data: BodyType<GenerateProfileFieldsInput>}
+
+    /**
+ * @summary Fill one, several or all partner-profile fields from the partner's website with AI
+ */
+export const useGeneratePartnerProfileFields = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof generatePartnerProfileFields>>, TError,GeneratePartnerProfileFieldsMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof generatePartnerProfileFields>>,
+        TError,
+        GeneratePartnerProfileFieldsMutationVariables,
+        TContext
+      > => {
+      return useMutation(getGeneratePartnerProfileFieldsMutationOptions(options));
+    }
 
 export const getListBriefingsUrl = () => {
 

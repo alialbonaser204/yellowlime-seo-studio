@@ -64,8 +64,8 @@ export function priorityForPath(pathname: string): number {
   const segments = path.split("/").filter(Boolean);
   const value = segments.join(" ");
   const priorityWords = [
-    "about", "over-ons", "over", "services", "service", "diensten",
-    "products", "product", "producten", "contact",
+    "about", "over-ons", "over", "wie-zijn-wij", "ons-verhaal", "services", "service", "diensten",
+    "products", "product", "producten", "assortiment", "aanbod", "werkwijze", "voor-wie", "contact",
   ];
   const index = priorityWords.findIndex((word) => value.includes(word));
   return index === -1 ? 100 : index;
