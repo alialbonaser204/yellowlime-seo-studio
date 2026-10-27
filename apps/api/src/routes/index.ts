@@ -11,6 +11,7 @@ import articleGenerationsRouter from "./articleGenerations";
 import websiteArticlesRouter from "./websiteArticles";
 import googleRouter from "./google";
 import topicIdeasRouter from "./topicIdeas";
+import internalLinksRouter from "./internalLinks";
 
 const router: IRouter = Router();
 
@@ -26,5 +27,6 @@ router.use(articleGenerationsRouter);
 router.use(websiteArticlesRouter);
 router.use(googleRouter);
 router.use(topicIdeasRouter);
+router.use(internalLinksRouter);
 
 export default router;

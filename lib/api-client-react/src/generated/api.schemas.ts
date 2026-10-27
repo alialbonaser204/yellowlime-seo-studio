@@ -295,6 +295,43 @@ export interface TopicThemes {
   available: TopicThemesAvailable;
 }
 
+export interface InternalLinksInput {
+  /**
+     * @minLength 1
+     * @maxLength 300
+     */
+  subject: string;
+  /**
+     * @minLength 50
+     * @maxLength 60000
+     */
+  content: string;
+}
+
+export interface InternalLinkMetrics {
+  clicks: number;
+  impressions: number;
+  position: number;
+}
+
+export interface InternalLinkSuggestion {
+  url: string;
+  title: string;
+  anchor: string;
+  reason: string;
+  context: string;
+  gsc: InternalLinkMetrics | null;
+}
+
+export interface InternalLinksResult {
+  suggestions: InternalLinkSuggestion[];
+  articlesKnown: number;
+  candidatesConsidered: number;
+  searchConsole: boolean;
+  /** @nullable */
+  message: string | null;
+}
+
 /**
  * @nullable
  */

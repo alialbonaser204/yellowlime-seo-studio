@@ -43,6 +43,7 @@ import { TopicCheckCard, WebsiteArticlesSection, useTopicCheck } from './compone
 import { SearchConsoleSection } from './components/search-console';
 import { AI_FIELDS, AiEvidence, AiFieldButton, AiPagesUsed, useProfileAi } from './components/profile-ai';
 import { TopicWizard } from './components/topic-wizard';
+import { InternalLinksCard } from './components/internal-links';
 import { ICONS } from './pages/yellowlimers-page';
 import { UserCircle } from 'lucide-react';
 
@@ -110,6 +111,17 @@ type Assignment = {
 type StudioData = { partners: Partner[]; assignments: Assignment[] };
 
 const now = () => new Date().toISOString();
+/** Shows markdown links ([text](url)) in article text as real links. */
+function withLinks(text: string): ReactNode {
+  const parts: ReactNode[] = []; let last = 0;
+  for (const m of text.matchAll(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g)) {
+    parts.push(text.slice(last, m.index));
+    parts.push(<a key={m.index} href={m[2]} target="_blank" rel="noreferrer" style={{ textDecoration: 'underline' }}>{m[1]}</a>);
+    last = (m.index ?? 0) + m[0].length;
+  }
+  parts.push(text.slice(last));
+  return parts;
+}
 const id = (prefix: string) => `${prefix}-${Math.random().toString(36).slice(2, 9)}`;
 const dateLabel = (value: string) => new Intl.DateTimeFormat('nl-NL', { month: 'short', day: 'numeric' }).format(new Date(value));
 const dateTimeLabel = (value: string) => new Intl.DateTimeFormat('nl-NL', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }).format(new Date(value));
@@ -1345,7 +1357,7 @@ function ArticlePage() {
       if (paragraph.trim().startsWith('## ')) return <h2 key={index}>{paragraph.replace('## ', '')}</h2>;
       if (paragraph.trim().startsWith('# ')) return <h1 key={index} style={{fontSize:'24px', fontWeight: 700, margin:'24px 0 12px'}}>{paragraph.replace('# ', '')}</h1>;
       if (paragraph.trim() === '') return <br key={index} />;
-      return <p key={index}>{paragraph}</p>;
+      return <p key={index}>{withLinks(paragraph)}</p>;
     });
   };
 
@@ -1549,7 +1561,7 @@ function ReviewPage() {
   const previewUnlocked = assignment.review?.status === 'approved' || assignment.status === 'ready';
   
   return <><WorkflowHeader assignment={assignment} step={3} /><PageHeader eyebrow={`Menselijke poort / ${partnerName}`} title="Maak de beslissing" description="Lees het artikel als editor, maak eventuele laatste wijzigingen, en keur expliciet goed voordat het publicatievoorbeeld geopend kan worden." action={<span className="status-pill status-review"><ShieldCheck size={12} />Menselijk gecontroleerde poort</span>} />
-    {!assignment.article ? <div className="card empty-state"><ClipboardCheck size={30} /><h3>Nog niets te beoordelen</h3><p>Genereer eerst een artikel. De beoordelingspoort opent alleen voor een echt concept.</p><Link className="button button-primary" href={`/assignments/${assignment.id}/brief`} data-testid="button-review-return-brief">Terug naar briefing</Link></div> : <div className="review-layout"><section className="card section-card"><div className="section-title"><div><h2>Redactioneel canvas</h2><p>Bewerk direct. Opslaan creëert een menselijk geschreven versie.</p></div><span className="eyebrow">v{assignment.article.versionNumber} · {assignment.article.authorType === 'human' ? 'menselijk' : 'claude'}</span></div><textarea className="textarea editor" value={content} onChange={(event) => setContent(event.target.value)} data-testid="textarea-review-article" /><div className="form-actions" style={{ marginTop: 14 }}><button className="button button-ghost" onClick={saveEdit} data-testid="button-save-review-edit"><FileEdit size={15} />Menselijke bewerking opslaan</button></div></section><aside className="card gate-card">
+    {!assignment.article ? <div className="card empty-state"><ClipboardCheck size={30} /><h3>Nog niets te beoordelen</h3><p>Genereer eerst een artikel. De beoordelingspoort opent alleen voor een echt concept.</p><Link className="button button-primary" href={`/assignments/${assignment.id}/brief`} data-testid="button-review-return-brief">Terug naar briefing</Link></div> : <div className="review-layout"><section className="card section-card"><div className="section-title"><div><h2>Redactioneel canvas</h2><p>Bewerk direct. Opslaan creëert een menselijk geschreven versie.</p></div><span className="eyebrow">v{assignment.article.versionNumber} · {assignment.article.authorType === 'human' ? 'menselijk' : 'claude'}</span></div><textarea className="textarea editor" value={content} onChange={(event) => setContent(event.target.value)} data-testid="textarea-review-article" /><div className="form-actions" style={{ marginTop: 14 }}><button className="button button-ghost" onClick={saveEdit} data-testid="button-save-review-edit"><FileEdit size={15} />Menselijke bewerking opslaan</button></div><div style={{ marginTop: 16 }}><InternalLinksCard partnerId={/^\d+$/.test(String(assignment.partnerId)) ? Number(assignment.partnerId) : null} subject={assignment.subject} content={content} onApply={setContent} /></div></section><aside className="card gate-card">
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20, padding: 12, background: 'hsl(var(--muted))', borderRadius: 8 }}>
         {reviewer ? (
           <>

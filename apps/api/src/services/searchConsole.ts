@@ -243,6 +243,7 @@ export async function searchConsolePagesForTopic(
 /** For tests and after (dis)connecting: forget cached data. */
 export function clearSearchConsoleCache(): void {
   overviewCache.clear();
+  pageMetricsCache.clear();
   sitesCache = null;
 }
 
@@ -295,6 +296,31 @@ export async function searchConsoleQueryData(
     };
   } catch (error) {
     logger.warn({ errorType: error instanceof Error ? error.message : typeof error }, "Search Console query data failed");
+    return null;
+  }
+}
+
+const pageMetricsCache = new Map<string, { at: number; rows: MetricRow[] | null }>();
+
+/**
+ * Clicks, impressions and position per page of a website (last 90 days),
+ * cached for a few hours. Returns null when Search Console is not available.
+ */
+export async function searchConsolePageMetrics(websiteUrl: string, fetcher: Fetcher = fetch): Promise<MetricRow[] | null> {
+  const cached = pageMetricsCache.get(websiteUrl);
+  if (cached && Date.now() - cached.at < OVERVIEW_CACHE_MS) return cached.rows;
+  try {
+    if (!googleConfig()) return null;
+    const resolved = await resolveProperty(websiteUrl, fetcher);
+    if (!resolved.ok) return null;
+    const period = reportPeriod(90);
+    const rows = toMetricRows(
+      await query(resolved.property, { startDate: period.startDate, endDate: period.endDate, dimensions: ["page"], rowLimit: 1000 }, fetcher),
+    );
+    pageMetricsCache.set(websiteUrl, { at: Date.now(), rows });
+    return rows;
+  } catch (error) {
+    logger.warn({ errorType: error instanceof Error ? error.message : typeof error }, "Search Console page metrics failed");
     return null;
   }
 }

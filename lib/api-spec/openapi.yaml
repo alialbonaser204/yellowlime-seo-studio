@@ -455,6 +455,34 @@ paths:
           description: Partner not found
         "502":
           description: The AI could not create ideas
+  /partners/{partnerId}/internal-links:
+    post:
+      operationId: suggestInternalLinks
+      tags: [partners]
+      summary: Internal link suggestions for an article, to the partner's own published pages
+      parameters:
+        - name: partnerId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InternalLinksInput"
+      responses:
+        "200":
+          description: Suggested internal links
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InternalLinksResult"
+        "404":
+          description: Partner not found
+        "502":
+          description: The AI could not suggest links
   /briefings:
     get:
       operationId: listBriefings
@@ -1132,6 +1160,62 @@ components:
               type: boolean
             websiteArticles:
               type: integer
+    InternalLinksInput:
+      type: object
+      required: [subject, content]
+      properties:
+        subject:
+          type: string
+          minLength: 1
+          maxLength: 300
+        content:
+          type: string
+          minLength: 50
+          maxLength: 60000
+    InternalLinkMetrics:
+      type: object
+      required: [clicks, impressions, position]
+      properties:
+        clicks:
+          type: number
+        impressions:
+          type: number
+        position:
+          type: number
+    InternalLinkSuggestion:
+      type: object
+      required: [url, title, anchor, reason, context, gsc]
+      properties:
+        url:
+          type: string
+        title:
+          type: string
+        anchor:
+          type: string
+        reason:
+          type: string
+        context:
+          type: string
+        gsc:
+          oneOf:
+            - $ref: "#/components/schemas/InternalLinkMetrics"
+            - type: "null"
+    InternalLinksResult:
+      type: object
+      required: [suggestions, articlesKnown, candidatesConsidered, searchConsole, message]
+      properties:
+        suggestions:
+          type: array
+          items:
+            $ref: "#/components/schemas/InternalLinkSuggestion"
+        articlesKnown:
+          type: integer
+        candidatesConsidered:
+          type: integer
+        searchConsole:
+          type: boolean
+        message:
+          type: ["string", "null"]
     TopicIdeasInput:
       type: object
       required: [goal]

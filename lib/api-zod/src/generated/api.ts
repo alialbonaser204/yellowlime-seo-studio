@@ -813,6 +813,45 @@ export const GetTopicIdeasResponse = zod.object({
 
 
 /**
+ * @summary Internal link suggestions for an article, to the partner's own published pages
+ */
+export const SuggestInternalLinksParams = zod.object({
+  "partnerId": zod.coerce.number().int()
+})
+
+export const suggestInternalLinksBodySubjectMax = 300;
+
+export const suggestInternalLinksBodyContentMin = 50;
+export const suggestInternalLinksBodyContentMax = 60000;
+
+
+
+export const SuggestInternalLinksBody = zod.object({
+  "subject": zod.string().min(1).max(suggestInternalLinksBodySubjectMax),
+  "content": zod.string().min(suggestInternalLinksBodyContentMin).max(suggestInternalLinksBodyContentMax)
+})
+
+export const SuggestInternalLinksResponse = zod.object({
+  "suggestions": zod.array(zod.object({
+  "url": zod.string(),
+  "title": zod.string(),
+  "anchor": zod.string(),
+  "reason": zod.string(),
+  "context": zod.string(),
+  "gsc": zod.union([zod.object({
+  "clicks": zod.number(),
+  "impressions": zod.number(),
+  "position": zod.number()
+}),zod.null()])
+})),
+  "articlesKnown": zod.number().int(),
+  "candidatesConsidered": zod.number().int(),
+  "searchConsole": zod.boolean(),
+  "message": zod.string().nullable()
+})
+
+
+/**
  * @summary List briefings
  */
 export const ListBriefingsResponseItem = zod.object({

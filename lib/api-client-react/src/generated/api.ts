@@ -32,6 +32,8 @@ import type {
   GetPartnerSearchConsoleParams,
   GoogleStatus,
   HealthStatus,
+  InternalLinksInput,
+  InternalLinksResult,
   Partner,
   PartnerInput,
   PartnerProfile,
@@ -1712,6 +1714,95 @@ export const useGetTopicIdeas = <TError = ErrorType<void>,
         TContext
       > => {
       return useMutation(getGetTopicIdeasMutationOptions(options));
+    }
+
+export const getSuggestInternalLinksUrl = (partnerId: number,) => {
+
+
+
+
+  return `/api/partners/${partnerId}/internal-links`
+}
+
+/**
+ * @summary Internal link suggestions for an article, to the partner's own published pages
+ */
+export const suggestInternalLinks = async (partnerId: number,
+    internalLinksInput: InternalLinksInput, options?: Parameters<typeof customFetch>[1]): Promise<InternalLinksResult> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<InternalLinksResult>(getSuggestInternalLinksUrl(partnerId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(internalLinksInput)
+  }
+);}
+
+
+
+
+
+export const getSuggestInternalLinksMutationKey = () => ['suggestInternalLinks'] as const;
+
+export const getSuggestInternalLinksMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof suggestInternalLinks>>, TError,SuggestInternalLinksMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof suggestInternalLinks>>, TError,SuggestInternalLinksMutationVariables, TContext> => {
+
+const mutationKey = getSuggestInternalLinksMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof suggestInternalLinks>>, SuggestInternalLinksMutationVariables> = (props) => {
+          const {partnerId,data} = props ?? {};
+
+          return  suggestInternalLinks(partnerId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SuggestInternalLinksMutationResult = NonNullable<Awaited<ReturnType<typeof suggestInternalLinks>>>
+    export type SuggestInternalLinksMutationBody = BodyType<InternalLinksInput>
+    export type SuggestInternalLinksMutationError = ErrorType<void>
+    export type SuggestInternalLinksMutationVariables = {partnerId: number;data: BodyType<InternalLinksInput>}
+
+    /**
+ * @summary Internal link suggestions for an article, to the partner's own published pages
+ */
+export const useSuggestInternalLinks = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof suggestInternalLinks>>, TError,SuggestInternalLinksMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof suggestInternalLinks>>,
+        TError,
+        SuggestInternalLinksMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSuggestInternalLinksMutationOptions(options));
     }
 
 export const getListBriefingsUrl = () => {
