@@ -459,7 +459,7 @@ paths:
     post:
       operationId: suggestInternalLinks
       tags: [partners]
-      summary: Internal link suggestions for an article, to the partner's own published pages
+      summary: Exact-match internal links (after approval) from an article to the partner's own published pages
       parameters:
         - name: partnerId
           in: path

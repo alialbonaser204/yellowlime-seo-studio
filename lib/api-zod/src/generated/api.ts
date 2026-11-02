@@ -813,7 +813,7 @@ export const GetTopicIdeasResponse = zod.object({
 
 
 /**
- * @summary Internal link suggestions for an article, to the partner's own published pages
+ * @summary Exact-match internal links (after approval) from an article to the partner's own published pages
  */
 export const SuggestInternalLinksParams = zod.object({
   "partnerId": zod.coerce.number().int()

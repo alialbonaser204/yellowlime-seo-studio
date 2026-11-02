@@ -1,16 +1,16 @@
 import type { WebsiteArticle } from "@yellowlime/db";
-import { lexicalScore } from "./topicMatching";
 
 /**
- * Pure helpers for internal link suggestions: choosing which of the partner's
- * published pages fit a new article, the Claude prompt, and checking Claude's
- * answer. No database or network access, so everything here is unit-tested.
+ * Pure helpers for the internal link check that runs after an article has been
+ * approved. It only looks for words that are literally in the article and are
+ * exactly the same as the main keyword of an existing page on the partner's
+ * website (from the page's URL or title). The article text itself is never
+ * rewritten: a link only wraps words that are already there.
  */
 
-export const MAX_CANDIDATES = 12;
-export const MAX_SUGGESTIONS = 5;
+export const MAX_SUGGESTIONS = 10;
 
-export type LinkPage = Pick<WebsiteArticle, "url" | "title" | "headings" | "description">;
+export type LinkPage = Pick<WebsiteArticle, "url" | "title">;
 
 export interface PageMetrics {
   clicks: number;
@@ -18,15 +18,11 @@ export interface PageMetrics {
   position: number;
 }
 
-export interface LinkCandidate {
-  id: string;
-  url: string;
-  title: string;
-  headings: string[];
-  description: string | null;
-  relevance: number;
-  gsc: PageMetrics | null;
-  score: number;
+export type PhraseSource = "url" | "titel";
+
+export interface PagePhrase {
+  phrase: string;
+  source: PhraseSource;
 }
 
 export interface InternalLinkSuggestion {
@@ -55,156 +51,99 @@ export function linkedUrls(content: string): Set<string> {
   return found;
 }
 
-/** The text that matters for matching: the subject, the headings and the opening. */
-export function articleTopicText(subject: string, content: string): string {
-  const lines = content.split("\n");
-  const headings = lines.filter((line) => /^#{1,3}\s/.test(line.trim())).join(" ");
-  const opening = lines.filter((line) => line.trim() && !/^#/.test(line.trim())).slice(0, 3).join(" ");
-  return [subject, subject, headings, opening].join(" ");
+const FILLER = new Set([
+  "de", "het", "een", "en", "of", "van", "voor", "met", "op", "in", "te", "naar", "is", "je", "jouw", "uw", "u", "wat",
+  "hoe", "welke", "waarom", "wanneer", "bij", "om", "aan", "als", "ook", "over", "ons", "onze", "wij", "we", "alles",
+  "contact", "home", "blog", "nieuws", "vacatures", "vacature", "pagina", "page", "artikel", "tips", "the", "a", "and",
+]);
+
+function cleanPhrase(value: string): string {
+  return value
+    .toLocaleLowerCase("nl-NL")
+    .replace(/[‘’`]/g, "'")
+    .replace(/[^\p{L}\p{N}' ]+/gu, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
-/**
- * Picks the published pages that are worth linking to: related to the article
- * (word overlap with the title, slug, headings and description) and, when
- * Search Console is available, a bonus for pages that already get impressions
- * and sit just outside the top of Google (position 4–20).
- */
-export function chooseLinkCandidates(
-  subject: string,
-  content: string,
-  pages: LinkPage[],
-  metrics: Map<string, PageMetrics> | null,
-  limit = MAX_CANDIDATES,
-): LinkCandidate[] {
-  const topic = articleTopicText(subject, content);
-  const already = linkedUrls(content);
+/** A phrase is worth linking when it has 2–8 words and at least one real content word. */
+function usable(phrase: string): boolean {
+  const words = phrase.split(" ").filter(Boolean);
+  if (words.length < 2 || words.length > 8) return false;
+  return words.some((w) => w.length >= 4 && !FILLER.has(w) && !/^\d+$/.test(w));
+}
+
+/** "https://w.nl/blog/subsidie-warmtepomp-2026/" → "subsidie warmtepomp" */
+export function slugPhrase(url: string): string | null {
+  let path = "";
+  try {
+    path = new URL(url).pathname;
+  } catch {
+    path = url;
+  }
+  const segment = decodeURIComponent(path.split("/").filter(Boolean).pop() ?? "").replace(/\.(html?|php|aspx?)$/i, "");
+  const words = cleanPhrase(segment.replace(/[-_+]+/g, " ")).split(" ").filter(Boolean);
+  while (words.length && /^\d+$/.test(words[words.length - 1])) words.pop();
+  while (words.length && /^\d+$/.test(words[0])) words.shift();
+  const phrase = words.join(" ");
+  return usable(phrase) ? phrase : null;
+}
+
+/** "Wat kost een warmtepomp? | Warmtebouw" → ["wat kost een warmtepomp"]; also the part before a colon. */
+export function titlePhrases(title: string): string[] {
+  const withoutSite = title.split(/\s[|–—]\s|\s-\s/)[0] ?? title;
+  const out = new Set<string>();
+  const whole = cleanPhrase(withoutSite);
+  if (usable(whole)) out.add(whole);
+  const beforeColon = withoutSite.includes(":") ? cleanPhrase(withoutSite.split(":")[0]) : "";
+  if (beforeColon && usable(beforeColon)) out.add(beforeColon);
+  return [...out];
+}
+
+export function pagePhrases(page: LinkPage): PagePhrase[] {
+  const out: PagePhrase[] = [];
   const seen = new Set<string>();
-  const scored: LinkCandidate[] = [];
-  for (const page of pages) {
-    const key = normalizeUrl(page.url);
-    if (seen.has(key) || already.has(key)) continue;
-    seen.add(key);
-    const relevance = lexicalScore(topic, page);
-    if (relevance <= 0) continue;
-    const gsc = metrics?.get(key) ?? null;
-    let bonus = 0;
-    if (gsc) {
-      if (gsc.position >= 4 && gsc.position <= 20) bonus += 4;
-      bonus += Math.min(3, Math.log10(1 + gsc.impressions));
-    }
-    scored.push({
-      id: "",
-      url: page.url,
-      title: page.title,
-      headings: page.headings,
-      description: page.description,
-      relevance,
-      gsc,
-      score: Math.round((relevance + bonus) * 10) / 10,
-    });
+  const slug = slugPhrase(page.url);
+  if (slug) {
+    out.push({ phrase: slug, source: "url" });
+    seen.add(slug);
   }
-  return scored
-    .sort((a, b) => b.score - a.score || a.title.localeCompare(b.title))
-    .slice(0, limit)
-    .map((candidate, index) => ({ ...candidate, id: `p${index + 1}` }));
-}
-
-export function makeInternalLinksPrompt(input: {
-  companyName: string;
-  subject: string;
-  content: string;
-  candidates: LinkCandidate[];
-  count?: number;
-}): string {
-  const count = input.count ?? MAX_SUGGESTIONS;
-  const list = input.candidates
-    .map((c) => {
-      const extra = [
-        c.headings.length ? `tussenkoppen: ${c.headings.slice(0, 6).join("; ")}` : "",
-        c.description ? `omschrijving: ${c.description.slice(0, 200)}` : "",
-        c.gsc ? `Google: positie ${c.gsc.position}, ${c.gsc.impressions} vertoningen, ${c.gsc.clicks} klikken (90 dagen)` : "",
-      ].filter(Boolean);
-      return `[${c.id}] ${c.title} | ${c.url}${extra.length ? ` | ${extra.join(" | ")}` : ""}`;
-    })
-    .join("\n");
-  return [
-    `Je bent een SEO-redacteur bij ${input.companyName}. Kies interne links voor een nieuw artikel naar bestaande pagina's op dezelfde website.`,
-    "",
-    `Onderwerp van het nieuwe artikel: ${input.subject}`,
-    "",
-    "Bestaande pagina's waar naartoe gelinkt mag worden:",
-    list,
-    "",
-    "Het nieuwe artikel:",
-    "<<<ARTIKEL",
-    input.content,
-    "ARTIKEL>>>",
-    "",
-    "Regels:",
-    `- Kies maximaal ${count} links, alleen naar pagina's uit de lijst die echt iets toevoegen voor de lezer van dít artikel. Liever 2 goede dan 5 matige.`,
-    "- De ankertekst moet LETTERLIJK (exact dezelfde tekens) in een alinea van het artikel staan, niet in een kop. Kies 2 tot 6 woorden die beschrijven waar de gelinkte pagina over gaat.",
-    "- Geen ankerteksten als 'klik hier', 'lees meer' of 'deze pagina'.",
-    "- Elke pagina maximaal één keer, elke ankertekst maar één keer. Verspreid de links over het artikel.",
-    "- Geef de voorkeur aan pagina's die net buiten de top van Google staan (positie 4–20): een interne link helpt die het meest.",
-    "- reason: één korte zin in het Nederlands waarom deze link de lezer helpt. Verzin geen cijfers.",
-    "",
-    "Denk niet hardop na. Begin je antwoord direct met { en geef alleen deze JSON:",
-    '{"links": [{"page": "p1", "anchor": "letterlijke woorden uit het artikel", "reason": "..."}]}',
-  ].join("\n");
-}
-
-function extractJson(raw: string): unknown {
-  const start = raw.indexOf("{");
-  if (start < 0) throw new Error("invalid_claude_json");
-  let depth = 0;
-  let inString = false;
-  let escaped = false;
-  for (let i = start; i < raw.length; i++) {
-    const ch = raw[i];
-    if (inString) {
-      if (escaped) escaped = false;
-      else if (ch === "\\") escaped = true;
-      else if (ch === '"') inString = false;
-      continue;
-    }
-    if (ch === '"') inString = true;
-    else if (ch === "{") depth++;
-    else if (ch === "}" && --depth === 0) {
-      try {
-        return JSON.parse(raw.slice(start, i + 1));
-      } catch {
-        throw new Error("invalid_claude_json");
-      }
+  for (const phrase of titlePhrases(page.title)) {
+    if (!seen.has(phrase)) {
+      out.push({ phrase, source: "titel" });
+      seen.add(phrase);
     }
   }
-  throw new Error("invalid_claude_json");
+  return out;
+}
+
+/** True when a link may start here: a normal paragraph, not a heading, not inside an existing link. */
+export function linkablePosition(content: string, index: number): boolean {
+  const lineStart = content.lastIndexOf("\n", index - 1) + 1;
+  const before = content.slice(lineStart, index);
+  if (/^\s*#/.test(content.slice(lineStart, index + 1)) || /^\s*#/.test(before)) return false;
+  const opened = (before.match(/\[/g) ?? []).length > (before.match(/\]/g) ?? []).length;
+  const inLinkTarget = /\]\([^)]*$/.test(before);
+  return !opened && !inLinkTarget;
+}
+
+function escapeRegex(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 /**
- * Where an anchor can be linked: the first place it occurs in a normal
- * paragraph (not a heading) and not inside an existing markdown link.
- * Returns the character offset, or -1.
+ * Every place where the phrase occurs exactly (ignoring capitals) as whole
+ * words in a paragraph. Returns the offsets and the text as written there.
  */
-export function findAnchor(content: string, anchor: string, from = 0): number {
-  let index = content.indexOf(anchor, from);
-  while (index >= 0) {
-    const lineStart = content.lastIndexOf("\n", index - 1) + 1;
-    const lineEnd = content.indexOf("\n", index);
-    const line = content.slice(lineStart, lineEnd < 0 ? content.length : lineEnd);
-    const before = content.slice(lineStart, index);
-    const inHeading = /^\s*#/.test(line);
-    const opened = (before.match(/\[/g) ?? []).length > (before.match(/\]/g) ?? []).length;
-    const inLinkTarget = /\]\([^)]*$/.test(before);
-    const wordStart = index === 0 || !/[\p{L}\p{N}]/u.test(content[index - 1]);
-    const endChar = content[index + anchor.length];
-    const wordEnd = endChar === undefined || !/[\p{L}\p{N}]/u.test(endChar);
-    if (!inHeading && !opened && !inLinkTarget && wordStart && wordEnd) return index;
-    index = content.indexOf(anchor, index + 1);
+export function exactOccurrences(content: string, phrase: string): Array<{ index: number; text: string }> {
+  const pattern = new RegExp(`(?<![\\p{L}\\p{N}])${phrase.split(" ").map(escapeRegex).join(" ")}(?![\\p{L}\\p{N}])`, "giu");
+  const out: Array<{ index: number; text: string }> = [];
+  for (const match of content.matchAll(pattern)) {
+    const index = match.index ?? 0;
+    if (linkablePosition(content, index)) out.push({ index, text: match[0] });
   }
-  return -1;
+  return out;
 }
-
-const VAGUE_ANCHORS = /^(klik hier|lees meer|lees hier|hier|deze pagina|dit artikel|meer informatie|bekijk)$/i;
 
 /** The sentence around the anchor, shortened, so the editor sees where the link goes. */
 export function contextAround(content: string, index: number, anchor: string): string {
@@ -229,58 +168,73 @@ export function contextAround(content: string, index: number, anchor: string): s
 }
 
 /**
- * Turns Claude's answer into suggestions the editor can apply. A suggestion is
- * dropped when the page is not one of the candidates, when the anchor text is
- * not literally in a paragraph of the article, when it is too short, too long
- * or vague, or when the page or anchor was already used.
+ * Finds the exact matches between the article and the partner's pages.
+ * Longer phrases win over shorter ones, every page gets at most one link
+ * (the first place it occurs), links never overlap, and pages the article
+ * already links to are skipped.
  */
-export function parseInternalLinks(
-  raw: string,
-  candidates: LinkCandidate[],
+export function findExactInternalLinks(
   content: string,
+  pages: LinkPage[],
+  metrics: Map<string, PageMetrics> | null = null,
   max = MAX_SUGGESTIONS,
-): InternalLinkSuggestion[] {
-  const data = extractJson(raw) as { links?: unknown };
-  if (!data || !Array.isArray(data.links)) throw new Error("invalid_claude_json");
-  const byId = new Map(candidates.map((c) => [c.id, c]));
-  const usedPages = new Set<string>();
-  const usedAnchors = new Set<string>();
-  const usedOffsets: Array<[number, number]> = [];
-  const out: InternalLinkSuggestion[] = [];
-  for (const item of data.links as Array<Record<string, unknown>>) {
-    if (out.length >= max) break;
-    const candidate = typeof item?.page === "string" ? byId.get(item.page.trim()) : undefined;
-    const anchor = typeof item?.anchor === "string" ? item.anchor.trim().replace(/^["'“”‘’]+|["'“”‘’.,;:]+$/g, "") : "";
-    const reason = typeof item?.reason === "string" ? item.reason.trim() : "";
-    if (!candidate || !anchor) continue;
-    const words = anchor.split(/\s+/).length;
-    if (words < 1 || words > 8 || anchor.length < 4 || VAGUE_ANCHORS.test(anchor)) continue;
-    const pageKey = normalizeUrl(candidate.url);
-    const anchorKey = anchor.toLowerCase();
-    if (usedPages.has(pageKey) || usedAnchors.has(anchorKey)) continue;
-    let index = findAnchor(content, anchor);
-    while (index >= 0 && usedOffsets.some(([s, e]) => index < e && index + anchor.length > s)) {
-      index = findAnchor(content, anchor, index + 1);
-    }
-    if (index < 0) continue;
-    usedPages.add(pageKey);
-    usedAnchors.add(anchorKey);
-    usedOffsets.push([index, index + anchor.length]);
-    out.push({
-      url: candidate.url,
-      title: candidate.title,
-      anchor,
-      reason: reason.slice(0, 300),
-      context: contextAround(content, index, anchor),
-      gsc: candidate.gsc,
+): { suggestions: InternalLinkSuggestion[]; pagesWithKeyword: number } {
+  const already = linkedUrls(content);
+  const seenPages = new Set<string>();
+  const entries: Array<{ page: LinkPage; key: string } & PagePhrase> = [];
+  let pagesWithKeyword = 0;
+  for (const page of pages) {
+    const key = normalizeUrl(page.url);
+    if (seenPages.has(key)) continue;
+    seenPages.add(key);
+    const phrases = pagePhrases(page);
+    if (phrases.length) pagesWithKeyword++;
+    if (already.has(key)) continue;
+    for (const p of phrases) entries.push({ page, key, ...p });
+  }
+  entries.sort((a, b) => b.phrase.length - a.phrase.length || (a.source === "url" ? -1 : 1));
+
+  const used: Array<[number, number]> = [];
+  const linkedPages = new Set<string>();
+  const found: Array<InternalLinkSuggestion & { index: number }> = [];
+  for (const entry of entries) {
+    if (linkedPages.has(entry.key)) continue;
+    const hit = exactOccurrences(content, entry.phrase).find(
+      (o) => !used.some(([s, e]) => o.index < e && o.index + o.text.length > s),
+    );
+    if (!hit) continue;
+    linkedPages.add(entry.key);
+    used.push([hit.index, hit.index + hit.text.length]);
+    found.push({
+      index: hit.index,
+      url: entry.page.url,
+      title: entry.page.title,
+      anchor: hit.text,
+      reason: entry.source === "url"
+        ? `Staat letterlijk in de tekst en is precies het hoofdzoekwoord uit de URL van deze pagina.`
+        : `Staat letterlijk in de tekst en is precies de titel van deze pagina.`,
+      context: contextAround(content, hit.index, hit.text),
+      gsc: metrics?.get(entry.key) ?? null,
     });
   }
-  return out;
+  const suggestions = found
+    .sort((a, b) => a.index - b.index)
+    .slice(0, max)
+    .map(({ index: _index, ...rest }) => rest);
+  return { suggestions, pagesWithKeyword };
 }
 
-/** Puts a markdown link around the first linkable occurrence of the anchor. */
+/** Puts a markdown link around the first linkable occurrence of the anchor (exact text). */
 export function applyInternalLink(content: string, anchor: string, url: string): string {
-  const index = findAnchor(content, anchor);
-  if (index < 0) return content;
-  return `${content.slice(0, index)}[${anchor}](${url})${content.slice(index + anchor.length)}`;
+  let index = content.indexOf(anchor);
+  while (index >= 0) {
+    const okStart = index === 0 || !/[\p{L}\p{N}]/u.test(content[index - 1]);
+    const end = content[index + anchor.length];
+    const okEnd = end === undefined || !/[\p{L}\p{N}]/u.test(end);
+    if (okStart && okEnd && linkablePosition(content, index)) {
+      return `${content.slice(0, index)}[${anchor}](${url})${content.slice(index + anchor.length)}`;
+    }
+    index = content.indexOf(anchor, index + 1);
+  }
+  return content;
 }

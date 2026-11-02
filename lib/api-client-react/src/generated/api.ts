@@ -1725,7 +1725,7 @@ export const getSuggestInternalLinksUrl = (partnerId: number,) => {
 }
 
 /**
- * @summary Internal link suggestions for an article, to the partner's own published pages
+ * @summary Exact-match internal links (after approval) from an article to the partner's own published pages
  */
 export const suggestInternalLinks = async (partnerId: number,
     internalLinksInput: InternalLinksInput, options?: Parameters<typeof customFetch>[1]): Promise<InternalLinksResult> => {
@@ -1792,7 +1792,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type SuggestInternalLinksMutationVariables = {partnerId: number;data: BodyType<InternalLinksInput>}
 
     /**
- * @summary Internal link suggestions for an article, to the partner's own published pages
+ * @summary Exact-match internal links (after approval) from an article to the partner's own published pages
  */
 export const useSuggestInternalLinks = <TError = ErrorType<void>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof suggestInternalLinks>>, TError,SuggestInternalLinksMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}

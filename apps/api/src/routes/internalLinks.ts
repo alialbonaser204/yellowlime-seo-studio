@@ -14,16 +14,8 @@ router.post("/partners/:partnerId/internal-links", async (req, res): Promise<voi
     if (!result) { res.status(404).json({ error: "Partner niet gevonden." }); return; }
     res.json(SuggestInternalLinksResponse.parse(result));
   } catch (error) {
-    const code = error instanceof Error ? error.message : "";
-    req.log.warn({ code: "internal_links_failed", reason: code.slice(0, 200) }, "Internal links failed");
-    res.status(502).json({
-      error:
-        code === "missing_key" ? "De AI-sleutel ontbreekt."
-        : code === "invalid_key" ? "De AI-sleutel is ongeldig."
-        : code === "invalid_claude_json" ? "Yellowlime AI Agent gaf een onleesbaar antwoord. Probeer het nog een keer."
-        : code === "claude_timeout" ? "Yellowlime AI Agent had te veel tijd nodig. Probeer het nog een keer."
-        : "Er konden geen interne links worden voorgesteld. Probeer het later opnieuw.",
-    });
+    req.log.warn({ code: "internal_links_failed", reason: error instanceof Error ? error.message.slice(0, 200) : typeof error }, "Internal links failed");
+    res.status(502).json({ error: "De controle op interne links is mislukt. Probeer het later opnieuw." });
   }
 });
 
