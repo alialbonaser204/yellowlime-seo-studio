@@ -16,6 +16,7 @@ import {
   FileEdit,
   FileText,
   History,
+  Home,
   Info,
   LayoutDashboard,
   LockKeyhole,
@@ -249,7 +250,8 @@ function App() {
 
 function RoutedApp() {
   return <Shell><ErrorBoundary resetKey={window.location.pathname}><Switch>
-    <Route path="/" component={DashboardPage} />
+    <Route path="/" component={HomePage} />
+    <Route path="/overzicht" component={DashboardPage} />
     <Route path="/partners" component={PartnersPage} />
     <Route path="/partners/:id" component={PartnerDetailPage} />
     <Route path="/yellowlimers" component={YellowlimersPage} />
@@ -265,15 +267,19 @@ function RoutedApp() {
 function Shell({ children }: { children: ReactNode }) {
   const [location] = useLocation();
   const [open, setOpen] = useState(false);
-  const nav = [{ href: '/', label: 'Overzicht', icon: LayoutDashboard }, { href: '/partners', label: 'Partners', icon: Users }, { href: '/yellowlimers', label: 'Beheer Yellowlimers', icon: Users }, { href: '/history', label: 'Geschiedenis', icon: History }];
-  const title = location === '/' ? 'Overzicht' : location.startsWith('/partners') ? 'Partners' : location.startsWith('/yellowlimers') ? 'Beheer Yellowlimers' : location.startsWith('/history') ? 'Geschiedenis' : location.includes('/brief') ? 'SEO-briefing' : location.includes('/article') ? 'Gegenereerd artikel' : location.includes('/review') ? 'Menselijke beoordeling' : 'Nieuwe opdracht';
-  return <div className="app-shell">
-    <aside className={`sidebar ${open ? 'open' : ''}`}>
+  useEffect(() => { if (!open) return; const onKey = (event: KeyboardEvent) => { if (event.key === 'Escape') setOpen(false); }; window.addEventListener('keydown', onKey); return () => window.removeEventListener('keydown', onKey); }, [open]);
+  const nav = [{ href: '/', label: 'Home', icon: Home }, { href: '/overzicht', label: 'Overzicht', icon: LayoutDashboard }, { href: '/partners', label: 'Partners', icon: Users }, { href: '/yellowlimers', label: 'Beheer Yellowlimers', icon: Users }, { href: '/history', label: 'Geschiedenis', icon: History }];
+  const title = location === '/' ? 'Home' : location === '/overzicht' ? 'Overzicht' : location.startsWith('/partners') ? 'Partners' : location.startsWith('/yellowlimers') ? 'Beheer Yellowlimers' : location.startsWith('/history') ? 'Geschiedenis' : location.includes('/brief') ? 'SEO-briefing' : location.includes('/article') ? 'Gegenereerd artikel' : location.includes('/review') ? 'Menselijke beoordeling' : 'Nieuwe opdracht';
+  return <div className={`app-shell ${open ? 'menu-open' : ''}`}>
+    <button type="button" className="menu-tab" onClick={() => setOpen(true)} aria-expanded={open} aria-controls="app-menu" data-testid="button-menu-tab"><i aria-hidden="true" /><span>Menu</span></button>
+    {open && <div className="menu-backdrop" onClick={() => setOpen(false)} aria-hidden="true" />}
+    <aside id="app-menu" className={`sidebar ${open ? 'open' : ''}`}>
+      <button type="button" className="menu-close" onClick={() => setOpen(false)} aria-label="Menu sluiten" data-testid="button-menu-close"><X size={18} /></button>
       <div className="brand"><div className="brand-lockup" role="img" aria-label="Yellowlime AI Agent"><img src={brandMark} alt="" className="brand-mark" /><div className="brand-words"><img src={brandWordmark} alt="" className="brand-wordmark" /><span className="brand-ai">AI Agent</span></div></div></div>
       <div className="side-section eyebrow">Werkruimte</div>
       <nav className="side-nav">{nav.map(({ href, label, icon: Icon }) => <Link key={href} href={href} className={`side-link ${location === href ? 'active' : ''}`} data-testid={`link-nav-${label.toLowerCase()}`} onClick={() => setOpen(false)}><Icon /><span>{label}</span></Link>)}</nav>
       <div className="side-section eyebrow" style={{ marginTop: 21 }}>Werkstroom</div>
-      <div className="side-nav"><Link href="/assignments/new" className="side-link" data-testid="link-new-assignment"><Plus /><span>Nieuwe opdracht</span></Link></div>
+      <div className="side-nav"><Link href="/assignments/new" className="side-link" data-testid="link-new-assignment" onClick={() => setOpen(false)}><Plus /><span>Nieuwe opdracht</span></Link></div>
     </aside>
     <div className="main"><header className="topbar"><button className="mobile-menu" onClick={() => setOpen((value) => !value)} data-testid="button-mobile-menu"><Menu size={20} /></button><div className="breadcrumb"><span>Werkruimte</span><ChevronRight size={13} /><strong>{title}</strong></div><div className="top-actions"><span className="eyebrow" style={{ color: 'hsl(var(--muted-foreground))' }}>Lokale werkruimte</span><Link href="/assignments/new" className="button button-primary button-small" data-testid="button-top-new"><Plus size={14} /><span>Nieuwe opdracht</span></Link></div></header><main className="main-content">{children}</main></div>
   </div>;
@@ -346,15 +352,20 @@ function HomePartners({ partners }: { partners: Array<{ id: number; companyName:
   </section>;
 }
 
+function HomePage() {
+  const { data: dbPartners = [] } = useListPartners();
+  return <><HomeHero />
+    <div className="home-strip"><strong>SEO-schrijfstudio</strong><Link href="/overzicht" data-testid="home-strip-overview">Naar je overzicht <ArrowRight size={14} /></Link></div>
+    <HomePartners partners={dbPartners} />
+  </>;
+}
+
 function DashboardPage() {
   const { data } = useStudio();
   const { data: dbPartners = [] } = useListPartners();
   const counts = { active: data.assignments.filter((item) => ['draft', 'brief_ready', 'in_review'].includes(item.status)).length, review: data.assignments.filter((item) => item.status === 'in_review').length, approved: data.assignments.filter((item) => ['approved', 'ready'].includes(item.status)).length };
   const activities = data.assignments.flatMap((item) => item.logs.map((log) => ({ ...log, subject: item.subject }))).sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 5);
-  return <><HomeHero />
-    <div className="home-strip"><strong>SEO-schrijfstudio</strong><Link href="/assignments/new" data-testid="home-strip-new">Nieuwe opdracht <ArrowRight size={14} /></Link></div>
-    <HomePartners partners={dbPartners} />
-    <PageHeader eyebrow="Redactionele operaties / Maandag, 09:42" title="Hoi beste yellowlimer!" description="Ik ben de Yellowlime AI Agent, jouw slimme schrijfhulp. Geef mij een briefing, dan help ik je stap voor stap naar een sterk SEO-artikel." action={<Link href="/assignments/new" className="button button-primary" data-testid="button-create-assignment"><Plus size={16} />Opdracht aanmaken</Link>} />
+  return <><PageHeader eyebrow="Redactionele operaties / Maandag, 09:42" title="Hoi beste yellowlimer!" description="Ik ben de Yellowlime AI Agent, jouw slimme schrijfhulp. Geef mij een briefing, dan help ik je stap voor stap naar een sterk SEO-artikel." action={<Link href="/assignments/new" className="button button-primary" data-testid="button-create-assignment"><Plus size={16} />Opdracht aanmaken</Link>} />
     <div className="stat-grid fade-up delay-1">
       <div className="card stat-card"><div className="eyebrow">Actieve opdrachten</div><div className="stat-value" data-testid="metric-active">{counts.active}</div><div className="stat-label">In de studiowachtrij</div></div>
       <div className="card stat-card"><div className="eyebrow">Wacht op beoordeling</div><div className="stat-value" data-testid="metric-review">{counts.review}</div><div className="stat-label">Menselijke goedkeuring vereist</div></div>
