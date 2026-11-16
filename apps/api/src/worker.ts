@@ -11,6 +11,8 @@
  *   stops when its response is finished, so the response is only finished
  *   after that work is done. The browser simply waits a little longer.
  */
+// Must come first: other modules read process.env while they load.
+import "./workers/env";
 import { httpServerHandler } from "cloudflare:node";
 import { env } from "cloudflare:workers";
 import express, { type Response } from "express";
@@ -20,6 +22,7 @@ import { collectBackgroundTasks, waitForBackgroundTasks, type BackgroundTasks } 
 import { logger } from "./lib/logger";
 
 const PORT = 8080;
+
 
 function connectionString(): string {
   const bindings = env as unknown as { HYPERDRIVE?: { connectionString: string }; DATABASE_URL?: string };
