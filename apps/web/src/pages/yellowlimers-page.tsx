@@ -139,7 +139,7 @@ export function YellowlimerModal({
               <input 
                 id="avatar-upload"
                 type="file" 
-                accept="image/png, image/jpeg, image/webp" 
+                accept="image/*" 
                 onChange={handleFileChange}
                 style={{ position: 'absolute', opacity: 0, width: '100%', height: '100%', cursor: 'pointer', top: 0, left: 0 }} 
                 disabled={isUploading}

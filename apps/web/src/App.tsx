@@ -406,7 +406,7 @@ function PartnerModal({ onClose, partner }: { onClose: () => void; partner?: { i
     const file = event.target.files?.[0];
     event.target.value = '';
     if (!file) return;
-    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) { addToast('Kies een JPG-, PNG- of WebP-afbeelding.'); return; }
+    if (file.type && !file.type.startsWith('image/')) { addToast('Kies een afbeelding (bijv. JPG of PNG).'); return; }
     setCropFile(file);
   };
   const saveCrop = async (cropped: File) => {
@@ -491,7 +491,7 @@ function PartnerModal({ onClose, partner }: { onClose: () => void; partner?: { i
                   <div className="photo-actions">
                     <label className="button button-ghost button-small" style={{ cursor: 'pointer' }}>
                       {isUploading ? 'Bezig met uploaden...' : logoPath ? 'Andere foto kiezen' : 'Foto kiezen'}
-                      <input type="file" accept="image/jpeg,image/png,image/webp" onChange={pickPhoto} disabled={isUploading} style={{ display: 'none' }} data-testid="input-partner-photo" />
+                      <input type="file" accept="image/*" onChange={pickPhoto} disabled={isUploading} style={{ display: 'none' }} data-testid="input-partner-photo" />
                     </label>
                     {logoPath && <button type="button" className="button button-ghost button-small" onClick={() => setLogoPath(null)} data-testid="button-remove-photo">Verwijderen</button>}
                   </div>
