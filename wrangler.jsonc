@@ -43,5 +43,9 @@
   // the database and add it here. The Worker then uses it instead of DATABASE_URL.
   // "hyperdrive": [{ "binding": "HYPERDRIVE", "id": "<hyperdrive id>" }],
 
+  // Workers Paid: up to 5 minutes CPU per request (reading websites and
+  // parsing long AI answers needs more than the 10 ms of the free plan).
+  "limits": { "cpu_ms": 300000 },
+
   "observability": { "enabled": true }
 }
