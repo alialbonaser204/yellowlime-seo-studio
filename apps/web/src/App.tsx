@@ -319,7 +319,6 @@ function HomeHero() {
   return <section className="home-stage" aria-label="Yellowlime AI Agent">
     <div className={`home-hero ${playing ? 'on' : ''}`} onMouseEnter={replay} onClick={replay}>
       <div className="home-orbit">
-        <span className="home-ellipse" aria-hidden="true"><i className="home-dot" /></span>
         <span className="home-mark" role="img" aria-label="Yellowlime-logo" style={{ ['--mark' as string]: `url(${brandMark})` }} />
       </div>
       <h1 className="home-name">
