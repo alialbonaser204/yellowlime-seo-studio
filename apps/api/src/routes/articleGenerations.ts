@@ -31,6 +31,7 @@ import {
   styleSampleFrom,
 } from "../services/articleGeneration";
 import { generateOutline, validateOutline, type ArticleOutline } from "../services/articleOutline";
+import { analyseSerp } from "../services/serpAnalysis";
 
 const router: IRouter = Router();
 
@@ -88,14 +89,17 @@ router.post("/briefings/:briefingId/article-outline", async (req, res): Promise<
     return;
   }
   try {
+    // Which pages rank comes from Semrush; how they are built is read here.
+    const serp = await analyseSerp(context.semrushResearchSnapshot.organicCompetitors).catch(() => null);
     const outline = await generateOutline({
       partnerName: context.partner.companyName,
       approvedPartnerProfile: context.approvedProfileSnapshot,
       subject: context.briefing.subject,
       contentGoal: context.briefing.contentGoal,
       semrushResearch: context.semrushResearchSnapshot,
+      serp,
     });
-    res.json(outline);
+    res.json({ ...outline, competitors: serp });
   } catch (error) {
     req.log.error({ code: "article_outline_failed", errorType: error instanceof Error ? error.message : typeof error }, "Opzet maken mislukt");
     res.status(502).json({ error: articleGenerationErrorMessage(error) });

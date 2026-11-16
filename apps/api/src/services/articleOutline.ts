@@ -1,4 +1,5 @@
 import { defaultClaudeTextRunner, type ClaudeTextRunner } from "./claudeRunner";
+import { serpContext, type SerpAnalysis } from "./serpAnalysis";
 
 /**
  * Step before writing: Claude proposes an outline (per section: heading,
@@ -35,6 +36,8 @@ export interface OutlineInput {
   subject: string;
   contentGoal: string;
   semrushResearch: Record<string, unknown>;
+  /** What the top 5 in Google look like (headings, length); optional. */
+  serp?: SerpAnalysis | null;
 }
 
 function strings(value: unknown, key: "keyword" | "question"): string[] {
@@ -73,13 +76,16 @@ export function makeOutlinePrompt(input: OutlineInput): string {
     `Hoofdzoekwoord: ${primaryKeyword}`,
     `Toegestane secundaire zoekwoorden: ${JSON.stringify(keywords)}`,
     `Toegestane vragen: ${JSON.stringify(questions)}`,
+    serpContext(input.serp ?? null) ?? "Er is geen analyse van de toppagina's in Google beschikbaar.",
     "Regels:",
     [
       "- title bevat het hoofdzoekwoord.",
       "- sections zijn alleen de inhoudelijke secties. Inleiding, het blok 'In het kort', 'Veelgestelde vragen' en de conclusie komen er later vast bij: zet ze niet in de opzet.",
       "- 4 tot 7 H2-secties; een H3 alleen direct onder een H2 als een sectie echt uit delen bestaat. Eén duidelijk onderwerp per sectie, in een logische volgorde voor de lezer.",
       "- Het hoofdzoekwoord staat in ongeveer een derde van de H2-koppen, natuurlijk geformuleerd.",
-      "- words: 120 tot 400 per sectie; samen 800 tot 1500.",
+      input.serp?.medianWords
+        ? `- words: 120 tot 400 per sectie; samen ongeveer ${Math.min(2500, Math.max(800, input.serp.medianWords))} woorden (de mediaan van de toppagina's, begrensd tot 800–2500).`
+        : "- words: 120 tot 400 per sectie; samen 800 tot 1500.",
       "- angle: één zin over wat de sectie de lezer oplevert en welke informatie uit het profiel of onderzoek erin komt.",
       "- keywords en questions bevatten uitsluitend waarden uit de toegestane lijsten (mag leeg zijn). Verdeel ze over de secties.",
       "- Verzin geen feiten, producten, prijzen of locaties; alles moet uit het profiel of het onderzoek kunnen komen.",

@@ -1169,7 +1169,24 @@ export const GenerateArticleGenerationBody = zod.object({
   "angle": zod.string(),
   "keywords": zod.array(zod.string()),
   "questions": zod.array(zod.string())
+})),
+  "competitors": zod.object({
+  "analysed": zod.number().int(),
+  "averageWords": zod.number().int().nullable(),
+  "medianWords": zod.number().int().nullable(),
+  "pages": zod.array(zod.object({
+  "position": zod.number().int().nullable(),
+  "domain": zod.string(),
+  "url": zod.string(),
+  "status": zod.enum(['ok', 'geblokkeerd', 'mislukt']),
+  "title": zod.string().nullable(),
+  "words": zod.number().int().nullable(),
+  "headings": zod.array(zod.object({
+  "level": zod.enum(['H2', 'H3']),
+  "text": zod.string()
 }))
+}))
+}).nullish()
 }).optional()
 })
 
@@ -1218,7 +1235,24 @@ export const SuggestArticleOutlineResponse = zod.object({
   "angle": zod.string(),
   "keywords": zod.array(zod.string()),
   "questions": zod.array(zod.string())
+})),
+  "competitors": zod.object({
+  "analysed": zod.number().int(),
+  "averageWords": zod.number().int().nullable(),
+  "medianWords": zod.number().int().nullable(),
+  "pages": zod.array(zod.object({
+  "position": zod.number().int().nullable(),
+  "domain": zod.string(),
+  "url": zod.string(),
+  "status": zod.enum(['ok', 'geblokkeerd', 'mislukt']),
+  "title": zod.string().nullable(),
+  "words": zod.number().int().nullable(),
+  "headings": zod.array(zod.object({
+  "level": zod.enum(['H2', 'H3']),
+  "text": zod.string()
 }))
+}))
+}).nullish()
 })
 
 

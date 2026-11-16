@@ -426,9 +426,49 @@ export interface ArticleOutlineSection {
   questions: string[];
 }
 
+export type SerpAnalysisPagesItemStatus = typeof SerpAnalysisPagesItemStatus[keyof typeof SerpAnalysisPagesItemStatus];
+
+
+export const SerpAnalysisPagesItemStatus = {
+  ok: 'ok',
+  geblokkeerd: 'geblokkeerd',
+  mislukt: 'mislukt',
+} as const;
+
+export type SerpAnalysisPagesItemHeadingsItemLevel = typeof SerpAnalysisPagesItemHeadingsItemLevel[keyof typeof SerpAnalysisPagesItemHeadingsItemLevel];
+
+
+export const SerpAnalysisPagesItemHeadingsItemLevel = {
+  H2: 'H2',
+  H3: 'H3',
+} as const;
+
+export type SerpAnalysisPagesItemHeadingsItem = {
+  level: SerpAnalysisPagesItemHeadingsItemLevel;
+  text: string;
+};
+
+export type SerpAnalysisPagesItem = {
+  position: number | null;
+  domain: string;
+  url: string;
+  status: SerpAnalysisPagesItemStatus;
+  title: string | null;
+  words: number | null;
+  headings: SerpAnalysisPagesItemHeadingsItem[];
+};
+
+export interface SerpAnalysis {
+  analysed: number;
+  averageWords: number | null;
+  medianWords: number | null;
+  pages: SerpAnalysisPagesItem[];
+}
+
 export interface ArticleOutline {
   title: string;
   sections: ArticleOutlineSection[];
+  competitors?: SerpAnalysis | null;
 }
 
 export interface ArticleGenerationInput {

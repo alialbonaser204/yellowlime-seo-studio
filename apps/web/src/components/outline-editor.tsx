@@ -1,5 +1,6 @@
-import { ArrowDown, ArrowUp, Check, Plus, RefreshCw, Trash2 } from 'lucide-react';
-import type { ArticleOutline, ArticleOutlineSection } from '@yellowlime/api-client-react';
+import { useState } from 'react';
+import { ArrowDown, ArrowUp, Check, ChevronDown, ExternalLink, Plus, RefreshCw, Trash2 } from 'lucide-react';
+import type { ArticleOutline, ArticleOutlineSection, SerpAnalysis } from '@yellowlime/api-client-react';
 
 const TYPES: Array<{ value: ArticleOutlineSection['type']; label: string }> = [
   { value: 'uitleg', label: 'Uitleg' },
@@ -39,6 +40,7 @@ export function OutlineEditor({ outline, onChange, onApprove, onRedo, busy }: {
       <label htmlFor="outline-title">Titel (H1)</label>
       <input id="outline-title" className="input" value={outline.title} onChange={(e) => onChange({ ...outline, title: e.target.value })} data-testid="outline-title" />
     </div>
+    {outline.competitors && <CompetitorPanel analysis={outline.competitors} />}
     <p className="outline-fixed">Vast in elk artikel: inleiding met direct antwoord · <b>In het kort</b> · jouw secties hieronder · <b>Veelgestelde vragen</b> · conclusie.</p>
     <ol className="outline-list">
       {sections.map((section, index) => <li key={index} className={`outline-item ${section.level === 'H3' ? 'is-h3' : ''}`} data-testid={`outline-section-${index}`}>
@@ -68,11 +70,35 @@ export function OutlineEditor({ outline, onChange, onApprove, onRedo, busy }: {
     </ol>
     <div className="outline-foot">
       <button type="button" className="button button-ghost button-small" onClick={add}><Plus size={14} />Sectie toevoegen</button>
-      <span className="outline-total">{sections.length} secties · ± {total} woorden (plus inleiding, FAQ en conclusie)</span>
+      <span className="outline-total">{sections.length} secties · ± {total} woorden (plus inleiding, FAQ en conclusie){outline.competitors?.medianWords ? ` · top 5 in Google: mediaan ${outline.competitors.medianWords} woorden` : ''}</span>
     </div>
     <div className="form-actions">
       <button type="button" className="button button-ghost" onClick={onRedo} disabled={busy} data-testid="outline-redo"><RefreshCw size={15} />Nieuwe opzet</button>
       <button type="button" className="button button-primary" onClick={onApprove} disabled={busy || !valid} data-testid="outline-approve"><Check size={15} />Opzet goedkeuren en artikel schrijven</button>
     </div>
+  </div>;
+}
+
+/** What the top 5 in Google look like: from Semrush (which pages) and read by the app (how they are built). */
+function CompetitorPanel({ analysis }: { analysis: SerpAnalysis }) {
+  const [open, setOpen] = useState<number | null>(null);
+  if (!analysis.pages.length) return null;
+  const label = (status: string) => (status === 'geblokkeerd' ? 'niet gelezen (robots.txt)' : 'niet bereikbaar');
+  return <div className="serp" data-testid="serp-panel">
+    <div className="serp-head"><b>Top {analysis.pages.length} in Google</b><span>{analysis.analysed} gelezen{analysis.medianWords ? ` · mediaan ${analysis.medianWords} woorden` : ''} · alleen als context, niets wordt overgenomen</span></div>
+    <ul>
+      {analysis.pages.map((page, index) => <li key={page.url}>
+        <button type="button" className="serp-row" onClick={() => setOpen(open === index ? null : index)} disabled={page.status !== 'ok'} aria-expanded={open === index}>
+          <span className="serp-pos">#{page.position ?? index + 1}</span>
+          <span className="serp-domain">{page.domain}</span>
+          <span className="serp-meta">{page.status === 'ok' ? `${page.words ?? '?'} woorden · ${page.headings.filter((h) => h.level === 'H2').length} H2` : label(page.status)}</span>
+          {page.status === 'ok' && <ChevronDown size={14} className={open === index ? 'open' : ''} />}
+        </button>
+        {open === index && <div className="serp-detail">
+          <a href={page.url} target="_blank" rel="noreferrer">{page.title || page.url} <ExternalLink size={11} /></a>
+          <ol>{page.headings.map((h, i) => <li key={i} className={h.level === 'H3' ? 'h3' : ''}>{h.text}</li>)}</ol>
+        </div>}
+      </li>)}
+    </ul>
   </div>;
 }

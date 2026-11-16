@@ -1359,6 +1359,55 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/ArticleOutlineSection"
+        competitors:
+          nullable: true
+          allOf:
+            - $ref: "#/components/schemas/SerpAnalysis"
+    SerpAnalysis:
+      type: object
+      required: [pages, analysed, averageWords, medianWords]
+      properties:
+        analysed:
+          type: integer
+        averageWords:
+          type: integer
+          nullable: true
+        medianWords:
+          type: integer
+          nullable: true
+        pages:
+          type: array
+          items:
+            type: object
+            required: [position, domain, url, status, title, words, headings]
+            properties:
+              position:
+                type: integer
+                nullable: true
+              domain:
+                type: string
+              url:
+                type: string
+              status:
+                type: string
+                enum: [ok, geblokkeerd, mislukt]
+              title:
+                type: string
+                nullable: true
+              words:
+                type: integer
+                nullable: true
+              headings:
+                type: array
+                items:
+                  type: object
+                  required: [level, text]
+                  properties:
+                    level:
+                      type: string
+                      enum: [H2, H3]
+                    text:
+                      type: string
     ArticleGenerationInput:
       type: object
       properties:

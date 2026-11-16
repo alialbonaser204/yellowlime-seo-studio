@@ -6,8 +6,10 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { ArticleOutlineSection } from './articleOutlineSection';
+import type { SerpAnalysis } from './serpAnalysis';
 
 export interface ArticleOutline {
   title: string;
   sections: ArticleOutlineSection[];
+  competitors?: SerpAnalysis | null;
 }
