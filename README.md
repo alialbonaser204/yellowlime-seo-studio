@@ -83,6 +83,26 @@ De app is één Node.js-dienst plus een PostgreSQL-database. De meegeleverde `Do
 5. Zet onder *Settings → Deploy* de **Pre-deploy command** op `pnpm db:migrate`.
 6. Onder *Settings → Networking* krijg je een tijdelijk adres om te testen.
 
+### Cloudflare Workers (gratis pakket)
+
+De API draait als Cloudflare Worker (`apps/api/src/worker.ts`), de webapp als Workers static assets. De instellingen staan in `wrangler.jsonc`. Cloudflare heeft zelf geen PostgreSQL, dus de database staat bij [Neon](https://neon.tech) (gratis pakket, regio Frankfurt).
+
+1. Maak bij Neon een project en kopieer de *connection string* (`postgresql://…sslmode=require`).
+2. Cloudflare-dashboard → *Workers & Pages* → *Create* → *Import a repository* → kies deze repository.
+   - Projectnaam: `yellowlime-seo-studio` (moet gelijk zijn aan `name` in `wrangler.jsonc`)
+   - Build command: `pnpm cf:build` (voert eerst de migraties uit, bouwt dan de webapp)
+   - Deploy command: `npx wrangler deploy`
+   - Build variable: `DATABASE_URL` = de Neon-connection string (nodig voor de migraties)
+3. Zet bij de Worker onder *Settings → Variables and Secrets* als **Secret**: `DATABASE_URL`, `ANTHROPIC_API_KEY`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` en de overige variabelen die nu bij Railway staan. Gebruik dezelfde `GOOGLE_CLIENT_SECRET` (of `GOOGLE_TOKEN_SECRET`) als op Railway, anders kunnen opgeslagen Google-koppelingen niet meer worden gelezen.
+4. Zet in Google Cloud bij de OAuth-client de nieuwe redirect-URI erbij: `https://<worker-adres>/api/google/callback`. Staat `GOOGLE_REDIRECT_URI` op Railway, zet die dan op dit nieuwe adres (of laat hem weg; dan wordt het adres zelf bepaald).
+
+Lokaal testen op de Workers-runtime: zet `DATABASE_URL=…` in `.dev.vars` en draai `pnpm cf:dev`.
+
+Verschillen met een Node-server:
+- Elk verzoek opent een eigen databaseverbinding (Workers delen geen verbindingen tussen verzoeken). Voor snellere verbindingen kun je een Hyperdrive-config toevoegen (zie `wrangler.jsonc`).
+- Werk op de achtergrond (artikel schrijven, website scannen, profiel opbouwen) loopt binnen hetzelfde verzoek: het antwoord komt pas als het klaar is. Laat de pagina open tot het klaar is; als de browser het verzoek afbreekt, stopt Cloudflare ook het werk.
+- Het gratis pakket staat 10 ms rekentijd en 50 uitgaande verzoeken per verzoek toe. Wachten op Claude, Semrush of een website telt niet als rekentijd, maar zware stappen (veel pagina's verwerken, veel Semrush-aanroepen) kunnen tegen die grens aanlopen. Het betaalde pakket ($5 per maand) heeft die grenzen niet.
+
 ### Render
 
 1. *New → Web Service* → koppel je GitHub-repository, kies *Docker*.

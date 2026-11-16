@@ -5,6 +5,7 @@ import cors from "cors";
 import pinoHttp from "pino-http";
 import router from "./routes";
 import { logger } from "./lib/logger";
+import { RUNS_ON_WORKERS } from "./lib/runtime";
 
 const app: Express = express();
 
@@ -45,11 +46,17 @@ app.use(express.urlencoded({ extended: true }));
 app.use("/api", router);
 
 // Serve the built web app (apps/web/dist/public) when it is available.
-const webDistDir = process.env.WEB_DIST_DIR
-  ? path.resolve(process.env.WEB_DIST_DIR)
-  : path.resolve(__dirname, "../../web/dist/public");
+// On Cloudflare Workers the web app is served by Workers static assets instead
+// (see wrangler.jsonc), so this is only for a normal Node server.
+function serveWebApp() {
+  const webDistDir = process.env.WEB_DIST_DIR
+    ? path.resolve(process.env.WEB_DIST_DIR)
+    : path.resolve(__dirname, "../../web/dist/public");
 
-if (fs.existsSync(path.join(webDistDir, "index.html"))) {
+  if (!fs.existsSync(path.join(webDistDir, "index.html"))) {
+    logger.info({ webDistDir }, "Web build not found; serving the API only");
+    return;
+  }
   app.use(
     express.static(webDistDir, {
       index: false,
@@ -65,9 +72,9 @@ if (fs.existsSync(path.join(webDistDir, "index.html"))) {
     res.setHeader("Cache-Control", "no-cache");
     res.sendFile(path.join(webDistDir, "index.html"));
   });
-} else {
-  logger.info({ webDistDir }, "Web build not found; serving the API only");
 }
+
+if (!RUNS_ON_WORKERS) serveWebApp();
 
 app.use("/api", (_req, res) => {
   res.status(404).json({ error: "Not found" });

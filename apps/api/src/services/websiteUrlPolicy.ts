@@ -2,6 +2,9 @@ import dns from "node:dns/promises";
 import net from "node:net";
 import type { LookupAddress } from "node:dns";
 import { getDomain, getHostname, parse } from "tldts";
+import { RUNS_ON_WORKERS } from "../lib/runtime";
+
+export { RUNS_ON_WORKERS };
 
 export class WebsitePolicyError extends Error {
   constructor(public readonly reason: string) {
@@ -12,8 +15,16 @@ export class WebsitePolicyError extends Error {
 
 export type AddressResolver = (host: string) => Promise<LookupAddress[]>;
 
-const DEFAULT_RESOLVER: AddressResolver = (host) =>
-  dns.lookup(host, { all: true, verbatim: true });
+
+/**
+ * Cloudflare Workers cannot look up addresses themselves, and Cloudflare
+ * already refuses to connect a Worker to private or reserved networks. There
+ * the host name is only checked for literal IP addresses (see
+ * validateWebsiteUrl); a normal Node server checks every resolved address.
+ */
+const DEFAULT_RESOLVER: AddressResolver | null = RUNS_ON_WORKERS
+  ? null
+  : (host) => dns.lookup(host, { all: true, verbatim: true });
 
 export function registrableDomain(hostname: string): string {
   const host = (getHostname(hostname.replace(/^\[|\]$/g, "")) ?? "")
@@ -75,7 +86,7 @@ function isPrivateOrReservedIp(address: string): boolean {
 
 export async function validateWebsiteUrl(
   input: string,
-  resolver: AddressResolver = DEFAULT_RESOLVER,
+  resolver: AddressResolver | null | undefined = DEFAULT_RESOLVER,
 ): Promise<URL> {
   let url: URL;
   try {
@@ -99,20 +110,22 @@ export async function validateWebsiteUrl(
   if (net.isIP(host) && isPrivateOrReservedIp(host)) {
     throw new WebsitePolicyError("Privé- of gereserveerde IP-adressen zijn niet toegestaan.");
   }
-  const addresses = await resolvePublicAddresses(host, resolver);
+  await resolvePublicAddresses(host, resolver ?? DEFAULT_RESOLVER);
   registrableDomain(host);
   return url;
 }
 
 export async function resolvePublicAddresses(
   host: string,
-  resolver: AddressResolver = DEFAULT_RESOLVER,
+  resolver: AddressResolver | null | undefined = DEFAULT_RESOLVER,
 ): Promise<LookupAddress[]> {
+  const lookup = resolver ?? DEFAULT_RESOLVER;
+  if (!lookup && !net.isIP(host)) return [];
   let addresses: LookupAddress[];
   try {
     addresses = net.isIP(host)
       ? [{ address: host, family: net.isIP(host) as 4 | 6 }]
-      : await resolver(host);
+      : await lookup!(host);
   } catch {
     throw new WebsitePolicyError("De website kon niet worden gevonden.");
   }

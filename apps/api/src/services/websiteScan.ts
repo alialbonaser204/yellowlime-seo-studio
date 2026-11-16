@@ -1,6 +1,7 @@
 import { and, desc, eq, lt, notInArray } from "drizzle-orm";
 import { db, partnersTable, websiteArticlesTable, websiteScansTable, type WebsiteScan } from "@yellowlime/db";
 import { logger } from "../lib/logger";
+import { runInBackground } from "../lib/background";
 import { InventoryError, scanWebsiteArticles, type ScanOptions } from "./articleInventory";
 import { WebsitePolicyError } from "./websiteUrlPolicy";
 
@@ -50,7 +51,7 @@ export async function startWebsiteScan(partnerId: number, options: ScanOptions =
   if (current?.status === "running") return current;
 
   const [scan] = await db.insert(websiteScansTable).values({ partnerId, status: "running" }).returning();
-  void runScan(scan.id, partnerId, partner.websiteUrl, options);
+  runInBackground(() => runScan(scan.id, partnerId, partner.websiteUrl, options));
   return scan;
 }
 

@@ -2,7 +2,7 @@ import { request as httpRequest } from "node:http";
 import { request as httpsRequest } from "node:https";
 import type { IncomingMessage } from "node:http";
 import robotsParser from "robots-parser";
-import { validateWebsiteUrl, resolvePublicAddresses, sameRegistrableDomain, type AddressResolver, WebsitePolicyError } from "./websiteUrlPolicy";
+import { validateWebsiteUrl, resolvePublicAddresses, sameRegistrableDomain, type AddressResolver, WebsitePolicyError, RUNS_ON_WORKERS } from "./websiteUrlPolicy";
 
 /** Product token used to match robots.txt rules. */
 export const ROBOTS_AGENT = "YellowlimeBot";
@@ -86,11 +86,69 @@ export function safeLookup(resolver?: AddressResolver) {
   };
 }
 
+/**
+ * Transport for Cloudflare Workers, which have no node:http with a custom DNS
+ * lookup. Redirects are not followed here; fetchSafe checks every hop itself.
+ */
+export async function fetchTransport(url: URL, options: SafeHttpOptions): Promise<SafeResponse> {
+  const timeoutMs = options.timeoutMs ?? 10_000;
+  const maxBytes = options.maxBytes ?? MAX_HTML_BYTES;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    let response: Response;
+    try {
+      response = await fetch(url.toString(), {
+        method: "GET",
+        redirect: "manual",
+        signal: controller.signal,
+        headers: { "user-agent": USER_AGENT, accept: options.accept ?? "text/html,application/xhtml+xml" },
+      });
+    } catch (error) {
+      if (controller.signal.aborted) throw new WebsitePolicyError("De website reageert te traag.");
+      throw error;
+    }
+    const chunks: Uint8Array[] = [];
+    let total = 0;
+    if (response.body) {
+      const reader = response.body.getReader();
+      try {
+        for (;;) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          total += value.byteLength;
+          if (total > maxBytes) {
+            await reader.cancel().catch(() => undefined);
+            throw new WebsitePolicyError("De webpagina is te groot.");
+          }
+          chunks.push(value);
+        }
+      } catch (error) {
+        if (controller.signal.aborted) throw new WebsitePolicyError("De website reageert te traag.");
+        throw error;
+      }
+    }
+    const body = new TextDecoder("utf-8").decode(Buffer.concat(chunks));
+    return {
+      url: url.toString(),
+      status: response.status,
+      headers: {
+        "content-type": response.headers.get("content-type") ?? undefined,
+        location: response.headers.get("location") ?? undefined,
+      },
+      body,
+    };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 async function oneRequest(url: URL, options: SafeHttpOptions): Promise<SafeResponse> {
   const resolver = options.resolver;
   const validated = await validateWebsiteUrl(url.toString(), resolver);
-  if (options.transport) {
-    const response = await options.transport(validated, options);
+  const transport = options.transport ?? (RUNS_ON_WORKERS ? fetchTransport : undefined);
+  if (transport) {
+    const response = await transport(validated, options);
     if (Buffer.byteLength(response.body, "utf8") > (options.maxBytes ?? MAX_HTML_BYTES)) {
       throw new WebsitePolicyError("De webpagina is te groot.");
     }

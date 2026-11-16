@@ -1,0 +1,40 @@
+{
+  // Cloudflare Workers deployment of the Yellowlime AI Agent (API + web app).
+  // Build the web app first (pnpm cf:build), then deploy (pnpm cf:deploy).
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "yellowlime-seo-studio",
+  "main": "apps/api/src/worker.ts",
+  "compatibility_date": "2026-11-01",
+  "compatibility_flags": ["nodejs_compat"],
+
+  // The React app; every path that is not a file gets index.html (client-side
+  // routing). Only /api/* reaches the Worker.
+  "assets": {
+    "directory": "apps/web/dist/public",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*"]
+  },
+
+  // pino needs Node streams and worker threads; on Workers a small console
+  // logger takes its place.
+  "alias": {
+    "pino": "./apps/api/src/workers/pino.ts",
+    "pino-http": "./apps/api/src/workers/pino-http.ts"
+  },
+
+  "vars": {
+    "NODE_ENV": "production"
+  },
+
+  // Secrets are set in the Cloudflare dashboard (Settings > Variables and
+  // Secrets) or with `wrangler secret put`, never in this file:
+  // DATABASE_URL, ANTHROPIC_API_KEY, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET,
+  // GOOGLE_REDIRECT_URI, and the other variables that are set on Railway now
+  // (GOOGLE_TOKEN_SECRET, SEMRUSH_API_KEY, SEMRUSH_MODE, ... when used).
+  //
+  // Optional, for faster database connections: create a Hyperdrive config for
+  // the database and add it here. The Worker then uses it instead of DATABASE_URL.
+  // "hyperdrive": [{ "binding": "HYPERDRIVE", "id": "<hyperdrive id>" }],
+
+  "observability": { "enabled": true }
+}

@@ -1,4 +1,5 @@
 import { and, desc, eq, sql } from "drizzle-orm";
+import { runInBackground } from "../lib/background";
 import {
   Router,
   type IRouter,
@@ -210,7 +211,7 @@ function queueArticleGeneration(
   input: Parameters<typeof generateArticle>[0],
   log: SafeLogger,
 ): void {
-  void (async () => {
+  runInBackground(async () => {
     try {
       const generated = await generateArticle(input);
       await db
@@ -258,7 +259,7 @@ function queueArticleGeneration(
         "Artikelgeneratie mislukt",
       );
     }
-  })().catch((error) => {
+  }, (error) => {
     log.error(
       { code: "article_generation_background_failed", errorType: error instanceof Error ? error.name : typeof error },
       "Artikelgeneratie op achtergrond mislukt",

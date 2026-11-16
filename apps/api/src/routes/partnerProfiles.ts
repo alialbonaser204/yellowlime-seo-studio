@@ -1,4 +1,5 @@
 import { Router, type IRouter, type Response } from "express";
+import { runInBackground } from "../lib/background";
 import { eq } from "drizzle-orm";
 import {
   AnalyzePartnerWebsiteParams,
@@ -183,7 +184,7 @@ router.post("/partners/:partnerId/profile/analyze", async (req, res): Promise<vo
     ? (await db.update(partnerProfilesTable).set(values).where(eq(partnerProfilesTable.id, existing.id)).returning())[0]
     : (await db.insert(partnerProfilesTable).values(values).returning())[0];
   res.status(202).json(AnalyzePartnerWebsiteResponse.parse(response(pending)));
-  void (async () => {
+  runInBackground(async () => {
     try {
       const collection = await profilePages(partner, true);
       const generated = await generateAllProfileFields(
@@ -216,7 +217,7 @@ router.post("/partners/:partnerId/profile/analyze", async (req, res): Promise<vo
         req.log.error({ code: "partner_profile_failure_persist_failed", errorType: updateError instanceof Error ? updateError.name : typeof updateError }, "Mislukte analyse kon niet worden opgeslagen");
       });
     }
-  })().catch((error) => req.log.error({ code: "partner_profile_background_rejection", errorType: error instanceof Error ? error.name : typeof error }, "Analyse op achtergrond mislukt"));
+  }, (error) => req.log.error({ code: "partner_profile_background_rejection", errorType: error instanceof Error ? error.name : typeof error }, "Analyse op achtergrond mislukt"));
 });
 
 router.post("/partners/:partnerId/profile/generate-draft", async (req, res): Promise<void> => {
@@ -248,7 +249,7 @@ router.post("/partners/:partnerId/profile/generate-draft", async (req, res): Pro
     : (await db.insert(partnerProfilesTable).values(values).returning())[0];
   res.status(202).json(GeneratePartnerProfileDraftResponse.parse(response(pending)));
 
-  void (async () => {
+  runInBackground(async () => {
     try {
       const draft = await generateSafePartnerProfileDraft(
         partner.companyName,
@@ -273,7 +274,7 @@ router.post("/partners/:partnerId/profile/generate-draft", async (req, res): Pro
         failureMessage: `${claudeErrorMessage(error)} De bestaande reviewgegevens zijn behouden.`,
       }).where(eq(partnerProfilesTable.id, pending.id));
     }
-  })().catch((error) => req.log.error(
+  }, (error) => req.log.error(
     { code: "partner_profile_draft_background_rejection", errorType: error instanceof Error ? error.name : typeof error },
     "AI-concept op achtergrond mislukt",
   ));

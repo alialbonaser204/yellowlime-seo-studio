@@ -17,10 +17,14 @@
     "db:push": "pnpm --filter @yellowlime/db run push",
     "codegen": "pnpm --filter @yellowlime/api-spec run codegen",
     "typecheck:libs": "tsc --build",
-    "typecheck": "pnpm run typecheck:libs && pnpm -r --filter \"./apps/**\" --if-present run typecheck"
+    "typecheck": "pnpm run typecheck:libs && pnpm -r --filter \"./apps/**\" --if-present run typecheck",
+    "cf:build": "pnpm db:migrate && pnpm --filter @yellowlime/web run build",
+    "cf:dev": "pnpm --filter @yellowlime/web run build && wrangler dev",
+    "cf:deploy": "wrangler deploy"
   },
   "devDependencies": {
     "prettier": "^3.9.6",
-    "typescript": "~5.9.3"
+    "typescript": "~5.9.3",
+    "wrangler": "^4.162.0"
   }
 }

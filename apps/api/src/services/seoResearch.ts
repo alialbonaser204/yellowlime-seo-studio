@@ -1,4 +1,5 @@
 import { eq } from "drizzle-orm";
+import { runInBackground } from "../lib/background";
 import {
   briefingsTable,
   db,
@@ -174,7 +175,7 @@ export function queueSeoResearch(
   briefing: Pick<Briefing, "id" | "partnerId" | "subject" | "contentGoal">,
   log: SafeLogger,
 ): void {
-  void (async () => {
+  runInBackground(async () => {
     try {
       const input: SeoResearchInput = {
         originalSubject: briefing.subject,
@@ -191,7 +192,7 @@ export function queueSeoResearch(
       }
       log.error({ code: safe.code, errorType: error instanceof Error ? error.name : typeof error }, "Semrush-onderzoek mislukt");
     }
-  })().catch((error: unknown) => {
+  }, (error: unknown) => {
     log.error({ code: "research_background_failed", errorType: error instanceof Error ? error.name : typeof error }, "Semrush-achtergrondtaak mislukt");
   });
 }
