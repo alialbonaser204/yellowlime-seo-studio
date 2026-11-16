@@ -5,7 +5,7 @@ import {
 } from "./claudeRunner";
 
 export const CLAUDE_MODEL = SHARED_CLAUDE_MODEL;
-export const PROMPT_VERSION = "article_generation_v1" as const;
+export const PROMPT_VERSION = "article_generation_v2" as const;
 export const ARTICLE_CLAUDE_MODEL = CLAUDE_MODEL;
 export const ARTICLE_PROMPT_VERSION = PROMPT_VERSION;
 export const ARTICLE_GENERATION_TIMEOUT_MS = 300_000;
@@ -17,6 +17,26 @@ export interface ArticleGenerationInput {
   contentGoal: string;
   semrushResearch: Record<string, unknown>;
   yellowlimerName: string;
+  /** A piece of the partner's own website text, only as an example of tone and style. */
+  styleSample?: string | null;
+}
+
+/** At most this much of the partner's website text is sent as a style example. */
+export const STYLE_SAMPLE_CHARS = 1500;
+
+/** Picks a readable stretch of the partner's own website text: whole sentences, no menus. */
+export function styleSampleFrom(websiteText: string | null | undefined, maxChars = STYLE_SAMPLE_CHARS): string | null {
+  if (!websiteText) return null;
+  const paragraphs = websiteText
+    .split(/\n{1,}/)
+    .map((p) => p.replace(/\s+/g, " ").trim())
+    .filter((p) => p.split(" ").length >= 12 && /[.!?]$/.test(p));
+  let out = "";
+  for (const p of paragraphs) {
+    if (out.length + p.length + 2 > maxChars) break;
+    out += (out ? "\n\n" : "") + p;
+  }
+  return out.length >= 200 ? out : null;
 }
 
 export interface ArticleSectionContent {
@@ -157,7 +177,22 @@ export function makeArticleGenerationPrompt(input: ArticleGenerationInput): stri
     `Te gebruiken hoofdzoekwoord: ${primaryKeyword}`,
     `Toegestane secundaire zoekwoorden: ${JSON.stringify(keywords)}`,
     `Toegestane vragen: ${JSON.stringify(questions)}`,
+    input.styleSample
+      ? `Voorbeeldtekst van de eigen website van de partner (alleen als voorbeeld van toon, aanspreekvorm en zinsbouw; neem er geen zinnen letterlijk uit over en gebruik er geen feiten uit die niet in het goedgekeurde profiel staan):\n"""\n${input.styleSample}\n"""`
+      : "Er is geen voorbeeldtekst van de website; volg de toon en stijl uit het partnerprofiel.",
     "Schrijf in de toon en stijl van het partnerprofiel, passend bij doel en zoekintentie.",
+    [
+      "Opbouw van full_article (markdown):",
+      "1. Begin met '# ' + de titel. De titel bevat het hoofdzoekwoord.",
+      "2. Inleiding: de eerste één à twee zinnen geven direct antwoord op de zoekvraag achter het onderwerp, zonder aanloop. Het hoofdzoekwoord staat in de eerste 100 woorden. Daarna kort waarom dit belangrijk is voor de lezer en wat hij in het artikel leert.",
+      "3. Direct na de inleiding een blok 'In het kort' als blockquote: de regel '> **In het kort**' en daarna 3 tot 5 regels '> - ' met de belangrijkste conclusies van het artikel zelf, elk concreet en op zichzelf te begrijpen. Alleen feiten uit het profiel of het onderzoek.",
+      "4. Daarna de H2- en H3-secties ('## ' en '### '), één duidelijk onderwerp per sectie, met het hoofdzoekwoord in ongeveer een derde van de H2-koppen.",
+      "5. Daarna '## Veelgestelde vragen' met 3 tot 5 vragen als '### ' kop, geformuleerd zoals mensen ze aan Google of ChatGPT stellen, elk met een antwoord van 2 tot 4 zinnen. Gebruik eerst de toegestane vragen.",
+      "6. Sluit af met een conclusie en een passende call-to-action.",
+    ].join("\n"),
+    "Leesbaarheid: alinea's van hooguit 4 zinnen, gemiddeld niet meer dan 20 woorden per zin, actieve zinnen, gewone woorden.",
+    "Vermijd standaardzinnen die als AI-tekst klinken, zoals 'in de wereld van', 'in de huidige digitale wereld', 'het is belangrijk om te weten', 'laten we eens kijken', 'duiken in', 'speelt een cruciale rol', 'het is geen geheim dat', 'naadloos', 'baanbrekend', 'gamechanger' en 'niet alleen … maar ook'.",
+    "meta_title is 50 tot 60 tekens en bevat het hoofdzoekwoord. meta_description is 140 tot 160 tekens en geeft zelf al het antwoord in plaats van alleen nieuwsgierig te maken.",
     "Gebruik het hoofdzoekwoord natuurlijk, relevante secundaire zoekwoorden zonder keyword stuffing, en gebruik vragen als H2/H3 of FAQ-kop wanneer dat nuttig is.",
     "Maak een duidelijke titel en introductie, gebruik H2- en H3-secties met korte leesbare alinea's, sluit af met een passende CTA en conclusie.",
     "Verzin nooit feiten, producten, diensten, prijzen of locaties en doe geen onbewezen claims. Gebruik geen generieke AI-tekst.",

@@ -1450,15 +1450,36 @@ function ArticlePage() {
     });
   };
 
+  const inline = (text: string) => withLinks(text.replace(/\*\*([^*]+)\*\*/g, '$1'));
   const safeRender = (text: string) => {
     if (!text) return null;
-    return text.split('\n').map((paragraph, index) => {
+    const out: ReactNode[] = [];
+    const lines = text.split('\n');
+    for (let index = 0; index < lines.length; index++) {
+      // A '> ' blockquote, such as the 'In het kort' summary, becomes one box.
+      if (lines[index].trim().startsWith('>')) {
+        const quote: string[] = [];
+        while (index < lines.length && lines[index].trim().startsWith('>')) quote.push(lines[index++].trim().replace(/^>\s?/, ''));
+        index--;
+        const [first, ...rest] = quote.filter((line) => line.trim());
+        const isTitle = first && !/^[-*]\s/.test(first);
+        const items = (isTitle ? rest : [first, ...rest]).filter(Boolean);
+        out.push(<aside key={`q${index}`} className="takeaways">{isTitle && <strong>{first.replace(/\*\*/g, '')}</strong>}<ul>{items.map((item, i) => <li key={i}>{inline(item.replace(/^[-*]\s+/, ''))}</li>)}</ul></aside>);
+        continue;
+      }
+      out.push(renderLine(lines[index], index));
+    }
+    return out;
+  };
+  const renderLine = (paragraph: string, index: number): ReactNode => {
+    if (/^\s*[-*]\s+/.test(paragraph)) return <p key={index} className="md-bullet">{inline(paragraph.replace(/^\s*[-*]\s+/, ''))}</p>;
+    return [paragraph].map((paragraph) => {
       if (paragraph.trim().startsWith('### ')) return <h3 key={index} style={{fontSize: '18px', fontWeight: 600, margin: '20px 0 10px'}}>{paragraph.replace('### ', '')}</h3>;
       if (paragraph.trim().startsWith('## ')) return <h2 key={index}>{paragraph.replace('## ', '')}</h2>;
       if (paragraph.trim().startsWith('# ')) return <h1 key={index} style={{fontSize:'24px', fontWeight: 700, margin:'24px 0 12px'}}>{paragraph.replace('# ', '')}</h1>;
       if (paragraph.trim() === '') return <br key={index} />;
-      return <p key={index}>{withLinks(paragraph)}</p>;
-    });
+      return <p key={index}>{inline(paragraph)}</p>;
+    })[0];
   };
 
   return (

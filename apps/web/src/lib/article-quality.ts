@@ -113,7 +113,8 @@ export function parseArticle(markdown: string) {
     }
   };
   for (const raw of lines) {
-    const line = raw.trim();
+    // A blockquote (such as the 'In het kort' block) counts as normal text.
+    const line = raw.trim().replace(/^>\s?/, '');
     const heading = /^(#{1,6})\s+(.*)$/.exec(line);
     if (heading) {
       flush();

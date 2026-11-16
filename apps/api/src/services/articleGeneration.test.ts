@@ -5,6 +5,7 @@ import {
   articleGenerationPrerequisiteError,
   generateArticle,
   makeArticleGenerationPrompt,
+  styleSampleFrom,
   type ArticleGenerationInput,
 } from "./articleGeneration";
 
@@ -188,4 +189,31 @@ test("maps a Claude timeout without starting a repair request", async () => {
     articleGenerationErrorMessage(timeout),
     "De AI-generatie duurde te lang.",
   );
+});
+
+test("v2 prompt asks for a direct answer, an In het kort block and a FAQ, and passes a style sample", () => {
+  const prompt = makeArticleGenerationPrompt({ ...input, styleSample: "Wij helpen je graag met je tuin. Bel ons gerust voor een afspraak bij jou thuis." });
+  assert.match(prompt, /article_generation_v2/);
+  assert.match(prompt, /direct antwoord/);
+  assert.match(prompt, /In het kort/);
+  assert.match(prompt, /## Veelgestelde vragen/);
+  assert.match(prompt, /Bel ons gerust/);
+  assert.match(prompt, /geen feiten uit die niet in het goedgekeurde profiel staan/);
+  assert.doesNotMatch(makeArticleGenerationPrompt(input), /Voorbeeldtekst van de eigen website/);
+});
+
+test("style sample takes whole sentences from the website text and skips menus", () => {
+  const text = [
+    "Home Over ons Contact",
+    "Bij Groen & Co ontwerpen we tuinen die het hele jaar mooi blijven en weinig onderhoud vragen van jou.",
+    "Menu",
+    "Onze hoveniers werken met inheemse planten, zodat vlinders en bijen zich direct thuis voelen in jouw tuin.",
+    "We komen altijd eerst kijken, luisteren naar je wensen en maken daarna een ontwerp dat bij jouw huis past.",
+  ].join("\n");
+  const sample = styleSampleFrom(text, 1500);
+  assert.ok(sample);
+  assert.ok(!sample!.includes("Over ons Contact"));
+  assert.ok(sample!.includes("inheemse planten"));
+  assert.equal(styleSampleFrom("Te kort."), null);
+  assert.equal(styleSampleFrom(null), null);
 });

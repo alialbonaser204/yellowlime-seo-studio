@@ -28,6 +28,7 @@ import {
   ARTICLE_CLAUDE_MODEL,
   ARTICLE_PROMPT_VERSION,
   generateArticle,
+  styleSampleFrom,
 } from "../services/articleGeneration";
 
 const router: IRouter = Router();
@@ -200,6 +201,7 @@ router.post(
         contentGoal: briefing.contentGoal,
         semrushResearch: semrushResearchSnapshot,
         yellowlimerName: reviewer!.name,
+        styleSample: styleSampleFrom(profile?.websiteText),
       },
       req.log,
     );
