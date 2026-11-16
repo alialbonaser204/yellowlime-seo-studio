@@ -397,6 +397,44 @@ export interface HealthStatus {
   status: string;
 }
 
+export type ArticleOutlineSectionLevel = typeof ArticleOutlineSectionLevel[keyof typeof ArticleOutlineSectionLevel];
+
+
+export const ArticleOutlineSectionLevel = {
+  H2: 'H2',
+  H3: 'H3',
+} as const;
+
+export type ArticleOutlineSectionType = typeof ArticleOutlineSectionType[keyof typeof ArticleOutlineSectionType];
+
+
+export const ArticleOutlineSectionType = {
+  uitleg: 'uitleg',
+  stappenplan: 'stappenplan',
+  vergelijking: 'vergelijking',
+  lijst: 'lijst',
+  voorbeeld: 'voorbeeld',
+} as const;
+
+export interface ArticleOutlineSection {
+  heading: string;
+  level: ArticleOutlineSectionLevel;
+  type: ArticleOutlineSectionType;
+  words: number;
+  angle: string;
+  keywords: string[];
+  questions: string[];
+}
+
+export interface ArticleOutline {
+  title: string;
+  sections: ArticleOutlineSection[];
+}
+
+export interface ArticleGenerationInput {
+  outline?: ArticleOutline;
+}
+
 export type PartnerProfileStatus = typeof PartnerProfileStatus[keyof typeof PartnerProfileStatus];
 
 

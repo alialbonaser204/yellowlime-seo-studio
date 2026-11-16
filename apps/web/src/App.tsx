@@ -47,6 +47,8 @@ import { AI_FIELDS, AiEvidence, AiFieldButton, AiPagesUsed, useProfileAi } from 
 import { TopicWizard } from './components/topic-wizard';
 import { InternalLinksCard } from './components/internal-links';
 import { ArticleQualityCard } from './components/article-quality';
+import { OutlineEditor } from './components/outline-editor';
+import type { ArticleOutline } from '@yellowlime/api-client-react';
 import { SquareCropper } from './components/square-cropper';
 import { useImageUpload } from './hooks/use-image-upload';
 import { ICONS } from './pages/yellowlimers-page';
@@ -83,7 +85,8 @@ import {
   useRejectPartnerProfile,
   useListArticleGenerations,
   getListArticleGenerationsQueryKey,
-  useGenerateArticleGeneration
+  useGenerateArticleGeneration,
+  useSuggestArticleOutline
 } from '@yellowlime/api-client-react';
 
 type Status = 'draft' | 'brief_ready' | 'in_review' | 'approved' | 'rejected' | 'ready';
@@ -1377,6 +1380,8 @@ function ArticlePage() {
   });
 
   const generateMutation = useGenerateArticleGeneration();
+  const outlineMutation = useSuggestArticleOutline();
+  const [outline, setOutline] = useState<ArticleOutline | null>(null);
   
   const latestGen = generations[0];
   const lastLoggedStatus = useRef<string | null>(null);
@@ -1437,11 +1442,20 @@ function ArticlePage() {
   const canGenerate = isProfileApproved && hasReviewer && hasContent;
   const isPending = latestGen?.articleStatus === 'Artikel wordt geschreven' || generateMutation.isPending;
 
-  const handleGenerate = () => {
+  const handleOutline = () => {
+    if (!canGenerate || isPending || outlineMutation.isPending) return;
+    outlineMutation.mutate({ briefingId: briefingDbId }, {
+      onSuccess: (proposal) => setOutline(proposal),
+      onError: (error) => addToast((error as { data?: { error?: string } })?.data?.error ?? 'De opzet kon niet worden gemaakt. Probeer het opnieuw.'),
+    });
+  };
+
+  const handleGenerate = (approved: ArticleOutline | null = null) => {
     if (!canGenerate || isPending) return;
-    generateMutation.mutate({ briefingId: briefingDbId }, {
+    generateMutation.mutate({ briefingId: briefingDbId, data: approved ? { outline: approved } : undefined }, {
       onSuccess: () => {
-        addToast('Artikel generatie gestart.');
+        setOutline(null);
+        addToast(approved ? 'Opzet goedgekeurd. Het artikel wordt geschreven.' : 'Artikel generatie gestart.');
         queryClient.invalidateQueries({ queryKey: getListArticleGenerationsQueryKey(briefingDbId) });
       },
       onError: () => {
@@ -1531,14 +1545,19 @@ function ArticlePage() {
                 </div>
               )}
 
-              <button 
-                className="button button-primary" 
-                onClick={handleGenerate} 
-                disabled={!canGenerate || isPending} 
-                data-testid="generate-article"
-              >
-                <Sparkles size={15} /> Conceptartikel genereren
-              </button>
+              {outline ? (
+                <OutlineEditor outline={outline} onChange={setOutline} onApprove={() => handleGenerate(outline)} onRedo={handleOutline} busy={isPending || outlineMutation.isPending} />
+              ) : (
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                  <button className="button button-primary" onClick={handleOutline} disabled={!canGenerate || isPending || outlineMutation.isPending} data-testid="make-outline">
+                    {outlineMutation.isPending ? <><RefreshCw size={15} className="animate-spin" /> Opzet wordt gemaakt…</> : <><Sparkles size={15} /> Opzet maken</>}
+                  </button>
+                  <button className="button button-ghost" onClick={() => handleGenerate(null)} disabled={!canGenerate || isPending || outlineMutation.isPending} data-testid="generate-article">
+                    Direct schrijven zonder opzet
+                  </button>
+                </div>
+              )}
+              {!outline && <p className="outline-hint">Aanrader: laat eerst een opzet maken. Je past koppen, volgorde en lengte aan en keurt hem goed; daarna schrijft de Yellowlime AI Agent het artikel precies volgens die opzet.</p>}
             </div>
           )}
 

@@ -709,6 +709,12 @@ paths:
           required: true
           schema:
             type: integer
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ArticleGenerationInput"
       responses:
         "202":
           description: Article generation started
@@ -718,6 +724,28 @@ paths:
                 $ref: "#/components/schemas/ArticleGeneration"
         "409":
           description: Generation prerequisites are not complete
+  /briefings/{briefingId}/article-outline:
+    post:
+      operationId: suggestArticleOutline
+      tags: [articles]
+      summary: Let Claude propose an outline that a Yellowlimer can edit and approve
+      parameters:
+        - name: briefingId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Proposed outline
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ArticleOutline"
+        "409":
+          description: Prerequisites are not complete
+        "502":
+          description: Claude could not make an outline
   /article-reviews:
     get:
       operationId: listArticleReviews
@@ -1297,6 +1325,45 @@ components:
           type: string
       required:
         - status
+    ArticleOutlineSection:
+      type: object
+      required: [heading, level, type, words, angle, keywords, questions]
+      properties:
+        heading:
+          type: string
+        level:
+          type: string
+          enum: [H2, H3]
+        type:
+          type: string
+          enum: [uitleg, stappenplan, vergelijking, lijst, voorbeeld]
+        words:
+          type: integer
+        angle:
+          type: string
+        keywords:
+          type: array
+          items:
+            type: string
+        questions:
+          type: array
+          items:
+            type: string
+    ArticleOutline:
+      type: object
+      required: [title, sections]
+      properties:
+        title:
+          type: string
+        sections:
+          type: array
+          items:
+            $ref: "#/components/schemas/ArticleOutlineSection"
+    ArticleGenerationInput:
+      type: object
+      properties:
+        outline:
+          $ref: "#/components/schemas/ArticleOutline"
     Partner:
       type: object
       required: [id, companyName, websiteUrl, profileStatus, createdAt, updatedAt]

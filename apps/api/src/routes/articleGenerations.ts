@@ -30,6 +30,7 @@ import {
   generateArticle,
   styleSampleFrom,
 } from "../services/articleGeneration";
+import { generateOutline, validateOutline, type ArticleOutline } from "../services/articleOutline";
 
 const router: IRouter = Router();
 
@@ -70,23 +71,44 @@ router.get(
   },
 );
 
-router.post(
-  "/briefings/:briefingId/article-generations",
-  async (req, res): Promise<void> => {
-    const parsed = GenerateArticleGenerationParams.safeParse(req.params);
-    if (!parsed.success) {
-      res.status(400).json({ error: "Ongeldige briefing." });
-      return;
-    }
-    const briefingId = parsed.data.briefingId;
+/**
+ * POST /briefings/:briefingId/article-outline
+ * Claude proposes an outline; nothing is stored until the Yellowlimer approves
+ * it by generating the article with it.
+ */
+router.post("/briefings/:briefingId/article-outline", async (req, res): Promise<void> => {
+  const parsed = GenerateArticleGenerationParams.safeParse(req.params);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Ongeldige briefing." });
+    return;
+  }
+  const context = await loadGenerationContext(parsed.data.briefingId);
+  if (context.status !== 200) {
+    res.status(context.status).json({ error: context.error });
+    return;
+  }
+  try {
+    const outline = await generateOutline({
+      partnerName: context.partner.companyName,
+      approvedPartnerProfile: context.approvedProfileSnapshot,
+      subject: context.briefing.subject,
+      contentGoal: context.briefing.contentGoal,
+      semrushResearch: context.semrushResearchSnapshot,
+    });
+    res.json(outline);
+  } catch (error) {
+    req.log.error({ code: "article_outline_failed", errorType: error instanceof Error ? error.message : typeof error }, "Opzet maken mislukt");
+    res.status(502).json({ error: articleGenerationErrorMessage(error) });
+  }
+});
+
+/** Loads everything a generation (or an outline) needs, or says why it cannot start. */
+async function loadGenerationContext(briefingId: number) {
     const [briefing] = await db
       .select()
       .from(briefingsTable)
       .where(eq(briefingsTable.id, briefingId));
-    if (!briefing) {
-      res.status(404).json({ error: "Briefing niet gevonden." });
-      return;
-    }
+    if (!briefing) return { status: 404 as const, error: "Briefing niet gevonden." };
     const [partner] = await db
       .select()
       .from(partnersTable)
@@ -114,10 +136,7 @@ router.post(
       subject: briefing.subject,
       contentGoal: briefing.contentGoal,
     });
-    if (prerequisiteError) {
-      res.status(409).json({ error: prerequisiteError });
-      return;
-    }
+    if (prerequisiteError) return { status: 409 as const, error: prerequisiteError };
 
     const approvedProfileSnapshot = snapshot(profile!.approvedProfile as Record<string, unknown>);
     const primaryKeyword = research?.selectedMainKeyword?.trim() || briefing.subject;
@@ -135,6 +154,33 @@ router.post(
       organicCompetitors: research?.organicCompetitors ?? [],
       message: research?.message ?? "SEO-onderzoek niet beschikbaar; het briefingonderwerp wordt gebruikt.",
     });
+    return { status: 200 as const, briefing, partner: partner!, profile: profile!, reviewer: reviewer!, research, approvedProfileSnapshot, primaryKeyword, semrushResearchSnapshot };
+}
+
+router.post(
+  "/briefings/:briefingId/article-generations",
+  async (req, res): Promise<void> => {
+    const parsed = GenerateArticleGenerationParams.safeParse(req.params);
+    if (!parsed.success) {
+      res.status(400).json({ error: "Ongeldige briefing." });
+      return;
+    }
+    const briefingId = parsed.data.briefingId;
+    const context = await loadGenerationContext(briefingId);
+    if (context.status !== 200) {
+      res.status(context.status).json({ error: context.error });
+      return;
+    }
+    const { briefing, partner, profile, reviewer, approvedProfileSnapshot, primaryKeyword, semrushResearchSnapshot } = context;
+    let outline: ArticleOutline | null = null;
+    if (req.body && typeof req.body === "object" && (req.body as { outline?: unknown }).outline) {
+      try {
+        outline = validateOutline((req.body as { outline: unknown }).outline);
+      } catch {
+        res.status(400).json({ error: "De opzet is ongeldig. Maak de opzet opnieuw." });
+        return;
+      }
+    }
     let pending: typeof articleGenerationsTable.$inferSelect;
     try {
       // Advisory locks serialize version allocation without changing any
@@ -174,6 +220,7 @@ router.post(
             claudeModelName: ARTICLE_CLAUDE_MODEL,
             promptVersion: ARTICLE_PROMPT_VERSION,
             failureMessage: null,
+            outline: outline as unknown as Record<string, unknown> | null,
           })
           .returning();
         return inserted;
@@ -202,6 +249,7 @@ router.post(
         semrushResearch: semrushResearchSnapshot,
         yellowlimerName: reviewer!.name,
         styleSample: styleSampleFrom(profile?.websiteText),
+        outline,
       },
       req.log,
     );

@@ -84,6 +84,8 @@ export const articleGenerationsTable = pgTable(
       .notNull()
       .defaultNow(),
     failureMessage: text("failure_message"),
+    /** The outline a Yellowlimer approved before writing (null when written without one). */
+    outline: jsonb("outline").$type<Record<string, unknown> | null>(),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),

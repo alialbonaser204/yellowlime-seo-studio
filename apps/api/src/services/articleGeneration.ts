@@ -3,6 +3,7 @@ import {
   defaultClaudeTextRunner,
   type ClaudeTextRunner,
 } from "./claudeRunner";
+import { outlineInstructions, type ArticleOutline } from "./articleOutline";
 
 export const CLAUDE_MODEL = SHARED_CLAUDE_MODEL;
 export const PROMPT_VERSION = "article_generation_v2" as const;
@@ -19,6 +20,8 @@ export interface ArticleGenerationInput {
   yellowlimerName: string;
   /** A piece of the partner's own website text, only as an example of tone and style. */
   styleSample?: string | null;
+  /** The outline a Yellowlimer approved; when present the article follows it exactly. */
+  outline?: ArticleOutline | null;
 }
 
 /** At most this much of the partner's website text is sent as a style example. */
@@ -180,6 +183,7 @@ export function makeArticleGenerationPrompt(input: ArticleGenerationInput): stri
     input.styleSample
       ? `Voorbeeldtekst van de eigen website van de partner (alleen als voorbeeld van toon, aanspreekvorm en zinsbouw; neem er geen zinnen letterlijk uit over en gebruik er geen feiten uit die niet in het goedgekeurde profiel staan):\n"""\n${input.styleSample}\n"""`
       : "Er is geen voorbeeldtekst van de website; volg de toon en stijl uit het partnerprofiel.",
+    ...(input.outline ? [outlineInstructions(input.outline)] : []),
     "Schrijf in de toon en stijl van het partnerprofiel, passend bij doel en zoekintentie.",
     [
       "Opbouw van full_article (markdown):",

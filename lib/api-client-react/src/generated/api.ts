@@ -22,7 +22,9 @@ import type {
 import type {
   Article,
   ArticleGeneration,
+  ArticleGenerationInput,
   ArticleInput,
+  ArticleOutline,
   ArticleReview,
   ArticleReviewInput,
   Briefing,
@@ -2702,14 +2704,29 @@ export const getGenerateArticleGenerationUrl = (briefingId: number,) => {
 /**
  * @summary Generate a new immutable AI article version
  */
-export const generateArticleGeneration = async (briefingId: number, options?: Parameters<typeof customFetch>[1]): Promise<ArticleGeneration> => {
+export const generateArticleGeneration = async (briefingId: number,
+    articleGenerationInput?: ArticleGenerationInput, options?: Parameters<typeof customFetch>[1]): Promise<ArticleGeneration> => {
 
-  return customFetch<ArticleGeneration>(getGenerateArticleGenerationUrl(briefingId),
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<ArticleGeneration>(getGenerateArticleGenerationUrl(briefingId),
   {
     ...options,
-    method: 'POST'
-
-
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(articleGenerationInput)
   }
 );}
 
@@ -2734,9 +2751,9 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
 
       const mutationFn: MutationFunction<Awaited<ReturnType<typeof generateArticleGeneration>>, GenerateArticleGenerationMutationVariables> = (props) => {
-          const {briefingId} = props ?? {};
+          const {briefingId,data} = props ?? {};
 
-          return  generateArticleGeneration(briefingId,requestOptions)
+          return  generateArticleGeneration(briefingId,data,requestOptions)
         }
 
 
@@ -2747,9 +2764,9 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
   return  { mutationFn, ...mutationOptions }}
 
     export type GenerateArticleGenerationMutationResult = NonNullable<Awaited<ReturnType<typeof generateArticleGeneration>>>
-
+    export type GenerateArticleGenerationMutationBody = BodyType<ArticleGenerationInput> | undefined
     export type GenerateArticleGenerationMutationError = ErrorType<void>
-    export type GenerateArticleGenerationMutationVariables = {briefingId: number}
+    export type GenerateArticleGenerationMutationVariables = {briefingId: number;data?: BodyType<ArticleGenerationInput>}
 
     /**
  * @summary Generate a new immutable AI article version
@@ -2763,6 +2780,80 @@ export const useGenerateArticleGeneration = <TError = ErrorType<void>,
         TContext
       > => {
       return useMutation(getGenerateArticleGenerationMutationOptions(options));
+    }
+
+export const getSuggestArticleOutlineUrl = (briefingId: number,) => {
+
+
+
+
+  return `/api/briefings/${briefingId}/article-outline`
+}
+
+/**
+ * @summary Let Claude propose an outline that a Yellowlimer can edit and approve
+ */
+export const suggestArticleOutline = async (briefingId: number, options?: Parameters<typeof customFetch>[1]): Promise<ArticleOutline> => {
+
+  return customFetch<ArticleOutline>(getSuggestArticleOutlineUrl(briefingId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getSuggestArticleOutlineMutationKey = () => ['suggestArticleOutline'] as const;
+
+export const getSuggestArticleOutlineMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof suggestArticleOutline>>, TError,SuggestArticleOutlineMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof suggestArticleOutline>>, TError,SuggestArticleOutlineMutationVariables, TContext> => {
+
+const mutationKey = getSuggestArticleOutlineMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof suggestArticleOutline>>, SuggestArticleOutlineMutationVariables> = (props) => {
+          const {briefingId} = props ?? {};
+
+          return  suggestArticleOutline(briefingId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SuggestArticleOutlineMutationResult = NonNullable<Awaited<ReturnType<typeof suggestArticleOutline>>>
+
+    export type SuggestArticleOutlineMutationError = ErrorType<void>
+    export type SuggestArticleOutlineMutationVariables = {briefingId: number}
+
+    /**
+ * @summary Let Claude propose an outline that a Yellowlimer can edit and approve
+ */
+export const useSuggestArticleOutline = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof suggestArticleOutline>>, TError,SuggestArticleOutlineMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof suggestArticleOutline>>,
+        TError,
+        SuggestArticleOutlineMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSuggestArticleOutlineMutationOptions(options));
     }
 
 export const getListArticleReviewsUrl = () => {

@@ -29,6 +29,13 @@
       "when": 1794835862810,
       "tag": "0003_partner_logo",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1794837830825,
+      "tag": "0004_article_outline",
+      "breakpoints": true
     }
   ]
 }

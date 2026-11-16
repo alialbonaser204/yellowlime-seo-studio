@@ -1158,6 +1158,21 @@ export const GenerateArticleGenerationParams = zod.object({
   "briefingId": zod.coerce.number().int()
 })
 
+export const GenerateArticleGenerationBody = zod.object({
+  "outline": zod.object({
+  "title": zod.string(),
+  "sections": zod.array(zod.object({
+  "heading": zod.string(),
+  "level": zod.enum(['H2', 'H3']),
+  "type": zod.enum(['uitleg', 'stappenplan', 'vergelijking', 'lijst', 'voorbeeld']),
+  "words": zod.number().int(),
+  "angle": zod.string(),
+  "keywords": zod.array(zod.string()),
+  "questions": zod.array(zod.string())
+}))
+}).optional()
+})
+
 export const GenerateArticleGenerationResponse = zod.object({
   "id": zod.number().int(),
   "versionNumber": zod.number().int(),
@@ -1183,6 +1198,27 @@ export const GenerateArticleGenerationResponse = zod.object({
   "promptVersion": zod.enum(['article_generation_v1']),
   "generatedAt": zod.coerce.date(),
   "failureMessage": zod.string().nullable()
+})
+
+
+/**
+ * @summary Let Claude propose an outline that a Yellowlimer can edit and approve
+ */
+export const SuggestArticleOutlineParams = zod.object({
+  "briefingId": zod.coerce.number().int()
+})
+
+export const SuggestArticleOutlineResponse = zod.object({
+  "title": zod.string(),
+  "sections": zod.array(zod.object({
+  "heading": zod.string(),
+  "level": zod.enum(['H2', 'H3']),
+  "type": zod.enum(['uitleg', 'stappenplan', 'vergelijking', 'lijst', 'voorbeeld']),
+  "words": zod.number().int(),
+  "angle": zod.string(),
+  "keywords": zod.array(zod.string()),
+  "questions": zod.array(zod.string())
+}))
 })
 
 

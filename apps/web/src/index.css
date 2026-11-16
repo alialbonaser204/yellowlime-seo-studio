@@ -467,3 +467,24 @@ img.partner-symbol { width: 35px; height: 35px; border-radius: 9px; }
 .takeaways ul { margin: 0; padding-left: 18px; display: grid; gap: 4px; }
 .md-bullet { position: relative; padding-left: 18px; margin: 0 0 6px !important; }
 .md-bullet::before { content: '•'; position: absolute; left: 4px; color: hsl(167 42% 30%); }
+
+/* ---------- Opzet (outline) goedkeuren ---------- */
+.outline { display: grid; gap: 14px; }
+.outline-fixed, .outline-hint { margin: 0; font-size: 11px; color: hsl(var(--muted-foreground)); }
+.outline-hint { margin-top: 12px; }
+.outline-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; counter-reset: sec; }
+.outline-item { padding: 12px; border: 1px solid hsl(var(--border)); border-radius: 10px; background: hsl(var(--background) / .6); display: grid; gap: 8px; }
+.outline-item.is-h3 { margin-left: 28px; }
+.outline-row { display: flex; gap: 8px; align-items: center; }
+.outline-level { width: 70px; flex: none; }
+.outline-heading { flex: 1; font-weight: 700; }
+.outline-buttons { display: flex; gap: 4px; }
+.outline-meta .select { width: 140px; flex: none; }
+.outline-words { display: flex; align-items: center; gap: 6px; font-size: 11px; color: hsl(var(--muted-foreground)); flex: none; }
+.outline-words .input { width: 80px; }
+.outline-angle { flex: 1; font-size: 12px; }
+.outline-tags { display: flex; flex-wrap: wrap; gap: 5px; }
+.outline-question { background: hsl(var(--accent)); }
+.outline-foot { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+.outline-total { font-size: 11px; color: hsl(var(--muted-foreground)); }
+@media (max-width: 700px) { .outline-row { flex-wrap: wrap; } .outline-heading, .outline-angle { flex-basis: 100%; } .outline-item.is-h3 { margin-left: 12px; } }
