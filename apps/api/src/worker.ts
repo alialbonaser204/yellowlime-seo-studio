@@ -24,7 +24,7 @@ const PORT = 8080;
 function connectionString(): string {
   const bindings = env as unknown as { HYPERDRIVE?: { connectionString: string }; DATABASE_URL?: string };
   const url = bindings.HYPERDRIVE?.connectionString ?? bindings.DATABASE_URL ?? process.env.DATABASE_URL;
-  if (!url) throw new Error("DATABASE_URL is not set and there is no HYPERDRIVE binding.");
+  if (!url) throw new Error("DATABASE_URL is not set as a secret of this Worker (Settings > Variables and Secrets), and there is no HYPERDRIVE binding.");
   return url;
 }
 
@@ -38,7 +38,7 @@ root.use((req, res, next) => {
   if (!req.headers["x-forwarded-proto"] && !/^(localhost|127\.0\.0\.1)(:|$)/.test(req.headers.host ?? "")) {
     req.headers["x-forwarded-proto"] = "https";
   }
-  const scope = createDatabaseScope(connectionString());
+  const scope = createDatabaseScope(connectionString);
   const background: BackgroundTasks = { tasks: [] };
   const end = res.end.bind(res) as (...args: unknown[]) => Response;
   let ended = false;

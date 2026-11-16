@@ -46,11 +46,11 @@ export interface DatabaseScope {
 const scopes = new AsyncLocalStorage<DatabaseScope>();
 
 /** A per-request database connection, opened the first time it is used. */
-export function createDatabaseScope(connectionString: string): DatabaseScope {
+export function createDatabaseScope(connectionString: string | (() => string)): DatabaseScope {
   let connection: Connection | null = null;
   return {
     get connection() {
-      connection ??= connect(connectionString, 3);
+      connection ??= connect(typeof connectionString === "function" ? connectionString() : connectionString, 3);
       return connection;
     },
     async close() {
