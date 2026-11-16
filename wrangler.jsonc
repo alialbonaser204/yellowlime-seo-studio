@@ -7,6 +7,10 @@
   "compatibility_date": "2026-11-01",
   "compatibility_flags": ["nodejs_compat"],
 
+  // `wrangler deploy` first runs the database migrations and builds the web
+  // app, so it also works when no separate build command is set.
+  "build": { "command": "pnpm cf:build" },
+
   // The React app; every path that is not a file gets index.html (client-side
   // routing). Only /api/* reaches the Worker.
   "assets": {
