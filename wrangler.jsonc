@@ -26,6 +26,9 @@
     "pino-http": "./apps/api/src/workers/pino-http.ts"
   },
 
+  // Keep variables that were added in the dashboard when deploying.
+  "keep_vars": true,
+
   "vars": {
     "NODE_ENV": "production"
   },
