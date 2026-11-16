@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useState, useRef } from 'react';
-import brandLogo from './assets/yellowlime-primary-logo.png';
+import brandMark from './assets/yellowlime-mark.png';
+import brandWordmark from './assets/yellowlime-wordmark.png';
 import type { ReactNode } from 'react';
 import { Link, Route, Router as WouterRouter, Switch, useLocation, useParams } from 'wouter';
 import {
@@ -268,7 +269,7 @@ function Shell({ children }: { children: ReactNode }) {
   const title = location === '/' ? 'Overzicht' : location.startsWith('/partners') ? 'Partners' : location.startsWith('/yellowlimers') ? 'Beheer Yellowlimers' : location.startsWith('/history') ? 'Geschiedenis' : location.includes('/brief') ? 'SEO-briefing' : location.includes('/article') ? 'Gegenereerd artikel' : location.includes('/review') ? 'Menselijke beoordeling' : 'Nieuwe opdracht';
   return <div className="app-shell">
     <aside className={`sidebar ${open ? 'open' : ''}`}>
-      <div className="brand"><img src={brandLogo} alt="Yellowlime SEO Studio" className="brand-logo" /></div>
+      <div className="brand"><div className="brand-lockup" role="img" aria-label="Yellowlime AI Agent"><img src={brandMark} alt="" className="brand-mark" /><div className="brand-words"><img src={brandWordmark} alt="" className="brand-wordmark" /><span className="brand-ai">AI Agent</span></div></div></div>
       <div className="side-section eyebrow">Werkruimte</div>
       <nav className="side-nav">{nav.map(({ href, label, icon: Icon }) => <Link key={href} href={href} className={`side-link ${location === href ? 'active' : ''}`} data-testid={`link-nav-${label.toLowerCase()}`} onClick={() => setOpen(false)}><Icon /><span>{label}</span></Link>)}</nav>
       <div className="side-section eyebrow" style={{ marginTop: 21 }}>Werkstroom</div>
@@ -304,12 +305,57 @@ function SectionCard({ title, subtitle, children, className = '' }: { title: str
 
 function getPartner(data: StudioData, partnerId: string) { return data.partners.find((partner) => partner.id === partnerId); }
 
+
+/**
+ * Homepage hero in the style of createliv.pages.dev: a large rounded "stage"
+ * with a soft glow, the logo in an orbit with a moving dot, and the name with
+ * a spaced subtitle. The logo animation (slow spin, shine, glow, typing) plays
+ * once on load and again on hover or tap.
+ */
+function HomeHero() {
+  const [playing, setPlaying] = useState(false);
+  const replay = () => { setPlaying(false); requestAnimationFrame(() => requestAnimationFrame(() => setPlaying(true))); };
+  useEffect(() => { const timer = setTimeout(() => setPlaying(true), 250); return () => clearTimeout(timer); }, []);
+  return <section className="home-stage" aria-label="Yellowlime AI Agent">
+    <div className={`home-hero ${playing ? 'on' : ''}`} onMouseEnter={replay} onClick={replay}>
+      <div className="home-orbit">
+        <span className="home-ellipse" aria-hidden="true"><i className="home-dot" /></span>
+        <span className="home-mark" role="img" aria-label="Yellowlime-logo" style={{ ['--mark' as string]: `url(${brandMark})` }} />
+      </div>
+      <h1 className="home-name">
+        <span className="home-wm" role="img" aria-label="Yellowlime" style={{ ['--wm' as string]: `url(${brandWordmark})` }} />
+        <span className="home-sub">AI Agent</span>
+      </h1>
+    </div>
+  </section>;
+}
+
+function HomePartners({ partners }: { partners: Array<{ id: number; companyName: string; websiteUrl: string }> }) {
+  const host = (url: string) => { try { return new URL(url).hostname.replace(/^www\./, ''); } catch { return url; } };
+  return <section className="home-section">
+    <h2 className="home-heading">Onze partners</h2>
+    <div className="home-cards">
+      {partners.slice(0, 4).map((partner, index) => <Link key={partner.id} href={`/partners/${partner.id}`} className="home-card" style={{ ['--i' as string]: index }} data-testid={`home-partner-${partner.id}`}>
+        <span className="home-card-letter" aria-hidden="true">{partner.companyName.trim().charAt(0).toUpperCase()}</span>
+        <span className="home-card-text"><b>{partner.companyName}</b><small>{host(partner.websiteUrl)}</small></span>
+      </Link>)}
+      <Link href="/partners" className="home-card home-card-new" style={{ ['--i' as string]: Math.min(partners.length, 4) }} data-testid="home-partner-new">
+        <span className="home-plus" aria-hidden="true"><Plus size={18} /></span>
+        <b>Nieuwe partner?</b><small>#partnertoevoegen</small>
+      </Link>
+    </div>
+  </section>;
+}
+
 function DashboardPage() {
   const { data } = useStudio();
   const { data: dbPartners = [] } = useListPartners();
   const counts = { active: data.assignments.filter((item) => ['draft', 'brief_ready', 'in_review'].includes(item.status)).length, review: data.assignments.filter((item) => item.status === 'in_review').length, approved: data.assignments.filter((item) => ['approved', 'ready'].includes(item.status)).length };
   const activities = data.assignments.flatMap((item) => item.logs.map((log) => ({ ...log, subject: item.subject }))).sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 5);
-  return <><PageHeader eyebrow="Redactionele operaties / Maandag, 09:42" title="Hoi beste yellowlimer!" description="Ik ben de Yellowlime AI Agent, jouw slimme schrijfhulp. Geef mij een briefing, dan help ik je stap voor stap naar een sterk SEO-artikel." action={<Link href="/assignments/new" className="button button-primary" data-testid="button-create-assignment"><Plus size={16} />Opdracht aanmaken</Link>} />
+  return <><HomeHero />
+    <div className="home-strip"><strong>SEO-schrijfstudio</strong><Link href="/assignments/new" data-testid="home-strip-new">Nieuwe opdracht <ArrowRight size={14} /></Link></div>
+    <HomePartners partners={dbPartners} />
+    <PageHeader eyebrow="Redactionele operaties / Maandag, 09:42" title="Hoi beste yellowlimer!" description="Ik ben de Yellowlime AI Agent, jouw slimme schrijfhulp. Geef mij een briefing, dan help ik je stap voor stap naar een sterk SEO-artikel." action={<Link href="/assignments/new" className="button button-primary" data-testid="button-create-assignment"><Plus size={16} />Opdracht aanmaken</Link>} />
     <div className="stat-grid fade-up delay-1">
       <div className="card stat-card"><div className="eyebrow">Actieve opdrachten</div><div className="stat-value" data-testid="metric-active">{counts.active}</div><div className="stat-label">In de studiowachtrij</div></div>
       <div className="card stat-card"><div className="eyebrow">Wacht op beoordeling</div><div className="stat-value" data-testid="metric-review">{counts.review}</div><div className="stat-label">Menselijke goedkeuring vereist</div></div>
