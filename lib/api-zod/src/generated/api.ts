@@ -24,6 +24,7 @@ export const ListPartnersResponseItem = zod.object({
   "id": zod.number().int(),
   "companyName": zod.string(),
   "websiteUrl": zod.string().url(),
+  "logoPath": zod.string().nullish().describe('Square profile picture (uploaded object path), or null.'),
   "profileStatus": zod.enum(['Nog niet opgebouwd', 'Wordt opgebouwd', 'Wacht op controle', 'Goedgekeurd', 'Afgekeurd', 'Analyse mislukt']),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
@@ -39,13 +40,15 @@ export const ListPartnersResponse = zod.array(ListPartnersResponseItem)
 
 export const CreatePartnerBody = zod.object({
   "companyName": zod.string().min(1),
-  "websiteUrl": zod.string().url()
+  "websiteUrl": zod.string().url(),
+  "logoPath": zod.string().nullish().describe('Square profile picture (uploaded object path); null removes it.')
 })
 
 export const CreatePartnerResponse = zod.object({
   "id": zod.number().int(),
   "companyName": zod.string(),
   "websiteUrl": zod.string().url(),
+  "logoPath": zod.string().nullish().describe('Square profile picture (uploaded object path), or null.'),
   "profileStatus": zod.enum(['Nog niet opgebouwd', 'Wordt opgebouwd', 'Wacht op controle', 'Goedgekeurd', 'Afgekeurd', 'Analyse mislukt']),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
@@ -64,13 +67,15 @@ export const UpdatePartnerParams = zod.object({
 
 export const UpdatePartnerBody = zod.object({
   "companyName": zod.string().min(1),
-  "websiteUrl": zod.string().url()
+  "websiteUrl": zod.string().url(),
+  "logoPath": zod.string().nullish().describe('Square profile picture (uploaded object path); null removes it.')
 })
 
 export const UpdatePartnerResponse = zod.object({
   "id": zod.number().int(),
   "companyName": zod.string(),
   "websiteUrl": zod.string().url(),
+  "logoPath": zod.string().nullish().describe('Square profile picture (uploaded object path), or null.'),
   "profileStatus": zod.enum(['Nog niet opgebouwd', 'Wordt opgebouwd', 'Wacht op controle', 'Goedgekeurd', 'Afgekeurd', 'Analyse mislukt']),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()

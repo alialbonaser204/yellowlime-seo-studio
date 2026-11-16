@@ -11,6 +11,8 @@ export interface Partner {
   id: number;
   companyName: string;
   websiteUrl: string;
+  /** Square profile picture (uploaded object path), or null. */
+  logoPath?: string | null;
   profileStatus: PartnerProfileStatus;
   createdAt: Date;
   updatedAt: Date;

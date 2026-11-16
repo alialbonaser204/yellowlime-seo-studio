@@ -1,0 +1,1 @@
+ALTER TABLE "partners" ADD COLUMN "logo_path" text;

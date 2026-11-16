@@ -410,3 +410,29 @@ button { cursor: pointer; }
   .sidebar { width: 260px; }
   .menu-tab { height: 110px; width: 34px; }
 }
+
+
+/* ---------- Profielfoto partner (vierkant bijsnijden) ---------- */
+.partner-photo { object-fit: cover; padding: 0; }
+img.partner-symbol { width: 35px; height: 35px; border-radius: 9px; }
+.photo-field { display: flex; align-items: center; gap: 14px; }
+.photo-preview { width: 72px; height: 72px; flex: none; border-radius: 14px; display: grid; place-items: center; object-fit: cover; background: hsl(var(--primary) / .2); color: hsl(80 48% 28%); font-weight: 800; font-size: 28px; border: 1px solid hsl(var(--border)); }
+.photo-large { width: 96px; height: 96px; font-size: 38px; border-radius: 18px; }
+.partner-detail-photo { margin-bottom: 14px; }
+.photo-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.cropper { display: grid; justify-items: center; gap: 12px; padding: 16px; border: 1px solid hsl(var(--border)); border-radius: 12px; background: hsl(var(--muted) / .5); }
+.cropper-view { position: relative; overflow: hidden; border-radius: 12px; background: #fff; cursor: grab; touch-action: none; user-select: none; box-shadow: 0 0 0 1px hsl(var(--border)); max-width: 100%; }
+.cropper-view:active { cursor: grabbing; }
+.cropper-view img { position: absolute; left: 0; top: 0; max-width: none; pointer-events: none; }
+.cropper-grid { position: absolute; inset: 0; pointer-events: none; border: 2px solid hsl(var(--primary));
+  background-image: linear-gradient(hsl(0 0% 100% / .45) 1px, transparent 1px), linear-gradient(90deg, hsl(0 0% 100% / .45) 1px, transparent 1px);
+  background-size: 33.333% 33.333%; background-position: -1px -1px; }
+.cropper-zoom { display: flex; align-items: center; gap: 10px; width: min(280px, 100%); color: hsl(var(--muted-foreground)); }
+.cropper-zoom input { flex: 1; accent-color: hsl(167 42% 28%); }
+.cropper-hint { margin: 0; font-size: 11px; color: hsl(var(--muted-foreground)); text-align: center; max-width: 300px; }
+.cropper-error { margin: 0; font-size: 11px; color: hsl(var(--destructive)); }
+.cropper-actions { display: flex; gap: 8px; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.home-card-photo { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.home-card:has(.home-card-photo)::after { content: ''; position: absolute; inset: 0; background: linear-gradient(180deg, transparent 45%, hsl(92 35% 97% / .92) 88%); }
+.home-card-text { z-index: 1; }

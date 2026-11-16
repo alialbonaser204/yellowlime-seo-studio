@@ -6,6 +6,8 @@ export const partnersTable = pgTable("partners", {
   id: serial("id").primaryKey(),
   companyName: text("company_name").notNull(),
   websiteUrl: text("website_url").notNull(),
+  /** Square profile picture: an uploaded object path like /objects/uploads/<uuid>. */
+  logoPath: text("logo_path"),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),

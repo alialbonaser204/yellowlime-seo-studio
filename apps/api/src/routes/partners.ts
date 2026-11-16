@@ -12,6 +12,18 @@ import {
   UpdatePartnerResponse,
 } from "@yellowlime/api-zod";
 import { removePartner } from "../services/partnerRemoval";
+import { objectExists } from "../lib/uploadStorage";
+
+const UPLOAD_PATH = /^\/objects\/uploads\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** undefined = leave as is, null = remove, string = a finished upload; false = invalid. */
+async function checkLogo(value: string | null | undefined): Promise<string | null | undefined | false> {
+  if (value === undefined) return undefined;
+  if (value === null || value.trim() === "") return null;
+  const path = value.trim();
+  if (!UPLOAD_PATH.test(path) || !(await objectExists(path))) return false;
+  return path;
+}
 
 const router: IRouter = Router();
 
@@ -39,11 +51,18 @@ router.post("/partners", async (req, res): Promise<void> => {
     return;
   }
 
+  const logoPath = await checkLogo(parsed.data.logoPath);
+  if (logoPath === false) {
+    res.status(400).json({ error: "De profielfoto kon niet worden gevonden. Upload hem opnieuw." });
+    return;
+  }
+
   const [partner] = await db
     .insert(partnersTable)
     .values({
       companyName: parsed.data.companyName.trim(),
       websiteUrl: parsed.data.websiteUrl,
+      logoPath: logoPath ?? null,
     })
     .returning();
 
@@ -60,9 +79,18 @@ router.put("/partners/:partnerId", async (req, res): Promise<void> => {
     res.status(400).json({ error: "Vul een geldige partnernaam en website-URL in." });
     return;
   }
+  const logoPath = await checkLogo(body.data.logoPath);
+  if (logoPath === false) {
+    res.status(400).json({ error: "De profielfoto kon niet worden gevonden. Upload hem opnieuw." });
+    return;
+  }
   const [partner] = await db
     .update(partnersTable)
-    .set({ companyName: body.data.companyName.trim(), websiteUrl: body.data.websiteUrl })
+    .set({
+      companyName: body.data.companyName.trim(),
+      websiteUrl: body.data.websiteUrl,
+      ...(logoPath === undefined ? {} : { logoPath }),
+    })
     .where(eq(partnersTable.id, params.data.partnerId))
     .returning();
   if (!partner) {

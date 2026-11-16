@@ -46,6 +46,8 @@ import { SearchConsoleSection } from './components/search-console';
 import { AI_FIELDS, AiEvidence, AiFieldButton, AiPagesUsed, useProfileAi } from './components/profile-ai';
 import { TopicWizard } from './components/topic-wizard';
 import { InternalLinksCard } from './components/internal-links';
+import { SquareCropper } from './components/square-cropper';
+import { useImageUpload } from './hooks/use-image-upload';
 import { ICONS } from './pages/yellowlimers-page';
 import { UserCircle } from 'lucide-react';
 
@@ -335,13 +337,15 @@ function HomeHero() {
   </section>;
 }
 
-function HomePartners({ partners }: { partners: Array<{ id: number; companyName: string; websiteUrl: string }> }) {
+function HomePartners({ partners }: { partners: Array<{ id: number; companyName: string; websiteUrl: string; logoPath?: string | null }> }) {
   const host = (url: string) => { try { return new URL(url).hostname.replace(/^www\./, ''); } catch { return url; } };
   return <section className="home-section">
     <h2 className="home-heading">Onze partners</h2>
     <div className="home-cards">
       {partners.slice(0, 4).map((partner, index) => <Link key={partner.id} href={`/partners/${partner.id}`} className="home-card" style={{ ['--i' as string]: index }} data-testid={`home-partner-${partner.id}`}>
-        <span className="home-card-letter" aria-hidden="true">{partner.companyName.trim().charAt(0).toUpperCase()}</span>
+        {partner.logoPath
+          ? <img className="home-card-photo" src={`/api/storage${partner.logoPath}`} alt="" />
+          : <span className="home-card-letter" aria-hidden="true">{partner.companyName.trim().charAt(0).toUpperCase()}</span>}
         <span className="home-card-text"><b>{partner.companyName}</b><small>{host(partner.websiteUrl)}</small></span>
       </Link>)}
       <Link href="/partners" className="home-card home-card-new" style={{ ['--i' as string]: Math.min(partners.length, 4) }} data-testid="home-partner-new">
@@ -380,7 +384,14 @@ function DashboardPage() {
   </>;
 }
 
-function PartnerModal({ onClose, partner }: { onClose: () => void; partner?: { id: number; companyName: string; websiteUrl: string } }) {
+/** The partner's square profile picture, or the first letter of the name. */
+function PartnerAvatar({ partner, className = 'partner-symbol' }: { partner: { companyName: string; logoPath?: string | null }; className?: string }) {
+  const [failed, setFailed] = useState(false);
+  if (partner.logoPath && !failed) return <img src={`/api/storage${partner.logoPath}`} alt="" className={`${className} partner-photo`} onError={() => setFailed(true)} />;
+  return <div className={className}>{partner.companyName.trim().slice(0, 1).toUpperCase() || 'P'}</div>;
+}
+
+function PartnerModal({ onClose, partner }: { onClose: () => void; partner?: { id: number; companyName: string; websiteUrl: string; logoPath?: string | null } }) {
   const { addToast } = useStudio();
   const queryClient = useQueryClient();
   const createPartner = useCreatePartner();
@@ -388,6 +399,21 @@ function PartnerModal({ onClose, partner }: { onClose: () => void; partner?: { i
   
   const [form, setForm] = useState({ companyName: partner?.companyName ?? '', websiteUrl: partner?.websiteUrl ?? '' });
   const [errors, setErrors] = useState({ companyName: '', websiteUrl: '' });
+  const [logoPath, setLogoPath] = useState<string | null>(partner?.logoPath ?? null);
+  const [cropFile, setCropFile] = useState<File | null>(null);
+  const { upload, isUploading, error: uploadError } = useImageUpload();
+  const pickPhoto = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) { addToast('Kies een JPG-, PNG- of WebP-afbeelding.'); return; }
+    setCropFile(file);
+  };
+  const saveCrop = async (cropped: File) => {
+    setCropFile(null);
+    const objectPath = await upload(cropped);
+    if (objectPath) setLogoPath(objectPath);
+  };
 
   const validateUrl = (url: string) => {
     try {
@@ -411,7 +437,7 @@ function PartnerModal({ onClose, partner }: { onClose: () => void; partner?: { i
     if (!isValid) return;
 
     if (partner) {
-      updatePartner.mutate({ partnerId: partner.id, data: { companyName: form.companyName, websiteUrl: form.websiteUrl } }, {
+      updatePartner.mutate({ partnerId: partner.id, data: { companyName: form.companyName, websiteUrl: form.websiteUrl, logoPath } }, {
         onSuccess: () => {
           queryClient.invalidateQueries({ queryKey: getListPartnersQueryKey() });
           addToast('Partner is bijgewerkt.');
@@ -421,7 +447,7 @@ function PartnerModal({ onClose, partner }: { onClose: () => void; partner?: { i
       });
       return;
     }
-    createPartner.mutate({ data: { companyName: form.companyName, websiteUrl: form.websiteUrl } }, {
+    createPartner.mutate({ data: { companyName: form.companyName, websiteUrl: form.websiteUrl, logoPath } }, {
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: getListPartnersQueryKey() });
         addToast('Partner is succesvol toegevoegd.');
@@ -432,7 +458,7 @@ function PartnerModal({ onClose, partner }: { onClose: () => void; partner?: { i
       }
     });
   };
-  const pending = createPartner.isPending || updatePartner.isPending;
+  const pending = createPartner.isPending || updatePartner.isPending || isUploading;
 
   return (
     <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.currentTarget === event.target) onClose(); }}>
@@ -455,6 +481,22 @@ function PartnerModal({ onClose, partner }: { onClose: () => void; partner?: { i
             <label htmlFor="websiteUrl">Website URL <span style={{ color: 'hsl(var(--destructive))' }}>verplicht</span></label>
             <input id="websiteUrl" className="input" value={form.websiteUrl} placeholder="https://northstarfootwear.co" onChange={(event) => setForm(current => ({ ...current, websiteUrl: event.target.value }))} data-testid="input-partner-websiteUrl" />
             {errors.websiteUrl && <span className="text-destructive text-xs" style={{ color: 'hsl(var(--destructive))', fontSize: '11px' }} data-testid="error-partner-websiteUrl">{errors.websiteUrl}</span>}
+          </div>
+          <div className="field full">
+            <label>Profielfoto <span>optioneel · wordt vierkant bijgesneden</span></label>
+            {cropFile
+              ? <SquareCropper file={cropFile} onCancel={() => setCropFile(null)} onDone={saveCrop} />
+              : <div className="photo-field">
+                  <PartnerAvatar partner={{ companyName: form.companyName || 'P', logoPath }} className="photo-preview" />
+                  <div className="photo-actions">
+                    <label className="button button-ghost button-small" style={{ cursor: 'pointer' }}>
+                      {isUploading ? 'Bezig met uploaden...' : logoPath ? 'Andere foto kiezen' : 'Foto kiezen'}
+                      <input type="file" accept="image/jpeg,image/png,image/webp" onChange={pickPhoto} disabled={isUploading} style={{ display: 'none' }} data-testid="input-partner-photo" />
+                    </label>
+                    {logoPath && <button type="button" className="button button-ghost button-small" onClick={() => setLogoPath(null)} data-testid="button-remove-photo">Verwijderen</button>}
+                  </div>
+                </div>}
+            {uploadError && <span style={{ color: 'hsl(var(--destructive))', fontSize: '11px' }}>{uploadError}</span>}
           </div>
         </div>
         <div className="form-actions">
@@ -527,7 +569,7 @@ function PartnersPage() {
             <article className="card partner-card" key={partner.id} data-testid={`card-partner-${partner.id}`} style={{ display: 'flex', flexDirection: 'column' }}>
               <Link href={`/partners/${partner.id}`} style={{ color: 'inherit', textDecoration: 'none', display: 'block' }} data-testid={`link-partner-${partner.id}`}>
                 <div className="partner-top">
-                  <div className="partner-symbol">{partner.companyName.slice(0, 1).toUpperCase() || 'P'}</div>
+                  <PartnerAvatar partner={partner} />
                   <PartnerStatusBadge status={partner.profileStatus} />
                 </div>
                 <h3>{partner.companyName || 'Naamloze partner'}</h3>
@@ -714,6 +756,7 @@ function PartnerDetailPage() {
 
   return (
     <>
+ <div className="partner-detail-photo"><PartnerAvatar partner={partner} className="photo-preview photo-large" /></div>
       <PageHeader 
         eyebrow="Partner Profiel" 
         title={partner.companyName} 

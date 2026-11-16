@@ -1308,6 +1308,10 @@ components:
         websiteUrl:
           type: string
           format: uri
+        logoPath:
+          type: string
+          nullable: true
+          description: Square profile picture (uploaded object path), or null.
         profileStatus:
           $ref: "#/components/schemas/PartnerProfileStatus"
         createdAt:
@@ -1326,6 +1330,10 @@ components:
         websiteUrl:
           type: string
           format: uri
+        logoPath:
+          type: string
+          nullable: true
+          description: Square profile picture (uploaded object path); null removes it.
     PartnerProfileStatus:
       type: string
       enum:
