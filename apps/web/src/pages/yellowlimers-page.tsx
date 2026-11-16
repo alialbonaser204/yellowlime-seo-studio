@@ -135,7 +135,7 @@ export function YellowlimerModal({
             </div>
 
             <label htmlFor="avatar-upload" className="button button-ghost" style={{ justifyContent: 'center', cursor: 'pointer', position: 'relative' }}>
-              <ImageIcon size={15} /> Upload afbeelding (max 2MB)
+              <ImageIcon size={15} /> Upload afbeelding
               <input 
                 id="avatar-upload"
                 type="file" 
