@@ -13,7 +13,7 @@ import {
   parseIdeas,
   parseTrend,
   queryThemes,
-  scoreCandidate,
+  scoreDetail,
   trendPeak,
   type Candidate,
   type GscData,
@@ -176,7 +176,17 @@ async function collect(
     pool.set(key, entry);
   };
   const byImpressions = [...gscByQuery.entries()].sort((a, b) => b[1].impressions - a[1].impressions);
-  if (goal === "kansen") {
+  if (goal === "mix") {
+    // A bit of everything: near-top keywords, the biggest queries and declining pages.
+    for (const [query, d] of byImpressions) if (d.position >= 4 && d.position <= 20 && d.impressions >= 10) add(query, "Search Console");
+    for (const [query] of byImpressions.slice(0, 8)) add(query, "Search Console");
+    if (gsc) {
+      for (const page of findDecliningPages(gsc.pagesNow, gsc.pagesBefore, 4)) {
+        const top = gsc.rows.filter((r) => r.page === page.page).sort((a, b) => b.impressions - a.impressions).slice(0, 1);
+        for (const row of top) add(row.query, "Search Console", { page: page.page, clicks: page.clicks, previousClicks: page.previousClicks });
+      }
+    }
+  } else if (goal === "kansen") {
     for (const [query, d] of byImpressions) if (d.position >= 4 && d.position <= 20 && d.impressions >= 10) add(query, "Search Console");
   } else if (goal === "opfrissen" && gsc) {
     for (const page of findDecliningPages(gsc.pagesNow, gsc.pagesBefore, 10)) {
@@ -192,7 +202,7 @@ async function collect(
   let usedSemrush = false;
   if (semrushConfigured(deps)) {
     try {
-      if (goal === "verkeer" || goal === "product" || goal === "seizoen") {
+      if (goal === "verkeer" || goal === "product" || goal === "seizoen" || goal === "mix") {
         const seed = theme ?? profile?.products[0] ?? profile?.services[0] ?? null;
         if (seed) {
           const [related, questions] = await Promise.all([
@@ -235,7 +245,8 @@ async function collect(
       covered: covering(keyword, articles),
       peak: trendPeak(trend, now),
     };
-    return { ...base, id: "", score: scoreCandidate(base, goal) };
+    const detail = scoreDetail(base, goal);
+    return { ...base, id: "", score: detail.score, parts: detail.parts, kind: detail.kind };
   })
     .filter((c) => c.semrush || c.gsc)
     .filter((c) => !isUnsuitableKeyword(c.keyword, brandWords, c.semrush?.intent))

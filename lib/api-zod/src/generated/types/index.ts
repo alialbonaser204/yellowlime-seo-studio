@@ -74,6 +74,7 @@ export * from './topicCheckResult';
 export * from './topicCheckResultVerdict';
 export * from './topicGoal';
 export * from './topicIdea';
+export * from './topicIdeaScorePartsItem';
 export * from './topicIdeasInput';
 export * from './topicIdeasInputDirection';
 export * from './topicIdeasResult';

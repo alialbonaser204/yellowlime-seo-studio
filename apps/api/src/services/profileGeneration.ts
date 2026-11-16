@@ -384,10 +384,13 @@ export function mergeRetries(first: GeneratedProfile, retries: GeneratedProfile[
 export async function generateAllProfileFields(
   input: { companyName: string; websiteUrl: string; pages: SourcePage[] },
   runner: TextRunner,
+  onStep?: (step: "fields" | "retry", detail?: { fields: number }) => void,
 ): Promise<GeneratedProfile> {
+  onStep?.("fields", { fields: GENERATABLE_FIELDS.length });
   const first = await generateProfileFields({ ...input, fields: GENERATABLE_FIELDS }, runner);
   const empty = first.fields.filter(isEmptyField).map((f) => f.field);
   if (empty.length === 0) return first;
+  onStep?.("retry", { fields: empty.length });
   const retries = await Promise.all(
     empty.map((field) => generateProfileFields({ ...input, fields: [field] }, runner, 180_000).catch(() => null)),
   );

@@ -43,7 +43,8 @@ import NotFound from '@/pages/not-found';
 import { YellowlimersPage } from './pages/yellowlimers-page';
 import { TopicCheckCard, WebsiteArticlesSection, useTopicCheck } from './components/website-articles';
 import { SearchConsoleSection } from './components/search-console';
-import { AI_FIELDS, AiEvidence, AiFieldButton, AiPagesUsed, useProfileAi } from './components/profile-ai';
+import { AI_FIELDS, AiEvidence, AiFieldButton, AiPagesUsed, PROFILE_STEPS, useProfileAi } from './components/profile-ai';
+import { ProgressPanel, useEstimatedProgress } from './components/progress-panel';
 import { TopicWizard } from './components/topic-wizard';
 import { InternalLinksCard } from './components/internal-links';
 import { ArticleQualityCard } from './components/article-quality';
@@ -856,10 +857,16 @@ function PartnerDetailPage() {
                 </div>
               )}
 
-              {!showApproved && profileAi.busy === 'all' && (
-                <div className="callout" style={{ marginBottom: 12 }}>
-                  <RefreshCw size={14} className="animate-spin" />
-                  <span>Yellowlime AI Agent leest tot 16 pagina’s van de website (altijd ook de contactpagina en de footer met adresgegevens) en een paar blogartikelen, en vult daarna alle vakjes in. Lege vakjes probeert hij nog een keer apart. Dit kan 2 tot 4 minuten duren.</span>
+              {!showApproved && profileAi.progress && (
+                <div style={{ marginBottom: 14 }}>
+                  <ProgressPanel
+                    title="Profiel wordt opgebouwd"
+                    subtitle={profileAi.progress.pagesRead !== null ? `${profileAi.progress.pagesRead} pagina’s van de website gelezen · laat deze pagina open` : 'Duurt ongeveer een minuut · laat deze pagina open'}
+                    steps={PROFILE_STEPS}
+                    pct={profileAi.progress.pct}
+                    done={profileAi.progress.done}
+                    testId="profile-progress"
+                  />
                 </div>
               )}
               {!showApproved && <AiPagesUsed pages={profileAi.pagesUsed} />}
@@ -1382,6 +1389,9 @@ function ArticlePage() {
   const generateMutation = useGenerateArticleGeneration();
   const outlineMutation = useSuggestArticleOutline();
   const [outline, setOutline] = useState<ArticleOutline | null>(null);
+  // Estimated progress for the two long AI steps (no exact progress is available for them).
+  const writingPct = useEstimatedProgress(generations[0]?.articleStatus === 'Artikel wordt geschreven' || generateMutation.isPending, 90_000);
+  const outlinePct = useEstimatedProgress(outlineMutation.isPending, 35_000);
   
   const latestGen = generations[0];
   const lastLoggedStatus = useRef<string | null>(null);
@@ -1545,6 +1555,21 @@ function ArticlePage() {
                 </div>
               )}
 
+              {outlineMutation.isPending && (
+                <div style={{ marginBottom: 14 }}>
+                  <ProgressPanel
+                    title="Opzet wordt gemaakt"
+                    subtitle="Ongeveer een halve minuut"
+                    steps={[
+                      { label: 'Top 5 in Google lezen', at: 0 },
+                      { label: 'Onderwerpen vergelijken', at: 40 },
+                      { label: 'Opzet maken', at: 60 },
+                    ]}
+                    pct={outlinePct}
+                    testId="outline-progress"
+                  />
+                </div>
+              )}
               {outline ? (
                 <OutlineEditor outline={outline} onChange={setOutline} onApprove={() => handleGenerate(outline)} onRedo={handleOutline} busy={isPending || outlineMutation.isPending} />
               ) : (
@@ -1562,9 +1587,19 @@ function ArticlePage() {
           )}
 
           {isPending && (
-            <div className="card empty-state" data-testid="article-generation-loading">
-              <RefreshCw size={28} className="animate-spin" style={{ color: 'hsl(var(--primary))', marginBottom: 10, marginInline: 'auto' }} />
-              <p>Yellowlime AI Agent schrijft het conceptartikel.</p>
+            <div data-testid="article-generation-loading">
+              <ProgressPanel
+                title="Artikel wordt geschreven"
+                subtitle="Duurt 1 tot 2 minuten · laat deze pagina open"
+                steps={[
+                  { label: 'Profiel, onderzoek en opzet lezen', at: 0 },
+                  { label: 'Inleiding en "In het kort" schrijven', at: 15 },
+                  { label: 'Secties schrijven', at: 35 },
+                  { label: 'Veelgestelde vragen en conclusie', at: 70 },
+                  { label: 'Metatitel en controle', at: 88 },
+                ]}
+                pct={writingPct}
+              />
             </div>
           )}
 

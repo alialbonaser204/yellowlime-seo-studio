@@ -1,24 +1,20 @@
 import { useEffect, useState } from 'react';
-import {
-  ArrowLeft, BarChart3, CalendarClock, Check, ChevronDown, ChevronUp, ExternalLink, Lightbulb, Package,
-  RefreshCw, Rocket, Sparkles, TrendingDown, TrendingUp, TriangleAlert,
-} from 'lucide-react';
+import { ArrowLeft, Check, ChevronDown, ExternalLink, Lightbulb, PenLine, RefreshCw, Sparkles, TriangleAlert } from 'lucide-react';
 import {
   getGetTopicThemesQueryKey,
   useGetTopicIdeas,
   useGetTopicThemes,
-  type TopicGoal,
   type TopicIdea,
   type TopicIdeasResult,
 } from '@yellowlime/api-client-react';
+import { ProgressPanel, useEstimatedProgress } from './progress-panel';
 
-const GOALS: Array<{ id: TopicGoal; label: string; text: string; icon: typeof Rocket; needsGsc?: boolean }> = [
-  { id: 'kansen', label: 'Bijna-toppers naar de top', text: 'Zoekwoorden waarop de partner al op plek 4–20 staat. Snelste winst.', icon: TrendingUp, needsGsc: true },
-  { id: 'verkeer', label: 'Meer bezoekers', text: 'Nieuwe onderwerpen met veel zoekvraag die nog niet op de website staan.', icon: Rocket },
-  { id: 'opfrissen', label: 'Dalende pagina’s opfrissen', text: 'Pagina’s die klikken verliezen, bijwerken met de juiste zoekwoorden.', icon: TrendingDown, needsGsc: true },
-  { id: 'product', label: 'Product of dienst promoten', text: 'Informatieve artikelen rond een product of dienst van de partner.', icon: Package },
-  { id: 'seizoen', label: 'Inspelen op het seizoen', text: 'Onderwerpen waarvan de zoekvraag de komende 1–3 maanden piekt.', icon: CalendarClock },
-];
+/**
+ * Choosing a topic: two doors. "Ik heb een onderwerp" goes to the topic field
+ * (with its check); "Verras me" asks the Yellowlime AI Agent for the five
+ * strongest opportunities right now, each with its reasoning, the data behind
+ * it and how the score is built up.
+ */
 
 function pathOf(url: string): string {
   try {
@@ -29,7 +25,7 @@ function pathOf(url: string): string {
 }
 
 function errorMessage(error: unknown): string {
-  return (error as { data?: { error?: string } } | null)?.data?.error ?? 'Yellowlime AI Agent kon geen ideeën maken. Probeer het opnieuw.';
+  return (error as { data?: { error?: string } } | null)?.data?.error ?? 'Yellowlime AI Agent kon geen voorstellen maken. Probeer het opnieuw.';
 }
 
 export function contentGoalFor(idea: TopicIdea): string {
@@ -41,62 +37,105 @@ export function contentGoalFor(idea: TopicIdea): string {
   ].filter(Boolean).join('\n');
 }
 
-function IdeaCard({ idea, onChoose, onMore, busy }: { idea: TopicIdea; onChoose: () => void; onMore: () => void; busy: boolean }) {
+const IDEA_STEPS = [
+  { label: 'Search Console en Semrush ophalen', at: 0 },
+  { label: 'Zoekwoorden scoren', at: 30 },
+  { label: 'Vergelijken met de website', at: 50 },
+  { label: 'Beste onderwerpen kiezen en onderbouwen', at: 65 },
+  { label: 'Cijfers controleren', at: 90 },
+];
+
+function sourceList(idea: TopicIdea, extra: { profile: boolean; scan: boolean }): string {
+  const names = new Set(idea.sources.map((s) => (s.startsWith('Semrush') ? 'Semrush' : s)));
+  if (extra.profile) names.add('partnerprofiel');
+  if (extra.scan) names.add('websitescan');
+  return [...names].join(' · ');
+}
+
+function Badges({ idea }: { idea: TopicIdea }) {
   return (
-    <article className="card" style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 10 }} data-testid="topic-idea">
-      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-        <span className={`status-pill ${idea.type === 'update' ? 'status-review' : 'status-approved'}`}>
-          {idea.type === 'update' ? 'Update bestaande pagina' : 'Nieuw artikel'}
-        </span>
-        <span className="status-pill" title="Kansscore op basis van zoekvolume, moeilijkheid en huidige positie" data-testid="idea-score">
-          <BarChart3 size={11} /> Kans {idea.score}/100
-        </span>
-      </div>
-      <h3 style={{ margin: 0, fontSize: 15, lineHeight: 1.35 }}>{idea.title}</h3>
-      <div style={{ fontSize: 12 }}>
-        <span className="text-muted-foreground">Hoofdzoekwoord: </span><strong>{idea.keyword}</strong>
-        {idea.type === 'update' && idea.updateUrl && (
-          <div style={{ marginTop: 2 }}>
-            <span className="text-muted-foreground">Bijwerken: </span>
-            <a href={idea.updateUrl} target="_blank" rel="noreferrer" style={{ display: 'inline-flex', gap: 3, alignItems: 'center' }}>{pathOf(idea.updateUrl)} <ExternalLink size={10} /></a>
+    <div className="idea-badges">
+      {idea.kind && <span className="idea-badge idea-kind">{idea.kind}</span>}
+      <span className={`idea-badge ${idea.type === 'update' ? 'idea-update' : 'idea-new'}`}>{idea.type === 'update' ? 'Bestaande pagina bijwerken' : 'Nieuw artikel'}</span>
+    </div>
+  );
+}
+
+function ScoreParts({ idea }: { idea: TopicIdea }) {
+  return (
+    <div className="idea-score" data-testid="idea-score">
+      <span className="idea-score-label">Kansscore</span>
+      <div className="idea-score-total"><strong>{idea.score}</strong><span>/ 100</span></div>
+      <div className="idea-parts">
+        {idea.scoreParts.map((part) => (
+          <div key={part.label} className="idea-part">
+            <div><span>{part.label}</span><span>{part.points > 0 && part.max === 0 ? `+${part.points}` : part.max > 0 ? `${part.points} / ${part.max}` : part.points}</span></div>
+            {part.max > 0 && <div className="idea-part-bar"><span style={{ width: `${Math.max(0, Math.min(100, (part.points / part.max) * 100))}%` }} /></div>}
           </div>
-        )}
+        ))}
       </div>
-      {idea.angle && <p style={{ margin: 0, fontSize: 12.5, lineHeight: 1.5 }}>{idea.angle}</p>}
-      {idea.why.length > 0 && (
-        <div>
-          <div style={{ fontSize: 11, fontWeight: 600, marginBottom: 4 }}>Waarom nu?</div>
-          <ul style={{ margin: 0, paddingLeft: 16, fontSize: 12, lineHeight: 1.5, listStyle: 'disc' }}>{idea.why.map((w) => <li key={w}>{w}</li>)}</ul>
+    </div>
+  );
+}
+
+function UpdateLink({ idea }: { idea: TopicIdea }) {
+  if (idea.type !== 'update' || !idea.updateUrl) return null;
+  return <a className="idea-update-link" href={idea.updateUrl} target="_blank" rel="noreferrer">Bijwerken: {pathOf(idea.updateUrl)} <ExternalLink size={10} /></a>;
+}
+
+function TopIdea({ idea, sources, onChoose, onMore, busy }: { idea: TopicIdea; sources: string; onChoose: () => void; onMore: () => void; busy: boolean }) {
+  return (
+    <article className="idea-top" data-testid="topic-idea">
+      <div className="idea-top-main">
+        <Badges idea={idea} />
+        <h3>{idea.title}</h3>
+        <div className="idea-keyword">Hoofdzoekwoord: <strong>{idea.keyword}</strong></div>
+        <UpdateLink idea={idea} />
+        {idea.angle && <p className="idea-angle">{idea.angle}</p>}
+        <div className="idea-why">
+          <strong>Waarom de AI Agent dit kiest</strong>
+          {idea.why.length ? <ol>{idea.why.map((w) => <li key={w}>{w}</li>)}</ol> : <p>Geen onderbouwing ontvangen; zie de cijfers hieronder.</p>}
         </div>
-      )}
-      <div style={{ background: 'hsl(var(--background) / .6)', border: '1px solid hsl(var(--border))', borderRadius: 8, padding: '8px 10px' }}>
-        <div style={{ fontSize: 11, fontWeight: 600, marginBottom: 4 }}>De cijfers</div>
-        <ul style={{ margin: 0, paddingLeft: 16, fontSize: 11.5, lineHeight: 1.55, color: 'hsl(var(--muted-foreground))', listStyle: 'disc' }} data-testid="idea-evidence">
-          {idea.evidence.map((e) => <li key={e}>{e}</li>)}
-        </ul>
+        <details className="idea-evidence">
+          <summary>De cijfers ({idea.evidence.length})</summary>
+          <ul data-testid="idea-evidence">{idea.evidence.map((e) => <li key={e}>{e}</li>)}</ul>
+        </details>
+        <span className="idea-sources">Bronnen: {sources}</span>
       </div>
-      {idea.supportingKeywords.length > 0 && (
-        <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', fontSize: 11 }}>
-          <span className="text-muted-foreground">Ook verwerken:</span>
-          {idea.supportingKeywords.map((k) => <span key={k} className="status-pill" style={{ fontSize: 10 }}>{k}</span>)}
-        </div>
-      )}
-      <div style={{ display: 'flex', gap: 8, marginTop: 'auto', flexWrap: 'wrap' }}>
-        <button type="button" className="button button-primary button-small" onClick={onChoose} data-testid="choose-idea"><Check size={13} /> Kies dit onderwerp</button>
+      <div className="idea-top-side">
+        <ScoreParts idea={idea} />
+        <button type="button" className="button button-primary" onClick={onChoose} data-testid="choose-idea"><Check size={15} /> Schrijf dit</button>
         <button type="button" className="button button-ghost button-small" onClick={onMore} disabled={busy} data-testid="more-like-this"><Sparkles size={13} /> Meer zoals deze</button>
       </div>
     </article>
   );
 }
 
-/** Step-by-step topic choice with data from Search Console and Semrush. */
+function SmallIdea({ idea, onChoose, onMore, busy }: { idea: TopicIdea; onChoose: () => void; onMore: () => void; busy: boolean }) {
+  return (
+    <article className="idea-small" data-testid="topic-idea">
+      <div className="idea-small-head"><Badges idea={idea} /><strong className="idea-small-score" title="Kansscore">{idea.score}</strong></div>
+      <h3>{idea.title}</h3>
+      <div className="idea-keyword">Hoofdzoekwoord: <strong>{idea.keyword}</strong></div>
+      <UpdateLink idea={idea} />
+      {idea.why.length > 0 && <ol className="idea-why-small">{idea.why.map((w) => <li key={w}>{w}</li>)}</ol>}
+      <details className="idea-evidence">
+        <summary>Cijfers en score</summary>
+        <ul>{idea.evidence.map((e) => <li key={e}>{e}</li>)}</ul>
+        <p className="idea-parts-inline">{idea.scoreParts.map((p) => `${p.label} ${p.points}${p.max ? `/${p.max}` : ''}`).join(' · ')}</p>
+      </details>
+      <div className="idea-actions">
+        <button type="button" className="button button-primary button-small" onClick={onChoose} data-testid="choose-idea"><Check size={13} /> Schrijf dit</button>
+        <button type="button" className="button button-ghost button-small" onClick={onMore} disabled={busy}><Sparkles size={13} /> Meer zoals deze</button>
+      </div>
+    </article>
+  );
+}
+
 export function TopicWizard({ partnerId, onChoose }: { partnerId: string; onChoose: (subject: string, contentGoal: string) => void }) {
   const id = Number(partnerId);
-  const [open, setOpen] = useState(true);
-  const [step, setStep] = useState<1 | 2 | 3>(1);
-  const [goal, setGoal] = useState<TopicGoal | null>(null);
-  const [theme, setTheme] = useState<string | null>(null);
-  const [customTheme, setCustomTheme] = useState('');
+  const [mode, setMode] = useState<'start' | 'surprise' | 'closed'>('start');
+  const [theme, setTheme] = useState('');
   const [result, setResult] = useState<TopicIdeasResult | null>(null);
   const [shown, setShown] = useState<string[]>([]);
   const [chosen, setChosen] = useState<TopicIdea | null>(null);
@@ -104,21 +143,19 @@ export function TopicWizard({ partnerId, onChoose }: { partnerId: string; onChoo
 
   const themes = useGetTopicThemes(id, { query: { queryKey: getGetTopicThemesQueryKey(id), enabled: Boolean(id), staleTime: 10 * 60_000 } });
   const ideas = useGetTopicIdeas();
+  const pct = useEstimatedProgress(ideas.isPending, 60_000);
   const available = themes.data?.available;
 
-  // Start over when another partner is selected.
   useEffect(() => {
-    setStep(1); setGoal(null); setTheme(null); setCustomTheme(''); setResult(null); setShown([]); setChosen(null); setError(null); setOpen(true);
+    setMode('start'); setTheme(''); setResult(null); setShown([]); setChosen(null); setError(null);
   }, [partnerId]);
 
   const fetchIdeas = (opts: { like?: string; direction?: 'specifieker' | 'breder'; fresh?: boolean } = {}) => {
-    if (!goal) return;
-    setStep(3);
+    setMode('surprise');
     setError(null);
-    // Ideas that were already shown are excluded, except when starting over.
     const exclude = opts.fresh ? [] : shown;
     ideas.mutate(
-      { partnerId: id, data: { goal, theme: theme ?? null, exclude, like: opts.like ?? null, direction: opts.direction ?? null } },
+      { partnerId: id, data: { goal: 'mix', theme: theme.trim() || null, exclude, like: opts.like ?? null, direction: opts.direction ?? null } },
       {
         onSuccess: (data) => {
           setResult(data);
@@ -131,141 +168,87 @@ export function TopicWizard({ partnerId, onChoose }: { partnerId: string; onChoo
 
   const choose = (idea: TopicIdea) => {
     setChosen(idea);
-    setOpen(false);
+    setMode('closed');
     onChoose(idea.title, contentGoalFor(idea));
+  };
+
+  const ownTopic = () => {
+    setMode('closed');
+    const input = document.getElementById('subject') as HTMLInputElement | null;
+    input?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    setTimeout(() => input?.focus(), 250);
   };
 
   if (!id) return null;
 
-  if (!open) {
+  if (mode === 'closed') {
     return (
-      <div className="card" style={{ padding: '12px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, background: 'hsl(var(--primary) / .08)' }} data-testid="topic-wizard-collapsed">
-        <span style={{ fontSize: 12.5 }}>
-          <Lightbulb size={14} style={{ verticalAlign: '-2px', marginRight: 6 }} />
-          {chosen ? <>Gekozen met Yellowlime AI Agent: <strong>{chosen.title}</strong></> : 'Hulp nodig bij het kiezen van een onderwerp?'}
-        </span>
-        <button type="button" className="button button-ghost button-small" onClick={() => setOpen(true)} data-testid="topic-wizard-open">
-          <ChevronDown size={13} /> {chosen ? 'Ander onderwerp kiezen' : 'Kies samen met Yellowlime AI Agent'}
+      <div className="card topic-collapsed" data-testid="topic-wizard-collapsed">
+        <span><Lightbulb size={14} /> {chosen ? <>Gekozen met Yellowlime AI Agent: <strong>{chosen.title}</strong></> : 'Je schrijft over een eigen onderwerp.'}</span>
+        <button type="button" className="button button-ghost button-small" onClick={() => setMode(result ? 'surprise' : 'start')} data-testid="topic-wizard-open">
+          <ChevronDown size={13} /> {result ? 'Terug naar de voorstellen' : 'Toch een voorstel van de AI Agent'}
         </button>
       </div>
     );
   }
 
-  const stepLabel = (n: number, label: string) => (
-    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11.5, fontWeight: step === n ? 700 : 500, opacity: step >= n ? 1 : 0.5 }}>
-      <span className="progress-node" style={{ width: 20, height: 20, fontSize: 10 }}>{step > n ? <Check size={10} /> : n}</span>{label}
-    </span>
-  );
+  if (mode === 'start') {
+    return (
+      <div className="topic-doors" data-testid="topic-wizard">
+        <div className="topic-door">
+          <span className="topic-door-icon"><PenLine size={22} /></span>
+          <h3>Ik heb een onderwerp</h3>
+          <p>Typ het onderwerp hieronder. De AI Agent controleert of het al bestaat, hoeveel er op gezocht wordt en of er een beter alternatief is.</p>
+          <button type="button" className="button button-ghost" onClick={ownTopic} data-testid="door-own">Naar het onderwerp</button>
+        </div>
+        <div className="topic-door topic-door-dark">
+          <span className="topic-door-icon"><Sparkles size={22} /></span>
+          <h3>Verras me</h3>
+          <p>De AI Agent zoekt in Semrush{available?.searchConsole ? ' en Search Console' : ''} naar de sterkste kansen van dit moment en stelt er vijf voor, elk met zijn redenering.</p>
+          <label htmlFor="surprise-theme" className="topic-door-label">Thema (optioneel)</label>
+          <input id="surprise-theme" className="input" value={theme} onChange={(e) => setTheme(e.target.value)} placeholder={themes.data?.themes?.[0]?.label ? `Bijvoorbeeld: ${themes.data.themes[0].label}` : 'Laat leeg voor alle thema’s'} data-testid="surprise-theme" />
+          <button type="button" className="button button-primary" onClick={() => fetchIdeas({ fresh: true })} data-testid="door-surprise"><Sparkles size={15} /> Toon 5 voorstellen</button>
+          {available && !available.searchConsole && <small className="topic-door-hint">Tip: koppel Search Console op de partnerpagina voor voorstellen op basis van je eigen posities in Google.</small>}
+        </div>
+      </div>
+    );
+  }
 
+  const [top, ...rest] = result?.ideas ?? [];
+  const sources = (idea: TopicIdea) => sourceList(idea, { profile: Boolean(available?.profile), scan: Boolean(available?.websiteArticles) });
   return (
-    <div className="card" style={{ padding: 18, border: '1px solid hsl(var(--primary) / .5)' }} data-testid="topic-wizard">
-      <div className="section-title" style={{ marginBottom: 12 }}>
+    <div className="topic-surprise" data-testid="topic-wizard">
+      <div className="topic-surprise-head">
         <div>
-          <h2 style={{ display: 'flex', alignItems: 'center', gap: 7 }}><Sparkles size={16} /> Kies samen met Yellowlime AI Agent een onderwerp</h2>
-          <p>Elke suggestie is onderbouwd met cijfers uit Google Search Console en Semrush.</p>
+          <h3>{ideas.isPending ? 'De AI Agent zoekt de sterkste kansen' : `${result?.ideas.length ?? 0} onderwerpen die nu kansrijk zijn`}</h3>
+          {result && !ideas.isPending && <p data-testid="ideas-summary">{result.candidatesConsidered} zoekwoorden bekeken{result.theme ? ` · thema: ${result.theme}` : ''}</p>}
         </div>
-        <button type="button" className="button button-ghost button-small" onClick={() => setOpen(false)} data-testid="topic-wizard-close">
-          <ChevronUp size={13} /> Ik weet al wat ik wil schrijven
-        </button>
+        <div className="topic-surprise-actions">
+          <button type="button" className="button button-ghost button-small" onClick={() => setMode('start')} disabled={ideas.isPending}><ArrowLeft size={13} /> Terug</button>
+          <button type="button" className="button button-ghost button-small" onClick={() => fetchIdeas({ direction: 'specifieker' })} disabled={ideas.isPending}>Specifieker</button>
+          <button type="button" className="button button-ghost button-small" onClick={() => fetchIdeas({ direction: 'breder' })} disabled={ideas.isPending}>Breder</button>
+          <button type="button" className="button button-ink button-small" onClick={() => fetchIdeas()} disabled={ideas.isPending} data-testid="other-ideas"><RefreshCw size={13} /> Andere 5</button>
+        </div>
       </div>
-      <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', marginBottom: 14 }}>
-        {stepLabel(1, 'Doel')}{stepLabel(2, 'Thema')}{stepLabel(3, 'Onderwerp')}
-      </div>
-      {available && (
-        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 12, fontSize: 11 }} data-testid="topic-sources">
-          <span className={`status-pill ${available.searchConsole ? 'status-approved' : ''}`}>Search Console {available.searchConsole ? '✓' : '– niet gekoppeld'}</span>
-          <span className={`status-pill ${available.semrush ? 'status-approved' : ''}`}>Semrush {available.semrush ? '✓' : '– niet ingesteld'}</span>
-          <span className={`status-pill ${available.profile ? 'status-approved' : ''}`}>Partnerprofiel {available.profile ? '✓' : '– ontbreekt'}</span>
-          <span className={`status-pill ${available.websiteArticles ? 'status-approved' : ''}`}>{available.websiteArticles} website-artikelen</span>
-        </div>
-      )}
-
-      {step === 1 && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(210px, 1fr))', gap: 10 }}>
-          {GOALS.map((g) => {
-            const blocked = g.needsGsc && available && !available.searchConsole;
-            const Icon = g.icon;
-            return (
-              <button
-                key={g.id}
-                type="button"
-                className="card"
-                disabled={Boolean(blocked)}
-                onClick={() => { setGoal(g.id); setStep(2); }}
-                style={{ textAlign: 'left', padding: 14, cursor: blocked ? 'not-allowed' : 'pointer', opacity: blocked ? 0.5 : 1, border: goal === g.id ? '1px solid hsl(var(--primary))' : undefined, background: 'hsl(var(--card))' }}
-                data-testid={`goal-${g.id}`}
-              >
-                <Icon size={18} color="hsl(var(--primary))" />
-                <div style={{ fontWeight: 600, fontSize: 13, margin: '6px 0 4px' }}>{g.label}</div>
-                <div style={{ fontSize: 11.5, color: 'hsl(var(--muted-foreground))', lineHeight: 1.45 }}>{blocked ? 'Koppel eerst Google Search Console op de partnerpagina.' : g.text}</div>
-              </button>
-            );
-          })}
-        </div>
-      )}
-
-      {step === 2 && goal && (
-        <div style={{ display: 'grid', gap: 12 }}>
-          <p style={{ margin: 0, fontSize: 12.5 }}>Over welk thema wil je schrijven? Thema’s komen uit het partnerprofiel en uit waar de website nu al op gevonden wordt.</p>
-          <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
-            <button type="button" className={`button button-small ${theme === null && !customTheme ? 'button-primary' : 'button-ghost'}`} onClick={() => { setTheme(null); setCustomTheme(''); }} data-testid="theme-all">Alle thema’s</button>
-            {themes.isLoading && <span className="text-muted-foreground" style={{ fontSize: 12 }}>Thema’s laden…</span>}
-            {(themes.data?.themes ?? []).map((t) => (
-              <button key={t.label} type="button" className={`button button-small ${theme === t.label ? 'button-primary' : 'button-ghost'}`} onClick={() => { setTheme(t.label); setCustomTheme(''); }} title={t.source === 'profiel' ? 'Uit het partnerprofiel' : 'Uit Search Console'} data-testid="theme-chip">
-                {t.label}{t.source === 'search-console' && <BarChart3 size={11} />}
-              </button>
-            ))}
-          </div>
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-            <input className="input" style={{ maxWidth: 280 }} placeholder="Of typ zelf een thema" value={customTheme} onChange={(e) => { setCustomTheme(e.target.value); setTheme(e.target.value.trim() || null); }} data-testid="theme-custom" />
-          </div>
-          {goal === 'product' && !theme && <span style={{ fontSize: 11.5, color: 'hsl(var(--muted-foreground))' }}>Tip: kies het product of de dienst die je wilt promoten.</span>}
-          <div style={{ display: 'flex', gap: 8 }}>
-            <button type="button" className="button button-ghost button-small" onClick={() => setStep(1)}><ArrowLeft size={13} /> Terug</button>
-            <button type="button" className="button button-primary button-small" onClick={() => fetchIdeas({ fresh: true })} data-testid="find-ideas"><Sparkles size={13} /> Zoek onderwerpen</button>
-          </div>
-        </div>
-      )}
-
-      {step === 3 && (
-        <div style={{ display: 'grid', gap: 12 }}>
-          {ideas.isPending && (
-            <div className="empty-state" style={{ padding: '28px 18px' }} data-testid="ideas-loading">
-              <RefreshCw size={24} className="animate-spin" />
-              <h3>Yellowlime AI Agent zoekt de beste onderwerpen</h3>
-              <p>Hij haalt zoekwoorden, posities en zoekvolumes op uit Search Console en Semrush, vergelijkt ze met de artikelen die al op de website staan en kiest de sterkste. Dit duurt ongeveer een minuut.</p>
-            </div>
-          )}
-          {error && !ideas.isPending && (
-            <div className="callout"><TriangleAlert size={16} /><span>{error}</span></div>
-          )}
-          {result && !ideas.isPending && (
+      {ideas.isPending && <ProgressPanel title="Voorstellen worden gezocht" subtitle="Duurt ongeveer een minuut" steps={IDEA_STEPS} pct={pct} testId="ideas-loading" />}
+      {error && !ideas.isPending && <div className="callout"><TriangleAlert size={16} /><span>{error}</span></div>}
+      {result && !ideas.isPending && (
+        <>
+          {result.notes.map((n) => <p key={n} className="topic-note">{n}</p>)}
+          {top ? (
             <>
-              <div style={{ fontSize: 11.5, color: 'hsl(var(--muted-foreground))' }} data-testid="ideas-summary">
-                {result.candidatesConsidered} zoekwoorden bekeken
-                {result.usedSearchConsole && ' · Search Console'}
-                {result.usedSemrush && ' · Semrush'}
-                {result.theme && ` · thema: ${result.theme}`}
-              </div>
-              {result.notes.map((n) => <div key={n} className="callout" style={{ fontSize: 12 }}><TriangleAlert size={14} /><span>{n}</span></div>)}
-              {result.ideas.length > 0 ? (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(290px, 1fr))', gap: 12 }}>
-                  {result.ideas.map((idea) => (
-                    <IdeaCard key={idea.keyword} idea={idea} busy={ideas.isPending} onChoose={() => choose(idea)} onMore={() => fetchIdeas({ like: `${idea.title} (${idea.keyword})` })} />
-                  ))}
+              <TopIdea idea={top} sources={sources(top)} busy={ideas.isPending} onChoose={() => choose(top)} onMore={() => fetchIdeas({ like: `${top.title} (${top.keyword})` })} />
+              {rest.length > 0 && (
+                <div className="idea-grid">
+                  {rest.map((idea) => <SmallIdea key={idea.keyword} idea={idea} busy={ideas.isPending} onChoose={() => choose(idea)} onMore={() => fetchIdeas({ like: `${idea.title} (${idea.keyword})` })} />)}
                 </div>
-              ) : (
-                <p style={{ fontSize: 12.5, margin: 0 }}>Geen onderwerpen gevonden. Kies een ander doel of thema.</p>
               )}
+              <p className="topic-note">Alle getallen komen uit Semrush en Search Console; zinnen met getallen die niet in de data staan, worden weggelaten.</p>
             </>
+          ) : (
+            <p className="topic-note">Geen onderwerpen gevonden. Probeer een ander thema of "Breder".</p>
           )}
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            <button type="button" className="button button-ghost button-small" onClick={() => setStep(2)} disabled={ideas.isPending}><ArrowLeft size={13} /> Ander thema</button>
-            <button type="button" className="button button-ghost button-small" onClick={() => fetchIdeas()} disabled={ideas.isPending} data-testid="other-ideas"><RefreshCw size={13} /> Andere ideeën</button>
-            <button type="button" className="button button-ghost button-small" onClick={() => fetchIdeas({ direction: 'specifieker' })} disabled={ideas.isPending}>Specifieker</button>
-            <button type="button" className="button button-ghost button-small" onClick={() => fetchIdeas({ direction: 'breder' })} disabled={ideas.isPending}>Breder</button>
-          </div>
-        </div>
+        </>
       )}
     </div>
   );

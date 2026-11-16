@@ -55,9 +55,16 @@ const router: IRouter = Router();
 const PAGE_CACHE_MS = 2 * 60 * 60_000;
 const pageCache = new Map<number, { url: string; at: number; collection: WebsiteCollection }>();
 
-async function profilePages(partner: { id: number; websiteUrl: string }, refresh = false): Promise<WebsiteCollection> {
+async function profilePages(
+  partner: { id: number; websiteUrl: string },
+  refresh = false,
+  onPage?: (read: number, max: number) => void,
+): Promise<WebsiteCollection> {
   const cached = pageCache.get(partner.id);
-  if (!refresh && cached && cached.url === partner.websiteUrl && Date.now() - cached.at < PAGE_CACHE_MS) return cached.collection;
+  if (!refresh && cached && cached.url === partner.websiteUrl && Date.now() - cached.at < PAGE_CACHE_MS) {
+    onPage?.(cached.collection.pages.length, cached.collection.pages.length);
+    return cached.collection;
+  }
   const articles = await db.select({ url: websiteArticlesTable.url }).from(websiteArticlesTable)
     .where(eq(websiteArticlesTable.partnerId, partner.id))
     .orderBy(desc(websiteArticlesTable.publishedAt)).limit(4);
@@ -67,6 +74,7 @@ async function profilePages(partner: { id: number; websiteUrl: string }, refresh
     knownArticleUrls: articles.map((a) => a.url),
     maxTotalText: 160_000,
     includeContactDetails: true,
+    onPage,
   });
   pageCache.set(partner.id, { url: partner.websiteUrl, at: Date.now(), collection });
   return collection;
@@ -288,6 +296,38 @@ router.post("/partners/:partnerId/profile/generate", async (req, res): Promise<v
   const [partner] = await db.select().from(partnersTable).where(eq(partnersTable.id, params.data.partnerId));
   if (!partner) { res.status(404).json({ error: "Partner niet gevonden." }); return; }
   const fields = (body.data.fields?.length ? [...new Set(body.data.fields)] : GENERATABLE_FIELDS) as GeneratableField[];
+
+  // ?stream=1: progress as newline-delimited JSON, so the page can show real steps
+  // (pages read, fields being written) instead of a spinner. The last line is the
+  // result or the error.
+  if (req.query.stream === "1") {
+    res.status(200).setHeader("Content-Type", "application/x-ndjson; charset=utf-8");
+    res.setHeader("Cache-Control", "no-store");
+    const send = (event: Record<string, unknown>) => { res.write(`${JSON.stringify(event)}\n`); };
+    send({ type: "step", step: "pages", read: 0, max: 16 });
+    let collected: WebsiteCollection;
+    try {
+      collected = await profilePages(partner, body.data.refresh === true, (read, max) => send({ type: "step", step: "pages", read, max }));
+    } catch (error) {
+      req.log.warn({ code: "profile_generate_collect_failed", reason: error instanceof Error ? error.message.slice(0, 200) : typeof error }, "Website kon niet worden gelezen");
+      send({ type: "error", status: 422, error: claudeErrorMessage(error) });
+      res.end();
+      return;
+    }
+    try {
+      const input = { companyName: partner.companyName, websiteUrl: partner.websiteUrl, pages: collected.pages };
+      const onStep = (step: "fields" | "retry", detail?: { fields: number }) => send({ type: "step", step, ...detail });
+      const generated = fields.length === GENERATABLE_FIELDS.length
+        ? await generateAllProfileFields(input, defaultClaudeTextRunner, onStep)
+        : (onStep("fields", { fields: fields.length }), await generateProfileFields({ ...input, fields }, defaultClaudeTextRunner));
+      send({ type: "result", data: GeneratePartnerProfileFieldsResponse.parse({ ...generated, pagesUsed: collected.pages.map((page) => ({ url: page.url, title: page.title })) }) });
+    } catch (error) {
+      req.log.warn({ code: "profile_generate_failed", errorType: error instanceof Error ? error.message : typeof error }, "AI kon het profiel niet invullen");
+      send({ type: "error", status: isClaudeFailure(error) ? 502 : 500, error: claudeErrorMessage(error) });
+    }
+    res.end();
+    return;
+  }
 
   let collection: WebsiteCollection;
   try {

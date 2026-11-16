@@ -28,6 +28,8 @@ export interface CollectOptions extends SafeHttpOptions {
   maxTotalText?: number;
   /** Add footer, <address> and schema.org contact details (once per site) to the text. */
   includeContactDetails?: boolean;
+  /** Called after every page that was read (or tried), with the pages read so far. */
+  onPage?: (read: number, max: number) => void;
 }
 
 /** Contact and location pages; always read first when collecting for a partner profile. */
@@ -100,6 +102,7 @@ export async function collectWebsite(
     : [...regular.slice(0, regularSlots), ...articleCandidates, ...regular.slice(regularSlots)];
 
   const pages: ExtractedPage[] = [firstPage];
+  options.onPage?.(pages.length, maxPages);
   const seen = new Set([new URL(firstPage.url).toString()]);
   let articlesRead = 0;
   for (const candidate of ordered) {
@@ -122,6 +125,7 @@ export async function collectWebsite(
     } catch {
       // One unavailable secondary page must not discard useful collected pages.
     }
+    options.onPage?.(pages.length, maxPages);
   }
   if (options.includeContactDetails) {
     // Footer/address text is the same on every page: add each unique block once.

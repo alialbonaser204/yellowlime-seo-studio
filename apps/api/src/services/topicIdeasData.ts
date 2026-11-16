@@ -7,7 +7,7 @@ import { distinctOverlap, lexicalScore, topicTokens } from "./topicMatching";
  * Claude; reasons that mention numbers that are not in the data are dropped.
  */
 
-export type TopicGoal = "verkeer" | "kansen" | "opfrissen" | "product" | "seizoen";
+export type TopicGoal = "verkeer" | "kansen" | "opfrissen" | "product" | "seizoen" | "mix";
 
 export const GOALS: Record<TopicGoal, { label: string; brief: string }> = {
   verkeer: {
@@ -30,7 +30,28 @@ export const GOALS: Record<TopicGoal, { label: string; brief: string }> = {
     label: "Inspelen op het seizoen",
     brief: "Onderwerpen waarvan de zoekvraag in de komende 1 tot 3 maanden piekt, zodat het artikel op tijd online staat.",
   },
+  mix: {
+    label: "De sterkste kansen van dit moment",
+    brief: "Een mix van zoekwoorden waarop de website bijna bovenaan staat, nieuwe onderwerpen met veel zoekvraag, seizoenspieken en dalende pagina's. Kies de sterkste en zorg voor variatie in soort kans.",
+  },
 };
+
+/** Short label per kind of opportunity, shown on the topic cards. */
+export const KIND_LABELS: Record<Exclude<TopicGoal, "mix">, string> = {
+  kansen: "Snelle winst",
+  verkeer: "Meer bezoekers",
+  opfrissen: "Opfrissen",
+  product: "Product of dienst",
+  seizoen: "Seizoen",
+};
+
+/** For "Verras me": what kind of opportunity a keyword is, decided by its data. */
+export function kindOf(c: Pick<Candidate, "gsc" | "declining" | "peak" | "covered">): Exclude<TopicGoal, "mix"> {
+  if (c.declining) return "opfrissen";
+  if (c.gsc && c.gsc.position >= 4 && c.gsc.position <= 20) return "kansen";
+  if (c.peak && c.peak.monthsUntil >= 1 && c.peak.monthsUntil <= 3) return "seizoen";
+  return "verkeer";
+}
 
 export interface SemrushData {
   volume: number | null;
@@ -57,6 +78,16 @@ export interface Candidate {
   covered: { url: string; title: string } | null;
   peak: { month: string; monthsUntil: number } | null;
   score: number;
+  /** What kind of opportunity this is (for "Verras me"). */
+  kind?: Exclude<TopicGoal, "mix">;
+  /** How the score is built up, for the explanation on the card. */
+  parts?: ScorePart[];
+}
+
+export interface ScorePart {
+  label: string;
+  points: number;
+  max: number;
 }
 
 const MONTHS = ["januari", "februari", "maart", "april", "mei", "juni", "juli", "augustus", "september", "oktober", "november", "december"];
@@ -122,26 +153,34 @@ export function isUnsuitableKeyword(keyword: string, brandWords: string[], inten
   return intentLabel(intent) === "navigatie";
 }
 
-/** Opportunity score 0–100 from the data, weighted per goal. */
-export function scoreCandidate(c: Omit<Candidate, "score" | "id">, goal: TopicGoal): number {
+/** Opportunity score 0–100 from the data, weighted per goal, with its parts. */
+export function scoreDetail(c: Omit<Candidate, "score" | "id">, goal: TopicGoal): { score: number; parts: ScorePart[]; kind: Exclude<TopicGoal, "mix"> } {
+  const kind = goal === "mix" ? kindOf(c) : goal;
   const volume = c.semrush?.volume ?? null;
   const difficulty = c.semrush?.difficulty ?? null;
-  let score = 0;
+  const parts: ScorePart[] = [];
   // Search demand: 10 → 10, 100 → 20, 1.000 → 30, 10.000 → 40
-  if (volume !== null) score += Math.min(40, 10 * Math.log10(volume + 1));
-  else if (c.gsc) score += Math.min(30, 8 * Math.log10(c.gsc.impressions + 1));
+  const demand = volume !== null ? Math.min(40, 10 * Math.log10(volume + 1)) : c.gsc ? Math.min(30, 8 * Math.log10(c.gsc.impressions + 1)) : 0;
+  parts.push({ label: "Zoekvolume", points: demand, max: 40 });
   // How hard it is to rank
-  score += difficulty === null ? 10 : Math.max(0, (100 - difficulty) / 4);
+  parts.push({ label: "Haalbaarheid", points: difficulty === null ? 10 : Math.max(0, (100 - difficulty) / 4), max: 25 });
   // Search Console: already visible just below the top
   if (c.gsc) {
     const p = c.gsc.position;
-    score += p >= 4 && p <= 10 ? 25 : p > 10 && p <= 20 ? 18 : p > 20 && p <= 30 ? 8 : p < 4 ? 4 : 0;
+    parts.push({ label: "Huidige positie", points: p >= 4 && p <= 10 ? 25 : p > 10 && p <= 20 ? 18 : p > 20 && p <= 30 ? 8 : p < 4 ? 4 : 0, max: 25 });
   }
-  if (goal === "opfrissen" && c.declining) score += Math.min(25, Math.abs(c.declining.clicks - c.declining.previousClicks) / 2);
-  if (goal === "seizoen" && c.peak) score += c.peak.monthsUntil >= 1 && c.peak.monthsUntil <= 3 ? 20 : -10;
-  if (goal === "verkeer" && c.covered) score -= 25;
-  if (goal === "kansen" && !c.gsc) score -= 20;
-  return Math.max(0, Math.min(100, Math.round(score)));
+  if (kind === "opfrissen" && c.declining) parts.push({ label: "Verlies herstellen", points: Math.min(25, Math.abs(c.declining.clicks - c.declining.previousClicks) / 2), max: 25 });
+  if (kind === "seizoen" && c.peak) parts.push({ label: "Timing (seizoen)", points: c.peak.monthsUntil >= 1 && c.peak.monthsUntil <= 3 ? 20 : -10, max: 20 });
+  if (kind === "verkeer" && c.covered) parts.push({ label: "Staat al op de website", points: -25, max: 0 });
+  if (kind === "kansen" && !c.gsc) parts.push({ label: "Nog niet zichtbaar in Google", points: -20, max: 0 });
+  const rounded = parts.map((part) => ({ ...part, points: Math.round(part.points) }));
+  const score = Math.max(0, Math.min(100, Math.round(parts.reduce((n, part) => n + part.points, 0))));
+  return { score, parts: rounded, kind };
+}
+
+/** Opportunity score 0–100 from the data, weighted per goal. */
+export function scoreCandidate(c: Omit<Candidate, "score" | "id">, goal: TopicGoal): number {
+  return scoreDetail(c, goal).score;
 }
 
 const nf = new Intl.NumberFormat("nl-NL");
@@ -197,7 +236,7 @@ export function makeIdeasPrompt(input: {
   count: number;
 }): string {
   const g = GOALS[input.goal];
-  const lines = input.candidates.map((c) => `[${c.id}] "${c.keyword}" — score ${c.score} — ${evidenceLines(c, input.articles.length > 0).join("; ")}`);
+  const lines = input.candidates.map((c) => `[${c.id}] "${c.keyword}" — score ${c.score}${input.goal === "mix" && c.kind ? ` — soort: ${KIND_LABELS[c.kind]}` : ""} — ${evidenceLines(c, input.articles.length > 0).join("; ")}`);
   return [
     "Je bent een ervaren SEO-contentstrateeg bij een Nederlands bureau. Je helpt een collega een onderwerp kiezen voor een artikel voor een partner.",
     `Partner: ${input.companyName}.`,
@@ -223,11 +262,13 @@ export function makeIdeasPrompt(input: {
     `Kies de ${input.count} beste onderwerpen. Regels:`,
     "1. Elk idee is gebaseerd op precies één hoofdkandidaat (candidate) en eventueel maximaal 3 ondersteunende kandidaten (supporting), via hun id.",
     "2. Kies onderwerpen die passen bij de producten, diensten en doelgroep van de partner. Sla kandidaten over die niets met de partner te maken hebben, en zoekwoorden die vooral een naam zijn van een klant, project, gebouw, evenementenlocatie of ander merk (mensen die daarop zoeken, zoeken niet de partner). Gebruik de paden van de pagina's (bijv. /diensten/...) om te begrijpen wat de partner doet.",
-    "3. Geen twee ideeën met dezelfde zoekintentie of hetzelfde hoofdzoekwoord. Zorg voor variatie.",
+    input.goal === "mix"
+      ? "3. Geen twee ideeën met dezelfde zoekintentie of hetzelfde hoofdzoekwoord. Zorg voor variatie in soort kans (snelle winst, meer bezoekers, seizoen, opfrissen) als de kandidaten dat toelaten."
+      : "3. Geen twee ideeën met dezelfde zoekintentie of hetzelfde hoofdzoekwoord. Zorg voor variatie.",
     "4. type is \"update\" als een bestaande pagina beter bijgewerkt kan worden (geef dan update_url, alleen een URL uit de kandidaten of artikelen hierboven); anders \"nieuw\". Een kandidaat die al op de website staat wordt nooit \"nieuw\".",
     "5. title: een concrete werktitel in het Nederlands die het hoofdzoekwoord bevat, geen clickbait.",
     "6. angle: één zin met de invalshoek en wat de lezer leert of kan doen.",
-    "7. why: 2 korte zinnen waarom dit nu een slimme keuze is voor deze partner. Gebruik ALLEEN getallen die letterlijk in de kandidaten staan; verzin geen cijfers.",
+    "7. why: precies 3 korte zinnen, in deze volgorde: (1) wat de cijfers zeggen (zoekvolume, positie, piek of daling); (2) waarom het past bij deze partner, met een product, dienst of doelgroep uit het profiel; (3) waarom nu, of hoe het zich verhoudt tot wat al op de website staat. Gebruik ALLEEN getallen die letterlijk in de kandidaten staan; verzin geen cijfers en geen feiten over de partner.",
     "Denk niet hardop na en geef geen uitleg. Begin je antwoord direct met { en antwoord met alleen JSON in deze vorm:",
     '{"ideas": [{"candidate": "k1", "supporting": ["k4"], "title": "...", "type": "nieuw", "update_url": null, "angle": "...", "why": ["...", "..."]}]}',
   ].filter(Boolean).join("\n\n");
@@ -246,6 +287,10 @@ export interface TopicIdea {
   supportingKeywords: string[];
   score: number;
   sources: string[];
+  /** Kind of opportunity, e.g. "Snelle winst" (only for "Verras me"). */
+  kind: string | null;
+  /** How the score is built up. */
+  scoreParts: ScorePart[];
 }
 
 function numbersIn(text: string): number[] {
@@ -359,6 +404,8 @@ export function parseIdeas(raw: string, candidates: Candidate[], knownUrls: Set<
       supportingKeywords: supporting.map((c) => c.keyword),
       score: main.score,
       sources: main.sources,
+      kind: main.kind ? KIND_LABELS[main.kind] : null,
+      scoreParts: main.parts ?? [],
     });
     if (ideas.length >= count) break;
   }

@@ -1158,7 +1158,7 @@ components:
               type: integer
     TopicGoal:
       type: string
-      enum: [verkeer, kansen, opfrissen, product, seizoen]
+      enum: [verkeer, kansen, opfrissen, product, seizoen, mix]
     TopicTheme:
       type: object
       required: [label, source]
@@ -1265,7 +1265,7 @@ components:
           enum: [specifieker, breder, null]
     TopicIdea:
       type: object
-      required: [title, keyword, type, updateUrl, angle, why, evidence, supportingKeywords, score, sources]
+      required: [title, keyword, type, updateUrl, angle, why, evidence, supportingKeywords, score, sources, kind, scoreParts]
       properties:
         title:
           type: string
@@ -1296,6 +1296,20 @@ components:
           type: array
           items:
             type: string
+        kind:
+          type: ["string", "null"]
+        scoreParts:
+          type: array
+          items:
+            type: object
+            required: [label, points, max]
+            properties:
+              label:
+                type: string
+              points:
+                type: integer
+              max:
+                type: integer
     TopicIdeasResult:
       type: object
       required: [ideas, goal, theme, usedSearchConsole, usedSemrush, candidatesConsidered, notes]

@@ -15,4 +15,5 @@ export const TopicGoal = {
   opfrissen: 'opfrissen',
   product: 'product',
   seizoen: 'seizoen',
+  mix: 'mix',
 } as const;

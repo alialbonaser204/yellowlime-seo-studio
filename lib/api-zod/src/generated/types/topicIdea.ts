@@ -5,6 +5,7 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { TopicIdeaScorePartsItem } from './topicIdeaScorePartsItem';
 import type { TopicIdeaType } from './topicIdeaType';
 
 export interface TopicIdea {
@@ -19,4 +20,7 @@ export interface TopicIdea {
   supportingKeywords: string[];
   score: number;
   sources: string[];
+  /** @nullable */
+  kind: string | null;
+  scoreParts: TopicIdeaScorePartsItem[];
 }

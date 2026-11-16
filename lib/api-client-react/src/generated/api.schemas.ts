@@ -268,6 +268,7 @@ export const TopicGoal = {
   opfrissen: 'opfrissen',
   product: 'product',
   seizoen: 'seizoen',
+  mix: 'mix',
 } as const;
 
 export type TopicThemeSource = typeof TopicThemeSource[keyof typeof TopicThemeSource];
@@ -368,6 +369,12 @@ export const TopicIdeaType = {
   update: 'update',
 } as const;
 
+export type TopicIdeaScorePartsItem = {
+  label: string;
+  points: number;
+  max: number;
+};
+
 export interface TopicIdea {
   title: string;
   keyword: string;
@@ -380,6 +387,9 @@ export interface TopicIdea {
   supportingKeywords: string[];
   score: number;
   sources: string[];
+  /** @nullable */
+  kind: string | null;
+  scoreParts: TopicIdeaScorePartsItem[];
 }
 
 export interface TopicIdeasResult {

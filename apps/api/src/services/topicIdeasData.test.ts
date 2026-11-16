@@ -142,3 +142,21 @@ test("leaves out brand and navigation-only searches", async () => {
   assert.ok(!isUnsuitableKeyword("warmtepomp onderhoud", ["Warmtebouw"], "1"));
   assert.ok(!isUnsuitableKeyword("capaciteit afas live", ["Warmtebouw"], "1,2"), "mixed intent is left to Claude");
 });
+
+test("Verras me: the kind of opportunity follows the data, and the score parts add up", async () => {
+  const { kindOf, scoreDetail, makeIdeasPrompt, KIND_LABELS } = await import("./topicIdeasData");
+  const base = { keyword: "bakfiets kopen", sources: ["Search Console"], semrush: { volume: 2200, difficulty: 38, intent: "1", trend: null }, covered: null, peak: null, declining: null };
+  const nearTop = { ...base, gsc: { position: 8, impressions: 1200, clicks: 30, ctr: 0.025, page: "https://a.nl/bakfiets" } };
+  assert.equal(kindOf(nearTop), "kansen");
+  assert.equal(kindOf({ ...base, gsc: null, peak: { month: "maart", monthsUntil: 2 } }), "seizoen");
+  assert.equal(kindOf({ ...nearTop, declining: { page: "https://a.nl/x", clicks: 95, previousClicks: 140 } }), "opfrissen");
+  assert.equal(kindOf({ ...base, gsc: null }), "verkeer");
+  const detail = scoreDetail(nearTop, "mix");
+  assert.equal(detail.kind, "kansen");
+  assert.deepEqual(detail.parts.map((p) => p.label), ["Zoekvolume", "Haalbaarheid", "Huidige positie"]);
+  const sum = detail.parts.reduce((n, p) => n + p.points, 0);
+  assert.ok(Math.abs(sum - detail.score) <= 2, `${sum} vs ${detail.score}`);
+  const prompt = makeIdeasPrompt({ companyName: "Atlas", goal: "mix", theme: null, profile: null, candidates: [{ ...nearTop, id: "k1", score: detail.score, kind: detail.kind, parts: detail.parts }], articles: [], exclude: [], like: null, direction: null, count: 5 });
+  assert.match(prompt, new RegExp(`soort: ${KIND_LABELS.kansen}`));
+  assert.match(prompt, /precies 3 korte zinnen/);
+});

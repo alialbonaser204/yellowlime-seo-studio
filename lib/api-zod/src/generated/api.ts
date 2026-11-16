@@ -788,7 +788,7 @@ export const getTopicIdeasBodyLikeMax = 300;
 
 
 export const GetTopicIdeasBody = zod.object({
-  "goal": zod.enum(['verkeer', 'kansen', 'opfrissen', 'product', 'seizoen']),
+  "goal": zod.enum(['verkeer', 'kansen', 'opfrissen', 'product', 'seizoen', 'mix']),
   "theme": zod.string().max(getTopicIdeasBodyThemeMax).nullish(),
   "exclude": zod.array(zod.string()).optional(),
   "like": zod.string().max(getTopicIdeasBodyLikeMax).nullish(),
@@ -806,9 +806,15 @@ export const GetTopicIdeasResponse = zod.object({
   "evidence": zod.array(zod.string()),
   "supportingKeywords": zod.array(zod.string()),
   "score": zod.number().int(),
-  "sources": zod.array(zod.string())
+  "sources": zod.array(zod.string()),
+  "kind": zod.string().nullable(),
+  "scoreParts": zod.array(zod.object({
+  "label": zod.string(),
+  "points": zod.number().int(),
+  "max": zod.number().int()
+}))
 })),
-  "goal": zod.enum(['verkeer', 'kansen', 'opfrissen', 'product', 'seizoen']),
+  "goal": zod.enum(['verkeer', 'kansen', 'opfrissen', 'product', 'seizoen', 'mix']),
   "theme": zod.string().nullable(),
   "usedSearchConsole": zod.boolean(),
   "usedSemrush": zod.boolean(),
