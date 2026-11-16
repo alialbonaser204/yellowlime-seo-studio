@@ -12,7 +12,7 @@
  *   after that work is done. The browser simply waits a little longer.
  */
 // Must come first: other modules read process.env while they load.
-import "./workers/env";
+import { copyWorkerSettings } from "./workers/env";
 import { httpServerHandler } from "cloudflare:node";
 import { env } from "cloudflare:workers";
 import express, { type Response } from "express";
@@ -36,6 +36,8 @@ root.set("trust proxy", true);
 root.disable("x-powered-by");
 
 root.use((req, res, next) => {
+  // Secrets can change without a new deploy; keep process.env up to date.
+  copyWorkerSettings();
   // Workers are only reachable over HTTPS (except during local development);
   // this makes req.protocol right for the Google sign-in redirect.
   if (!req.headers["x-forwarded-proto"] && !/^(localhost|127\.0\.0\.1)(:|$)/.test(req.headers.host ?? "")) {
