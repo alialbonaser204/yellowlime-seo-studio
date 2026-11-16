@@ -2,7 +2,8 @@ import { Router, type IRouter } from "express";
 import { sql } from "drizzle-orm";
 import { HealthCheckResponse } from "@yellowlime/api-zod";
 import { db } from "@yellowlime/db";
-import { defaultClaudeTextRunner } from "../services/claudeRunner";
+import Anthropic from "@anthropic-ai/sdk";
+import { CLAUDE_MODEL } from "../services/claudeRunner";
 
 const router: IRouter = Router();
 
@@ -33,11 +34,27 @@ router.get("/healthz/ai", async (_req, res) => {
   const settings = Object.fromEntries(
     ["DATABASE_URL", "ANTHROPIC_API_KEY", "SEMRUSH_API_KEY", "GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET"].map((n) => [n, present(n)]),
   );
+  const apiKey = process.env.ANTHROPIC_API_KEY?.trim();
+  if (!apiKey) {
+    res.status(503).json({ settings, claude: "error", code: "missing_key" });
+    return;
+  }
   try {
-    await defaultClaudeTextRunner("Antwoord alleen met: ok", 30_000);
-    res.json({ settings, claude: "ok" });
+    const client = new Anthropic({ apiKey, maxRetries: 0 });
+    await client.messages.create({ model: CLAUDE_MODEL, max_tokens: 5, messages: [{ role: "user", content: "Antwoord alleen met: ok" }] });
+    res.json({ settings, claude: "ok", model: CLAUDE_MODEL });
   } catch (error) {
-    res.status(503).json({ settings, claude: "error", code: error instanceof Error ? error.message.slice(0, 120) : "unknown" });
+    // Only the status and Anthropic's error type and message; never the key.
+    const status = (error as { status?: number }).status ?? null;
+    const body = (error as { error?: { error?: { type?: string; message?: string } } }).error?.error;
+    res.status(503).json({
+      settings,
+      claude: "error",
+      model: CLAUDE_MODEL,
+      status,
+      type: body?.type ?? (error instanceof Error ? error.name : "unknown"),
+      message: (body?.message ?? (error instanceof Error ? error.message : "")).replace(/sk-ant-\S+/g, "<key>").slice(0, 300),
+    });
   }
 });
 
