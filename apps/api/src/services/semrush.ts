@@ -1,3 +1,4 @@
+import { requestCache } from "../lib/background";
 import { SemrushMcpClient } from "./semrushMcp";
 
 const DATABASE = "nl";
@@ -124,6 +125,17 @@ let mcpClient: { key: string; client: SemrushMcpClient } | null = null;
 function getMcpClient(apiKey: string): SemrushMcpClient {
   const url = process.env.SEMRUSH_MCP_URL?.trim() || undefined;
   const cacheKey = `${url ?? ""}|${apiKey}`;
+  const perRequest = requestCache();
+  if (perRequest) {
+    // Cloudflare Workers: one Semrush session per request.
+    const key = `semrush-mcp|${cacheKey}`;
+    let client = perRequest.get(key) as SemrushMcpClient | undefined;
+    if (!client) {
+      client = new SemrushMcpClient({ apiKey, url });
+      perRequest.set(key, client);
+    }
+    return client;
+  }
   if (!mcpClient || mcpClient.key !== cacheKey) {
     void mcpClient?.client.close();
     mcpClient = { key: cacheKey, client: new SemrushMcpClient({ apiKey, url }) };

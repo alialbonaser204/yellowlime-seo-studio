@@ -11,6 +11,8 @@ import { AsyncLocalStorage } from "node:async_hooks";
  */
 export interface BackgroundTasks {
   tasks: Promise<unknown>[];
+  /** Objects that hold a connection and may only be used within this request. */
+  shared?: Map<string, unknown>;
 }
 
 const collectors = new AsyncLocalStorage<BackgroundTasks>();
@@ -34,4 +36,16 @@ export async function waitForBackgroundTasks(store: BackgroundTasks): Promise<vo
     done = store.tasks.length;
     await Promise.allSettled(pending);
   }
+}
+
+/**
+ * On Workers: a map that lives as long as the current request, for objects
+ * that hold a network connection (Workers do not allow using a connection
+ * from another request). Elsewhere: null, so callers keep one global copy.
+ */
+export function requestCache(): Map<string, unknown> | null {
+  const store = collectors.getStore();
+  if (!store) return null;
+  store.shared ??= new Map();
+  return store.shared;
 }
