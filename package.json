@@ -18,7 +18,7 @@
     "codegen": "pnpm --filter @yellowlime/api-spec run codegen",
     "typecheck:libs": "tsc --build",
     "typecheck": "pnpm run typecheck:libs && pnpm -r --filter \"./apps/**\" --if-present run typecheck",
-    "cf:build": "pnpm db:migrate && pnpm --filter @yellowlime/web run build",
+    "cf:build": "node -e \"process.exit(process.env.DATABASE_URL ? 0 : 1)\" && pnpm db:migrate || echo 'DATABASE_URL ontbreekt: migraties overgeslagen'; pnpm --filter @yellowlime/web run build",
     "cf:dev": "pnpm --filter @yellowlime/web run build && wrangler dev",
     "cf:deploy": "wrangler deploy"
   },
