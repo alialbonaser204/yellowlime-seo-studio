@@ -5,6 +5,11 @@ export const CLAUDE_MODEL = "claude-sonnet-5" as const;
 export const CLAUDE_MAX_TOKENS = 16000;
 /** A call is aborted when Claude sends nothing at all for this long. */
 export const CLAUDE_IDLE_TIMEOUT_MS = 60_000;
+/**
+ * Before the first word Claude may need longer: it first reads the whole
+ * prompt, which for a large website is tens of thousands of words.
+ */
+export const CLAUDE_FIRST_EVENT_TIMEOUT_MS = 150_000;
 
 export type ClaudeTextRunner = (
   input: string,
@@ -47,7 +52,7 @@ export async function defaultClaudeTextRunner(
     controller.abort();
   };
   const totalTimer = setTimeout(abort, timeoutMs);
-  let idleTimer = setTimeout(abort, Math.min(idleTimeoutMs, timeoutMs));
+  let idleTimer = setTimeout(abort, Math.min(Math.max(idleTimeoutMs, CLAUDE_FIRST_EVENT_TIMEOUT_MS), timeoutMs));
   let firstEventMs: number | null = null;
   const resetIdleTimer = () => {
     if (firstEventMs === null) firstEventMs = Date.now() - startedAt;
