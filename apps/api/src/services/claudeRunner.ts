@@ -10,6 +10,10 @@ export const CLAUDE_IDLE_TIMEOUT_MS = 60_000;
  * prompt, which for a large website is tens of thousands of words.
  */
 export const CLAUDE_FIRST_EVENT_TIMEOUT_MS = 150_000;
+/** Pass as `timeoutMs` to wait for Claude as long as it takes (no timers). */
+export const NO_TIME_LIMIT = 0;
+/** The SDK needs a number; with no limit we give it one hour. */
+const SDK_MAX_WAIT_MS = 60 * 60_000;
 
 export type ClaudeTextRunner = (
   input: string,
@@ -51,13 +55,16 @@ export async function defaultClaudeTextRunner(
     timedOut = true;
     controller.abort();
   };
-  const totalTimer = setTimeout(abort, timeoutMs);
-  let idleTimer = setTimeout(abort, Math.min(Math.max(idleTimeoutMs, CLAUDE_FIRST_EVENT_TIMEOUT_MS), timeoutMs));
+  const limited = timeoutMs > 0;
+  const totalTimer = limited ? setTimeout(abort, timeoutMs) : undefined;
+  let idleTimer = limited
+    ? setTimeout(abort, Math.min(Math.max(idleTimeoutMs, CLAUDE_FIRST_EVENT_TIMEOUT_MS), timeoutMs))
+    : undefined;
   let firstEventMs: number | null = null;
   const resetIdleTimer = () => {
     if (firstEventMs === null) firstEventMs = Date.now() - startedAt;
     clearTimeout(idleTimer);
-    idleTimer = setTimeout(abort, Math.min(idleTimeoutMs, timeoutMs));
+    if (limited) idleTimer = setTimeout(abort, Math.min(idleTimeoutMs, timeoutMs));
   };
 
   try {
@@ -67,7 +74,7 @@ export async function defaultClaudeTextRunner(
         max_tokens: CLAUDE_MAX_TOKENS,
         messages: [{ role: "user", content: input }],
       },
-      { signal: controller.signal, timeout: timeoutMs },
+      { signal: controller.signal, timeout: limited ? timeoutMs : SDK_MAX_WAIT_MS },
     );
     stream.on("streamEvent", resetIdleTimer);
     const result = await stream.finalMessage();

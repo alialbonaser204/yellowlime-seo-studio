@@ -352,7 +352,7 @@ export type TextRunner = (input: string, timeoutMs: number) => Promise<string>;
 export async function generateProfileFields(
   input: { companyName: string; websiteUrl: string; fields: GeneratableField[]; pages: SourcePage[] },
   runner: TextRunner,
-  timeoutMs = 240_000,
+  timeoutMs = 0, // 0 = no time limit: a large site may take Claude a while
 ): Promise<GeneratedProfile> {
   const raw = await runner(makeProfileFieldsPrompt(input.companyName, input.websiteUrl, input.fields, input.pages), timeoutMs);
   return parseGeneratedProfile(raw, input.fields, input.pages);
@@ -398,7 +398,7 @@ export async function generateAllProfileFields(
   if (empty.length === 0) return first;
   onStep?.("retry", { fields: empty.length });
   const retries = await Promise.all(
-    empty.map((field) => generateProfileFields({ ...input, fields: [field] }, runner, 180_000).catch(() => null)),
+    empty.map((field) => generateProfileFields({ ...input, fields: [field] }, runner).catch(() => null)),
   );
   return mergeRetries(first, retries.filter((r): r is GeneratedProfile => r !== null));
 }
@@ -418,7 +418,7 @@ async function generateInGroups(
   const rest = GENERATABLE_FIELDS.filter((f) => !covered.has(f));
   if (rest.length) groups.push(rest);
   const results = await Promise.all(
-    groups.map((fields) => generateProfileFields({ ...input, fields }, runner, 180_000).catch(() => null)),
+    groups.map((fields) => generateProfileFields({ ...input, fields }, runner).catch(() => null)),
   );
   const ok = results.filter((r): r is GeneratedProfile => r !== null);
   if (ok.length === 0) throw new Error("invalid_claude_json");
