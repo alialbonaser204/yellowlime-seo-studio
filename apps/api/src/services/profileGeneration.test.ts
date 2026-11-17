@@ -201,3 +201,25 @@ test("reads contact pages first and keeps footer and schema.org addresses", asyn
   // the same footer is added only once
   assert.equal(result.pages.filter((p) => p.text.includes("Contactgegevens")).length, 1);
 });
+
+test("falls back to smaller groups when the all-fields answer is broken JSON", async () => {
+  const { generateAllProfileFields } = await import("./profileGeneration");
+  const pages = [{ url: "https://atlas.nl/", title: "Atlas", text: "Welkom bij Atlas Fietsen. Bezoek onze winkel in Amersfoort." }];
+  const prompts: string[] = [];
+  const runner = async (input: string) => {
+    prompts.push(input);
+    if (input.includes("- companyName (") && input.includes("- writingStyle (")) return '{"fields": {"companyName": {"text": "Atlas'; // cut off
+    if (input.includes("- companyName (")) {
+      return JSON.stringify({ fields: {
+        companyName: { text: "Atlas Fietsen", evidence: [{ quote: "Welkom bij Atlas Fietsen", url: "https://atlas.nl/" }], confidence: "hoog" },
+        locations: { items: ["Amersfoort"], evidence: [{ quote: "onze winkel in Amersfoort", url: "https://atlas.nl/" }], confidence: "hoog" },
+      } });
+    }
+    return JSON.stringify({ fields: {} });
+  };
+  const result = await generateAllProfileFields({ companyName: "Atlas", websiteUrl: "https://atlas.nl", pages }, runner);
+  const get = (f: string) => result.fields.find((x) => x.field === f)!;
+  assert.equal(get("companyName").text, "Atlas Fietsen");
+  assert.deepEqual(get("locations").items, ["Amersfoort"]);
+  assert.ok(prompts.length > 1);
+});

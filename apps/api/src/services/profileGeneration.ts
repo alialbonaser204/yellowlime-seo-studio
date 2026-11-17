@@ -387,7 +387,13 @@ export async function generateAllProfileFields(
   onStep?: (step: "fields" | "retry", detail?: { fields: number }) => void,
 ): Promise<GeneratedProfile> {
   onStep?.("fields", { fields: GENERATABLE_FIELDS.length });
-  const first = await generateProfileFields({ ...input, fields: GENERATABLE_FIELDS }, runner);
+  const first = await generateProfileFields({ ...input, fields: GENERATABLE_FIELDS }, runner).catch((error: unknown) => {
+    // A big site can make the all-fields answer too long or malformed. Then ask
+    // again in smaller groups, which give shorter, valid answers.
+    if (!(error instanceof Error) || error.message !== "invalid_claude_json") throw error;
+    onStep?.("retry", { fields: GENERATABLE_FIELDS.length });
+    return generateInGroups(input, runner);
+  });
   const empty = first.fields.filter(isEmptyField).map((f) => f.field);
   if (empty.length === 0) return first;
   onStep?.("retry", { fields: empty.length });
@@ -395,6 +401,37 @@ export async function generateAllProfileFields(
     empty.map((field) => generateProfileFields({ ...input, fields: [field] }, runner, 180_000).catch(() => null)),
   );
   return mergeRetries(first, retries.filter((r): r is GeneratedProfile => r !== null));
+}
+
+const FIELD_GROUPS: GeneratableField[][] = [
+  ["companyName", "companyDescription", "locations", "importantFacts"],
+  ["products", "services"],
+  ["targetAudience", "toneOfVoice", "writingStyle"],
+];
+
+async function generateInGroups(
+  input: { companyName: string; websiteUrl: string; pages: SourcePage[] },
+  runner: TextRunner,
+): Promise<GeneratedProfile> {
+  const groups = FIELD_GROUPS.map((fields) => fields.filter((f) => GENERATABLE_FIELDS.includes(f)));
+  const covered = new Set(groups.flat());
+  const rest = GENERATABLE_FIELDS.filter((f) => !covered.has(f));
+  if (rest.length) groups.push(rest);
+  const results = await Promise.all(
+    groups.map((fields) => generateProfileFields({ ...input, fields }, runner, 180_000).catch(() => null)),
+  );
+  const ok = results.filter((r): r is GeneratedProfile => r !== null);
+  if (ok.length === 0) throw new Error("invalid_claude_json");
+  const fields = GENERATABLE_FIELDS.map(
+    (field) => ok.flatMap((r) => r.fields).find((f) => f.field === field && !isEmptyField(f))
+      ?? ok.flatMap((r) => r.fields).find((f) => f.field === field),
+  ).filter((f): f is NonNullable<typeof f> => Boolean(f));
+  return {
+    ...ok[0],
+    fields,
+    sourceUrls: [...new Set(ok.flatMap((r) => r.sourceUrls))],
+    missingInformation: [...new Set(ok.flatMap((r) => r.missingInformation))],
+  };
 }
 
 /** Turns a full generation into the stored profile shape. */
