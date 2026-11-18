@@ -5,7 +5,7 @@ import { db } from "@yellowlime/db";
 import Anthropic from "@anthropic-ai/sdk";
 import { CLAUDE_MODEL } from "../services/claudeRunner";
 import { mailConfigured } from "../services/mailer";
-import { defaultSemrushTransport, keywordMetrics, safeSemrushError, semrushMode } from "../services/semrush";
+import { keywordMetrics, safeSemrushError, semrushMode } from "../services/semrush";
 
 const router: IRouter = Router();
 
@@ -79,7 +79,7 @@ router.get("/healthz/semrush", async (_req, res) => {
     return;
   }
   try {
-    const rows = await keywordMetrics(defaultSemrushTransport, ["fiets"], "nl");
+    const rows = await keywordMetrics(["fiets"]);
     res.json({ keyPresent, mode: semrushMode(), ok: true, rows: rows.length, ms: Date.now() - started });
   } catch (error) {
     const safe = safeSemrushError(error);
