@@ -5,6 +5,7 @@ import { db } from "@yellowlime/db";
 import Anthropic from "@anthropic-ai/sdk";
 import { CLAUDE_MODEL } from "../services/claudeRunner";
 import { mailConfigured } from "../services/mailer";
+import { defaultSemrushTransport, keywordMetrics, safeSemrushError, semrushMode } from "../services/semrush";
 
 const router: IRouter = Router();
 
@@ -67,6 +68,23 @@ router.get("/healthz/mail", (_req, res) => {
     mailConfigured: mailConfigured(),
     verificationOn: process.env.EMAIL_VERIFICATION?.trim().toLowerCase() === "on" && mailConfigured(),
   });
+});
+
+/** Does one small Semrush lookup to show whether the connection works (no key shown). */
+router.get("/healthz/semrush", async (_req, res) => {
+  const keyPresent = Boolean(process.env.SEMRUSH_API_KEY?.trim());
+  const started = Date.now();
+  if (!keyPresent) {
+    res.json({ keyPresent, mode: semrushMode(), ok: false, code: "invalid_key", message: "SEMRUSH_API_KEY ontbreekt." });
+    return;
+  }
+  try {
+    const rows = await keywordMetrics(defaultSemrushTransport, ["fiets"], "nl");
+    res.json({ keyPresent, mode: semrushMode(), ok: true, rows: rows.length, ms: Date.now() - started });
+  } catch (error) {
+    const safe = safeSemrushError(error);
+    res.json({ keyPresent, mode: semrushMode(), ok: false, code: safe.code, message: safe.message, ms: Date.now() - started });
+  }
 });
 
 export default router;
