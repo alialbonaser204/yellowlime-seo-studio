@@ -4,6 +4,7 @@ import { HealthCheckResponse } from "@yellowlime/api-zod";
 import { db } from "@yellowlime/db";
 import Anthropic from "@anthropic-ai/sdk";
 import { CLAUDE_MODEL } from "../services/claudeRunner";
+import { mailConfigured } from "../services/mailer";
 
 const router: IRouter = Router();
 
@@ -56,6 +57,16 @@ router.get("/healthz/ai", async (_req, res) => {
       message: (body?.message ?? (error instanceof Error ? error.message : "")).replace(/sk-ant-\S+/g, "<key>").slice(0, 300),
     });
   }
+});
+
+/** Whether e-mail verification is active (never the values). */
+router.get("/healthz/mail", (_req, res) => {
+  const present = (name: string) => Boolean(process.env[name]?.trim());
+  res.json({
+    settings: { MAIL_FROM: present("MAIL_FROM"), BREVO_API_KEY: present("BREVO_API_KEY"), EMAIL_VERIFICATION: process.env.EMAIL_VERIFICATION?.trim() ?? null },
+    mailConfigured: mailConfigured(),
+    verificationOn: process.env.EMAIL_VERIFICATION?.trim().toLowerCase() === "on" && mailConfigured(),
+  });
 });
 
 export default router;
