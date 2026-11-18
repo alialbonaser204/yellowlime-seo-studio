@@ -5,6 +5,7 @@ import {
   getGetGoogleStatusQueryKey,
   getGetPartnerSearchConsoleQueryKey,
   useDisconnectGoogle,
+  useGetGoogleStatus,
   useGetPartnerSearchConsole,
   type SearchConsoleMetricRow,
 } from '@yellowlime/api-client-react';
@@ -13,7 +14,7 @@ const GOOGLE_RESULT: Record<string, string> = {
   connected: 'Google is verbonden. Search Console-gegevens worden nu opgehaald.',
   denied: 'Je hebt geen toestemming gegeven bij Google. Er is niets verbonden.',
   missing_scope: 'Google gaf geen toegang tot Search Console. Vink bij het verbinden de Search Console-toestemming aan.',
-  not_configured: 'De Google-koppeling is nog niet ingesteld: zet GOOGLE_CLIENT_ID en GOOGLE_CLIENT_SECRET in Railway.',
+  not_configured: 'De Google-koppeling is nog niet ingesteld: zet GOOGLE_CLIENT_ID en GOOGLE_CLIENT_SECRET in Cloudflare.',
   invalid_state: 'Het verbinden is verlopen. Probeer het opnieuw.',
   error: 'Verbinden met Google is mislukt. Probeer het opnieuw.',
 };
@@ -107,6 +108,7 @@ export function SearchConsoleSection({ partnerId }: { partnerId: number }) {
     query: { queryKey: getGetPartnerSearchConsoleQueryKey(partnerId, params), staleTime: 5 * 60_000 },
   });
   const disconnect = useDisconnectGoogle();
+  const { data: google } = useGetGoogleStatus({ query: { queryKey: getGetGoogleStatusQueryKey(), staleTime: 60_000 } });
 
   const refresh = async () => {
     await fetch(`/api/partners/${partnerId}/search-console?days=${days}&refresh=1`);
@@ -123,7 +125,7 @@ export function SearchConsoleSection({ partnerId }: { partnerId: number }) {
   const status = data?.status;
   const subtitle =
     status === 'ok' && data?.period
-      ? `${data.property?.replace('sc-domain:', '')} · ${data.period.startDate} t/m ${data.period.endDate} · via ${data.account}`
+      ? `${data.property?.replace('sc-domain:', '')} · ${data.period.startDate} t/m ${data.period.endDate} · via ${data.account}${google?.shared ? ' (account van een collega)' : ''}`
       : 'Hoe de website nu presteert in Google';
 
   return (
@@ -200,10 +202,16 @@ export function SearchConsoleSection({ partnerId }: { partnerId: number }) {
             ) : (
               <p className="text-muted-foreground" style={{ fontSize: 12, padding: '10px 2px' }}>Geen pagina’s die duidelijk klikken verliezen.</p>
             ))}
-          <div style={{ marginTop: 14, display: 'flex', justifyContent: 'flex-end' }}>
-            <button className="button button-ghost button-small" onClick={onDisconnect} disabled={disconnect.isPending} data-testid="google-disconnect">
-              <LogOut size={12} /> Google ontkoppelen
-            </button>
+          <div style={{ marginTop: 14, display: 'flex', justifyContent: 'flex-end', gap: 8, flexWrap: 'wrap' }}>
+            {google?.ownAccount ? (
+              <button className="button button-ghost button-small" onClick={onDisconnect} disabled={disconnect.isPending} data-testid="google-disconnect">
+                <LogOut size={12} /> Mijn Google-account ontkoppelen
+              </button>
+            ) : (
+              <a className="button button-ghost button-small" href={connectHref()} data-testid="google-connect-own">
+                Mijn eigen Google-account koppelen
+              </a>
+            )}
           </div>
         </>
       ) : (
@@ -220,21 +228,40 @@ export function SearchConsoleSection({ partnerId }: { partnerId: number }) {
           </h3>
           <p>
             {status === 'not_connected' && !data.message?.includes('verlopen')
-              ? 'Verbind één keer het Google-account waarmee je Search Console bekijkt. Yellowlime AI Agent ziet dan voor elke partner welke zoekwoorden en pagina’s goed presteren.'
+              ? 'Koppel je Yellowlime-Google-account waarmee je Search Console bekijkt. Collega’s zonder eigen koppeling gebruiken die van jou, dus één account met toegang tot alle partners is genoeg.'
               : data.message}
           </p>
           {status === 'not_connected' && (
             <a className="button button-primary" href={connectHref()} data-testid="google-connect">
-              Verbinden met Google
+              Google-account koppelen
             </a>
           )}
           {status === 'no_property' && (
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'center' }}>
-              <a className="button button-ghost button-small" href={connectHref()}>Ander Google-account verbinden</a>
+              <a className="button button-ghost button-small" href={connectHref()}>{google?.ownAccount ? 'Ander Google-account koppelen' : 'Mijn eigen Google-account koppelen'}</a>
             </div>
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+/** In the menu: your own Google connection for Search Console. */
+export function GoogleAccountMenu() {
+  const { data: google } = useGetGoogleStatus({ query: { queryKey: getGetGoogleStatusQueryKey(), staleTime: 60_000 } });
+  if (!google?.configured) return null;
+  return (
+    <div className="side-google" data-testid="menu-google">
+      <small>Google Search Console</small>
+      {google.ownAccount ? (
+        <span title={google.ownAccount}>Gekoppeld: {google.ownAccount}</span>
+      ) : google.shared ? (
+        <span>Via collega: {google.account}</span>
+      ) : (
+        <span>Nog niet gekoppeld</span>
+      )}
+      {!google.ownAccount && <a href={connectHref()} data-testid="menu-google-connect">Mijn Google-account koppelen</a>}
     </div>
   );
 }

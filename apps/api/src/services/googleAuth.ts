@@ -1,6 +1,7 @@
-import { desc, eq } from "drizzle-orm";
+import { desc, eq, isNull } from "drizzle-orm";
 import { db, googleConnectionsTable, type GoogleConnection } from "@yellowlime/db";
 import { logger } from "../lib/logger";
+import { currentUser } from "../lib/requestUser";
 import { decryptToken, encryptToken, googleConfig, GoogleNotConnectedError, SEARCH_CONSOLE_SCOPE, type GoogleConfig } from "./googleOAuth";
 
 export * from "./googleOAuth";
@@ -8,7 +9,9 @@ export * from "./googleOAuth";
 /**
  * Google sign-in (OAuth 2.0) for Search Console data.
  *
- * One Google account is connected for the whole workspace. Its refresh token is
+ * Every Yellowlimer can connect their own Google account. Someone without an
+ * own (working) connection uses the most recent working connection of a
+ * colleague, so one account with access to all partners is enough. Refresh tokens are
  * stored encrypted with a key derived from GOOGLE_CLIENT_SECRET (or
  * GOOGLE_TOKEN_SECRET when set), and short-lived access tokens are kept in
  * memory only.
@@ -51,30 +54,54 @@ export async function completeConnection(code: string, redirectUri: string, conf
   const profile = (await userinfo.json().catch(() => ({}))) as { email?: string };
   const email = profile.email ?? "onbekend account";
 
-  cachedAccessToken = { token: accessToken, expiresAt: Date.now() + (Number(tokens.expires_in) || 3600) * 1000 - 60_000 };
-  return db.transaction(async (tx) => {
-    await tx.delete(googleConnectionsTable);
-    const [row] = await tx
+  const userId = currentUser()?.id ?? null;
+  const row = await db.transaction(async (tx) => {
+    // One connection per Yellowlimer: replace their previous one.
+    await tx.delete(googleConnectionsTable).where(userId === null ? isNull(googleConnectionsTable.userId) : eq(googleConnectionsTable.userId, userId));
+    const [inserted] = await tx
       .insert(googleConnectionsTable)
-      .values({ email, refreshTokenEncrypted: encryptToken(refreshToken, config), scope })
+      .values({ userId, email, refreshTokenEncrypted: encryptToken(refreshToken, config), scope })
       .returning();
-    return row;
+    return inserted;
   });
+  accessTokens.set(row.id, { token: accessToken, expiresAt: Date.now() + (Number(tokens.expires_in) || 3600) * 1000 - 60_000 });
+  return row;
 }
 
-export async function currentConnection(): Promise<GoogleConnection | null> {
-  const [row] = await db.select().from(googleConnectionsTable).orderBy(desc(googleConnectionsTable.id)).limit(1);
+/** The logged-in Yellowlimer's own connection (working or not). */
+export async function ownConnection(): Promise<GoogleConnection | null> {
+  const userId = currentUser()?.id;
+  if (!userId) return null;
+  const [row] = await db.select().from(googleConnectionsTable)
+    .where(eq(googleConnectionsTable.userId, userId))
+    .orderBy(desc(googleConnectionsTable.id)).limit(1);
   return row ?? null;
 }
 
-let cachedAccessToken: { token: string; expiresAt: number } | null = null;
+/** A colleague's working connection, for someone without their own. */
+export async function sharedConnection(): Promise<GoogleConnection | null> {
+  const [row] = await db.select().from(googleConnectionsTable)
+    .where(isNull(googleConnectionsTable.lastError))
+    .orderBy(desc(googleConnectionsTable.id)).limit(1);
+  return row ?? null;
+}
 
-/** A valid access token for the connected account, refreshed when needed. */
+/** The connection to use now: your own when it works, otherwise a colleague's. */
+export async function currentConnection(): Promise<GoogleConnection | null> {
+  const own = await ownConnection();
+  if (own && !own.lastError) return own;
+  return (await sharedConnection()) ?? own;
+}
+
+const accessTokens = new Map<number, { token: string; expiresAt: number }>();
+
+/** A valid access token for the connection in use, refreshed when needed. */
 export async function getAccessToken(fetcher: Fetcher = fetch): Promise<string> {
-  if (cachedAccessToken && cachedAccessToken.expiresAt > Date.now()) return cachedAccessToken.token;
   const config = googleConfig();
   const connection = await currentConnection();
   if (!config || !connection || connection.lastError) throw new GoogleNotConnectedError();
+  const cached = accessTokens.get(connection.id);
+  if (cached && cached.expiresAt > Date.now()) return cached.token;
 
   let refreshToken: string;
   try {
@@ -90,7 +117,7 @@ export async function getAccessToken(fetcher: Fetcher = fetch): Promise<string> 
     );
     const token = String(tokens.access_token ?? "");
     if (!token) throw new Error("missing_access_token");
-    cachedAccessToken = { token, expiresAt: Date.now() + (Number(tokens.expires_in) || 3600) * 1000 - 60_000 };
+    accessTokens.set(connection.id, { token, expiresAt: Date.now() + (Number(tokens.expires_in) || 3600) * 1000 - 60_000 });
     return token;
   } catch (error) {
     const code = error instanceof Error ? error.message : "unknown";
@@ -103,16 +130,17 @@ export async function getAccessToken(fetcher: Fetcher = fetch): Promise<string> 
 }
 
 async function markConnectionBroken(id: number, reason: string): Promise<void> {
-  cachedAccessToken = null;
+  accessTokens.delete(id);
   logger.warn({ reason }, "Google connection is no longer valid");
   await db.update(googleConnectionsTable).set({ lastError: reason }).where(eq(googleConnectionsTable.id, id));
 }
 
-/** Removes the connection and asks Google to revoke the token. */
+/** Removes your own connection and asks Google to revoke the token. */
 export async function disconnect(fetcher: Fetcher = fetch): Promise<void> {
   const config = googleConfig();
-  const connection = await currentConnection();
-  cachedAccessToken = null;
+  const connection = await ownConnection();
+  if (!connection) return;
+  accessTokens.delete(connection.id);
   if (connection && config) {
     try {
       const token = decryptToken(connection.refreshTokenEncrypted, config);
@@ -126,10 +154,10 @@ export async function disconnect(fetcher: Fetcher = fetch): Promise<void> {
       logger.warn({ errorType: error instanceof Error ? error.message : typeof error }, "Google token revoke failed");
     }
   }
-  await db.delete(googleConnectionsTable);
+  await db.delete(googleConnectionsTable).where(eq(googleConnectionsTable.id, connection.id));
 }
 
 /** For tests. */
 export function resetGoogleAuthCache(): void {
-  cachedAccessToken = null;
+  accessTokens.clear();
 }

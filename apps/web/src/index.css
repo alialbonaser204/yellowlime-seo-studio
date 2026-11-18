@@ -625,3 +625,9 @@ img.partner-symbol { width: 35px; height: 35px; border-radius: 9px; }
 .auth-links { display: flex; justify-content: space-between; margin-top: 16px; }
 .auth-links button { border: 0; background: none; padding: 4px 0; font: inherit; font-size: 14px; font-weight: 600; color: #16362f; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
 .auth-links button:disabled { opacity: .5; cursor: wait; }
+.side-google { display: flex; flex-direction: column; gap: 2px; padding: 9px 10px; margin: 0 0 2px; border-radius: 10px; background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.1); font-size: 12px; overflow-wrap: anywhere; }
+.side-google small { font-size: 10px; letter-spacing: .06em; text-transform: uppercase; color: rgba(246,249,241,.6); }
+.side-google a { color: #f5f966 !important; }
+.side-google a { font-weight: 700; text-decoration: underline; text-underline-offset: 3px; color: inherit; margin-top: 2px; }
+.lemon-avatar { display: inline-grid; place-items: center; flex: none; border-radius: 9px; background: #16362f; }
+.lemon-avatar img { display: block; object-fit: contain; }

@@ -11,8 +11,9 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useImageUpload } from '../hooks/use-image-upload';
 import type { Yellowlimer, YellowlimerInputAvatarType, YellowlimerUpdateAvatarType } from '@yellowlime/api-client-react';
 import { useStudio } from '../App';
+import { AVATAR_ICONS, AvatarIcon, DEFAULT_AVATAR_ICON } from '../components/avatar-icon';
 
-export const ICONS = ['UserCircle', 'Users', 'Sparkles', 'BookOpen'] as const;
+export const ICONS = AVATAR_ICONS;
 
 const failedAvatarImages = new Set<string>();
 
@@ -21,7 +22,8 @@ function YellowlimerAvatar({ type, value, name }: { type: string, value: string,
   if (type === 'image' && !imageFailed) {
     return <img src={`/api/storage${value}`} alt={name} onError={() => { failedAvatarImages.add(value); setImageFailed(true); }} className="avatar-image" style={{ width: 35, height: 35, borderRadius: 9, objectFit: 'cover' }} />;
   }
-  return <div className="partner-symbol">{value === 'Sparkles' ? <Sparkles size={16} /> : value === 'BookOpen' ? <BookOpen size={16} /> : value === 'Users' ? <Users size={16} /> : <UserCircle size={16} />}</div>;
+  if (value === 'Lemon') return <AvatarIcon value="Lemon" size={20} />;
+  return <div className="partner-symbol"><AvatarIcon value={value} size={16} /></div>;
 }
 
 export function YellowlimerModal({ 
@@ -123,7 +125,7 @@ export function YellowlimerModal({
                   className="icon-button"
                   style={{ width: 45, height: 45, borderColor: form.avatarType === 'icon' && form.avatarValue === icon ? 'hsl(var(--primary))' : '' }}
                 >
-                  {icon === 'Sparkles' ? <Sparkles size={20} /> : icon === 'BookOpen' ? <BookOpen size={20} /> : icon === 'Users' ? <Users size={20} /> : <UserCircle size={20} />}
+                  <AvatarIcon value={icon} size={20} />
                 </button>
               ))}
               

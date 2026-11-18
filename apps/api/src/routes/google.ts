@@ -12,11 +12,13 @@ import {
   createState,
   currentConnection,
   disconnect,
+  ownConnection,
   googleConfig,
   safeReturnPath,
   verifyState,
 } from "../services/googleAuth";
 import { clearSearchConsoleCache, partnerSearchConsole } from "../services/searchConsole";
+import { currentUser } from "../lib/requestUser";
 
 const router: IRouter = Router();
 const STATE_COOKIE = "yl_google_state";
@@ -40,15 +42,19 @@ function withResult(path: string, result: string): string {
 router.get("/google/status", async (req, res): Promise<void> => {
   const config = googleConfig();
   const connection = config ? await currentConnection() : null;
+  const own = config ? await ownConnection() : null;
+  const shared = Boolean(connection && !connection.lastError && connection.id !== own?.id);
   res.set("Cache-Control", "no-store");
   res.json(
     GetGoogleStatusResponse.parse({
       configured: Boolean(config),
       connected: Boolean(connection && !connection.lastError),
-      needsReconnect: Boolean(connection?.lastError),
+      needsReconnect: Boolean(own?.lastError) && !shared,
       account: connection?.email ?? null,
       connectedAt: connection?.connectedAt ?? null,
       redirectUri: redirectUri(req),
+      ownAccount: own && !own.lastError ? own.email : null,
+      shared,
     }),
   );
 });
@@ -68,7 +74,7 @@ router.get("/google/connect", (req, res): void => {
     maxAge: 10 * 60_000,
     path: "/api/google",
   });
-  res.redirect(authorizationUrl(config, redirectUri(req), state));
+  res.redirect(authorizationUrl(config, redirectUri(req), state, currentUser()?.email));
 });
 
 router.get("/google/callback", async (req, res): Promise<void> => {

@@ -86,7 +86,7 @@ export function safeReturnPath(value: unknown): string {
   return value.slice(0, 300);
 }
 
-export function authorizationUrl(config: GoogleConfig, redirectUri: string, state: string): string {
+export function authorizationUrl(config: GoogleConfig, redirectUri: string, state: string, loginHint?: string): string {
   const params = new URLSearchParams({
     client_id: config.clientId,
     redirect_uri: redirectUri,
@@ -97,5 +97,7 @@ export function authorizationUrl(config: GoogleConfig, redirectUri: string, stat
     include_granted_scopes: "true",
     state,
   });
+  // Suggest the Yellowlimer's own work account in Google's account chooser.
+  if (loginHint) params.set("login_hint", loginHint);
   return `${AUTH_URL}?${params}`;
 }

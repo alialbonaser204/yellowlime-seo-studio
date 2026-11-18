@@ -71,13 +71,21 @@ async function gscRequest<T>(path: string, body: unknown, fetcher: Fetcher, retr
   return (await response.json()) as T;
 }
 
-let sitesCache: { at: number; sites: SearchConsoleSite[] } | null = null;
+/** Caches are per Google connection: different accounts see different sites. */
+async function connectionKey(): Promise<string> {
+  const connection = await currentConnection();
+  return connection ? String(connection.id) : "none";
+}
+
+const sitesCache = new Map<string, { at: number; sites: SearchConsoleSite[] }>();
 
 export async function listProperties(fetcher: Fetcher = fetch): Promise<SearchConsoleSite[]> {
-  if (sitesCache && Date.now() - sitesCache.at < SITES_CACHE_MS) return sitesCache.sites;
+  const key = await connectionKey();
+  const cached = sitesCache.get(key);
+  if (cached && Date.now() - cached.at < SITES_CACHE_MS) return cached.sites;
   const data = await gscRequest<{ siteEntry?: SearchConsoleSite[] }>("/sites", undefined, fetcher);
   const sites = (data.siteEntry ?? []).filter((site) => site.permissionLevel !== "siteUnverifiedUser");
-  sitesCache = { at: Date.now(), sites };
+  sitesCache.set(key, { at: Date.now(), sites });
   return sites;
 }
 
@@ -151,7 +159,7 @@ export async function partnerSearchConsole(
 ): Promise<SearchConsoleOverview | null> {
   const [partner] = await db.select().from(partnersTable).where(eq(partnersTable.id, partnerId));
   if (!partner) return null;
-  const cacheKey = `${partnerId}:${partner.websiteUrl}:${days}`;
+  const cacheKey = `${await connectionKey()}:${partnerId}:${partner.websiteUrl}:${days}`;
   const cached = overviewCache.get(cacheKey);
   if (!refresh && cached && Date.now() - cached.at < OVERVIEW_CACHE_MS) return cached.value;
 
@@ -244,7 +252,7 @@ export async function searchConsolePagesForTopic(
 export function clearSearchConsoleCache(): void {
   overviewCache.clear();
   pageMetricsCache.clear();
-  sitesCache = null;
+  sitesCache.clear();
 }
 
 export interface QueryPageRow {
@@ -307,7 +315,8 @@ const pageMetricsCache = new Map<string, { at: number; rows: MetricRow[] | null 
  * cached for a few hours. Returns null when Search Console is not available.
  */
 export async function searchConsolePageMetrics(websiteUrl: string, fetcher: Fetcher = fetch): Promise<MetricRow[] | null> {
-  const cached = pageMetricsCache.get(websiteUrl);
+  const metricsKey = `${await connectionKey()}:${websiteUrl}`;
+  const cached = pageMetricsCache.get(metricsKey);
   if (cached && Date.now() - cached.at < OVERVIEW_CACHE_MS) return cached.rows;
   try {
     if (!googleConfig()) return null;
@@ -317,7 +326,7 @@ export async function searchConsolePageMetrics(websiteUrl: string, fetcher: Fetc
     const rows = toMetricRows(
       await query(resolved.property, { startDate: period.startDate, endDate: period.endDate, dimensions: ["page"], rowLimit: 1000 }, fetcher),
     );
-    pageMetricsCache.set(websiteUrl, { at: Date.now(), rows });
+    pageMetricsCache.set(metricsKey, { at: Date.now(), rows });
     return rows;
   } catch (error) {
     logger.warn({ errorType: error instanceof Error ? error.message : typeof error }, "Search Console page metrics failed");

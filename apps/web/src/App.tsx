@@ -42,7 +42,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import NotFound from '@/pages/not-found';
 import { YellowlimersPage } from './pages/yellowlimers-page';
 import { TopicCheckCard, WebsiteArticlesSection, useTopicCheck } from './components/website-articles';
-import { SearchConsoleSection } from './components/search-console';
+import { GoogleAccountMenu, SearchConsoleSection } from './components/search-console';
 import { AI_FIELDS, AiEvidence, AiFieldButton, AiPagesUsed, PROFILE_STEPS, useProfileAi } from './components/profile-ai';
 import { ProgressPanel, useEstimatedProgress } from './components/progress-panel';
 import { TopicWizard } from './components/topic-wizard';
@@ -55,6 +55,7 @@ import { useImageUpload } from './hooks/use-image-upload';
 import { ICONS } from './pages/yellowlimers-page';
 import { UserCircle, LogOut } from 'lucide-react';
 import { AuthGate, useAuth } from './components/auth-gate';
+import { AvatarIcon } from './components/avatar-icon';
 import { notifyTaskDone, prepareTaskNotifications } from './lib/task-notify';
 
 const failedInlineAvatarImages = new Set<string>();
@@ -62,7 +63,8 @@ const failedInlineAvatarImages = new Set<string>();
 function InlineAvatar({ type, value }: { type: string, value: string }) {
   const [imageFailed, setImageFailed] = useState(() => failedInlineAvatarImages.has(value));
   if (type === 'image' && !imageFailed) return <img src={`/api/storage${value}`} alt="" onError={() => { failedInlineAvatarImages.add(value); setImageFailed(true); }} style={{ width: 18, height: 18, borderRadius: 4, objectFit: 'cover' }} />;
-  return <div style={{ width: 18, height: 18, display: 'grid', placeItems: 'center', background: 'hsl(var(--primary)/.2)', color: 'hsl(80 48% 28%)', borderRadius: 4 }}>{value === 'Sparkles' ? <Sparkles size={10} /> : value === 'BookOpen' ? <BookOpen size={10} /> : value === 'Users' ? <Users size={10} /> : <UserCircle size={10} />}</div>;
+  if (value === 'Lemon') return <AvatarIcon value="Lemon" size={11} />;
+  return <div style={{ width: 18, height: 18, display: 'grid', placeItems: 'center', background: 'hsl(var(--primary)/.2)', color: 'hsl(80 48% 28%)', borderRadius: 4 }}><AvatarIcon value={value} size={10} /></div>;
 }
 import { 
   useListPartners, 
@@ -290,7 +292,7 @@ function Shell({ children }: { children: ReactNode }) {
       <nav className="side-nav">{nav.map(({ href, label, icon: Icon }) => <Link key={href} href={href} className={`side-link ${location === href ? 'active' : ''}`} data-testid={`link-nav-${label.toLowerCase()}`} onClick={() => setOpen(false)}><Icon /><span>{label}</span></Link>)}</nav>
       <div className="side-section eyebrow" style={{ marginTop: 21 }}>Werkstroom</div>
       <div className="side-nav"><Link href="/assignments/new" className="side-link" data-testid="link-new-assignment" onClick={() => setOpen(false)}><Plus /><span>Nieuwe opdracht</span></Link></div>
-      <div className="side-user"><span><strong>{user.name}</strong><small>{user.email}</small></span><button type="button" className="side-link" onClick={() => { setOpen(false); void logout(); }} data-testid="button-logout"><LogOut /><span>Uitloggen</span></button></div>
+      <div className="side-user"><span><strong>{user.name}</strong><small>{user.email}</small></span><GoogleAccountMenu /><button type="button" className="side-link" onClick={() => { setOpen(false); void logout(); }} data-testid="button-logout"><LogOut /><span>Uitloggen</span></button></div>
     </aside>
     <div className="main"><header className="topbar"><button className="mobile-menu" onClick={() => setOpen((value) => !value)} data-testid="button-mobile-menu"><Menu size={20} /></button><div className="breadcrumb"><span>Werkruimte</span><ChevronRight size={13} /><strong>{title}</strong></div><div className="top-actions"><span className="eyebrow" style={{ color: 'hsl(var(--muted-foreground))' }} data-testid="text-user">{user.name}</span><Link href="/assignments/new" className="button button-primary button-small" data-testid="button-top-new"><Plus size={14} /><span>Nieuwe opdracht</span></Link></div></header><main className="main-content">{children}</main></div>
   </div>;
@@ -865,7 +867,7 @@ function PartnerDetailPage() {
                 <div style={{ marginBottom: 14 }}>
                   <ProgressPanel
                     title="Profiel wordt opgebouwd"
-                    subtitle={profileAi.progress.pagesRead !== null ? `${profileAi.progress.pagesRead} pagina’s van de website gelezen · laat deze pagina open` : 'Duurt ongeveer een minuut · laat deze pagina open'}
+                    subtitle={profileAi.progress.pagesRead !== null ? `${profileAi.progress.pagesRead} pagina’s van de website gelezen · dit kan een paar minuten duren` : 'Dit kan een paar minuten duren · laat deze pagina open'}
                     steps={PROFILE_STEPS}
                     pct={profileAi.progress.pct}
                     done={profileAi.progress.done}

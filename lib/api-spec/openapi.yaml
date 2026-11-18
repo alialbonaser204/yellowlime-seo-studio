@@ -943,8 +943,14 @@ components:
           format: date-time
     GoogleStatus:
       type: object
-      required: [configured, connected, needsReconnect, account, connectedAt, redirectUri]
+      required: [configured, connected, needsReconnect, account, connectedAt, redirectUri, ownAccount, shared]
       properties:
+        ownAccount:
+          type: ["string", "null"]
+          description: The logged-in Yellowlimer's own connected Google account.
+        shared:
+          type: boolean
+          description: True when the data comes from a colleague's connection.
         configured:
           type: boolean
         connected:

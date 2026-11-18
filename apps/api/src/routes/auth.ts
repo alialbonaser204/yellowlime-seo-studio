@@ -24,6 +24,7 @@ import {
 } from "../services/auth";
 import { mailConfigured, sendMail, verificationMail } from "../services/mailer";
 import { logger } from "../lib/logger";
+import { runAsUser } from "../lib/requestUser";
 
 const router: IRouter = Router();
 
@@ -317,7 +318,7 @@ export async function requireLogin(req: Request, res: Response, next: NextFuncti
       return;
     }
     res.locals.user = user;
-    next();
+    runAsUser(user, () => next());
   } catch (error) {
     next(error);
   }

@@ -124,6 +124,13 @@ export interface TopicCheckResult {
 }
 
 export interface GoogleStatus {
+  /**
+     * The logged-in Yellowlimer's own connected Google account.
+     * @nullable
+     */
+  ownAccount: string | null;
+  /** True when the data comes from a colleague's connection. */
+  shared: boolean;
   configured: boolean;
   connected: boolean;
   needsReconnect: boolean;

@@ -1,12 +1,15 @@
-import { pgTable, serial, text, timestamp } from "drizzle-orm/pg-core";
+import { integer, pgTable, serial, text, timestamp } from "drizzle-orm/pg-core";
+import { usersTable } from "./users";
 
 /**
- * The Google account that is connected for Search Console data. The app uses
- * one connection for the whole workspace; the refresh token is stored
- * encrypted (see apps/api/src/services/googleAuth.ts).
+ * Google accounts connected for Search Console data, one per Yellowlimer.
+ * Someone without an own connection uses a colleague's working connection.
+ * The refresh token is stored encrypted (see apps/api/src/services/googleAuth.ts).
  */
 export const googleConnectionsTable = pgTable("google_connections", {
   id: serial("id").primaryKey(),
+  /** The Yellowlimer who connected this account (null for the old shared connection). */
+  userId: integer("user_id").references(() => usersTable.id, { onDelete: "cascade" }),
   email: text("email").notNull(),
   refreshTokenEncrypted: text("refresh_token_encrypted").notNull(),
   scope: text("scope").notNull(),

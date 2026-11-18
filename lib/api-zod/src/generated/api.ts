@@ -648,6 +648,8 @@ export const CheckTopicResponse = zod.object({
  * @summary Whether a Google account is connected for Search Console data
  */
 export const GetGoogleStatusResponse = zod.object({
+  "ownAccount": zod.string().nullable().describe('The logged-in Yellowlimer\'s own connected Google account.'),
+  "shared": zod.boolean().describe('True when the data comes from a colleague\'s connection.'),
   "configured": zod.boolean(),
   "connected": zod.boolean(),
   "needsReconnect": zod.boolean(),

@@ -35,7 +35,7 @@ router.get("/yellowlimers", async (_req, res): Promise<void> => {
       return {
         ...yellowlimer,
         avatarType: "icon",
-        avatarValue: "UserCircle",
+        avatarValue: "Lemon",
       };
     }),
   );
