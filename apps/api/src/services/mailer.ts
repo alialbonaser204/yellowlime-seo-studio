@@ -61,15 +61,16 @@ export async function sendMail(mail: OutgoingMail, fetcher: typeof fetch = fetch
 const escapeHtml = (s: string) => s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
 
 /** The e-mail with the 6-digit verification code. */
-export function verificationMail(to: string, name: string, code: string, minutes: number): OutgoingMail {
+export function verificationMail(to: string, name: string, code: string, minutes: number, purpose: "verify" | "reset" = "verify"): OutgoingMail {
   const first = name.split(" ")[0] || name;
+  const what = purpose === "reset" ? "een nieuw wachtwoord te kiezen" : "je e-mailadres te bevestigen";
   return {
     to,
-    subject: `${code} is je code voor de Yellowlime AI Agent`,
+    subject: purpose === "reset" ? `${code} is je code om je wachtwoord te wijzigen` : `${code} is je code voor de Yellowlime AI Agent`,
     text: [
       `Hoi ${first},`,
       "",
-      `Je code om je e-mailadres te bevestigen: ${code}`,
+      `Je code om ${what}: ${code}`,
       "",
       `De code is ${minutes} minuten geldig. Heb je dit niet zelf aangevraagd? Dan kun je deze mail negeren.`,
       "",
@@ -81,7 +82,7 @@ export function verificationMail(to: string, name: string, code: string, minutes
 <tr><td style="font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:#4d7469">Yellowlime AI Agent</td></tr>
 <tr><td style="padding-top:14px;font-size:22px;font-weight:bold">Hoi ${escapeHtml(first)}, hier is je code</td></tr>
 <tr><td style="padding-top:20px"><div style="background:#16362f;color:#f5f966;font-size:34px;font-weight:bold;letter-spacing:10px;text-align:center;padding:18px 0;border-radius:12px">${code}</div></td></tr>
-<tr><td style="padding-top:20px;font-size:15px;line-height:1.5;color:#34574e">Vul deze code in om je e-mailadres te bevestigen. De code is ${minutes} minuten geldig.<br><br>Heb je dit niet zelf aangevraagd? Dan kun je deze mail negeren.</td></tr>
+<tr><td style="padding-top:20px;font-size:15px;line-height:1.5;color:#34574e">Vul deze code in om ${what}. De code is ${minutes} minuten geldig.<br><br>Heb je dit niet zelf aangevraagd? Dan kun je deze mail negeren.</td></tr>
 </table></td></tr></table></body></html>`,
   };
 }

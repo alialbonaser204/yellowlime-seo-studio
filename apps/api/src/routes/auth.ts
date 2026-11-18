@@ -70,18 +70,21 @@ async function userFromRequest(req: Request) {
 type CodeResult = "sent" | "too_soon" | "mail_not_configured" | "mail_failed";
 
 /** Makes a new code, stores its hash and e-mails it. */
-async function sendCode(user: Pick<User, "id" | "email" | "name" | "verifyCodeSentAt">, force = false): Promise<CodeResult> {
+type CodePurpose = "verify" | "reset";
+const codeKey = (userId: number, code: string, purpose: CodePurpose) => (purpose === "reset" ? `${userId}:reset:${code}` : `${userId}:${code}`);
+
+async function sendCode(user: Pick<User, "id" | "email" | "name" | "verifyCodeSentAt">, force = false, purpose: CodePurpose = "verify"): Promise<CodeResult> {
   if (!mailConfigured()) return "mail_not_configured";
   if (!force && user.verifyCodeSentAt && Date.now() - user.verifyCodeSentAt.getTime() < CODE_RESEND_SECONDS * 1000) return "too_soon";
   const code = newVerificationCode();
   await db.update(usersTable).set({
-    verifyCodeHash: await hashToken(`${user.id}:${code}`),
+    verifyCodeHash: await hashToken(codeKey(user.id, code, purpose)),
     verifyCodeExpiresAt: new Date(Date.now() + CODE_MINUTES * 60_000),
     verifyCodeSentAt: new Date(),
     verifyCodeAttempts: 0,
   }).where(eq(usersTable.id, user.id));
   try {
-    await sendMail(verificationMail(user.email, user.name, code, CODE_MINUTES));
+    await sendMail(verificationMail(user.email, user.name, code, CODE_MINUTES, purpose));
     return "sent";
   } catch (error) {
     logger.warn({ err: error instanceof Error ? error.message : String(error) }, "Verification mail failed");
@@ -231,6 +234,69 @@ router.post("/auth/login", async (req, res) => {
     return;
   }
   await db.update(usersTable).set({ failedLogins: 0, lockedUntil: null, lastLoginAt: new Date() }).where(eq(usersTable.id, user.id));
+  await startSession(req, res, user.id);
+  res.json({ user: publicUser(user) });
+});
+
+router.post("/auth/forgot", async (req, res) => {
+  const email = normalizeEmail(str(req.body?.email));
+  if (!mailConfigured()) {
+    codeResponse(res, email, "mail_not_configured");
+    return;
+  }
+  const [user] = await db.select().from(usersTable).where(eq(usersTable.email, email)).limit(1);
+  if (user) {
+    const result = await sendCode(user, false, "reset");
+    if (result === "mail_failed") {
+      codeResponse(res, email, result);
+      return;
+    }
+  }
+  // Same answer whether or not an account exists, so nobody can test addresses.
+  res.status(202).json({ needsCode: true, email, codeMinutes: CODE_MINUTES });
+});
+
+router.post("/auth/reset", async (req, res) => {
+  const email = normalizeEmail(str(req.body?.email));
+  const code = str(req.body?.code).replace(/\D/g, "");
+  const password = str(req.body?.password);
+  const weak = passwordProblem(password);
+  if (weak) {
+    res.status(400).json({ error: weak });
+    return;
+  }
+  const wrong = (message = "Deze code klopt niet.") => res.status(400).json({ error: message });
+  const [user] = await db.select().from(usersTable).where(eq(usersTable.email, email)).limit(1);
+  if (!user || !user.verifyCodeHash || !user.verifyCodeExpiresAt) {
+    wrong("Vraag eerst een nieuwe code aan.");
+    return;
+  }
+  if (user.verifyCodeExpiresAt < new Date()) {
+    wrong("Deze code is verlopen. Vraag een nieuwe code aan.");
+    return;
+  }
+  if (user.verifyCodeAttempts >= MAX_CODE_ATTEMPTS) {
+    wrong("Te vaak een verkeerde code. Vraag een nieuwe code aan.");
+    return;
+  }
+  if (code.length !== 6 || (await hashToken(codeKey(user.id, code, "reset"))) !== user.verifyCodeHash) {
+    await db.update(usersTable).set({ verifyCodeAttempts: user.verifyCodeAttempts + 1 }).where(eq(usersTable.id, user.id));
+    wrong();
+    return;
+  }
+  await db.update(usersTable).set({
+    passwordHash: await hashPassword(password),
+    // The code arrived in this mailbox, so the address is confirmed too.
+    emailVerifiedAt: user.emailVerifiedAt ?? new Date(),
+    verifyCodeHash: null,
+    verifyCodeExpiresAt: null,
+    verifyCodeAttempts: 0,
+    failedLogins: 0,
+    lockedUntil: null,
+    lastLoginAt: new Date(),
+  }).where(eq(usersTable.id, user.id));
+  // Log out everywhere else: someone else may have known the old password.
+  await db.delete(sessionsTable).where(eq(sessionsTable.userId, user.id));
   await startSession(req, res, user.id);
   res.json({ user: publicUser(user) });
 });

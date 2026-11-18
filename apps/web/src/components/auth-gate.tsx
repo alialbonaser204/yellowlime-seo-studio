@@ -58,7 +58,7 @@ export function AuthGate({ children, onLogout }: { children: ReactNode; onLogout
 }
 
 function LoginPage({ domains, onDone }: { domains: string[]; onDone: (user: AuthUser) => void }) {
-  const [mode, setMode] = useState<'login' | 'register' | 'code'>('login');
+  const [mode, setMode] = useState<'login' | 'register' | 'code' | 'forgot' | 'reset'>('login');
   const [code, setCode] = useState('');
   const [info, setInfo] = useState('');
   const [name, setName] = useState('');
@@ -72,9 +72,19 @@ function LoginPage({ domains, onDone }: { domains: string[]; onDone: (user: Auth
     event.preventDefault();
     setError('');
     setBusy(true);
-    if (mode !== 'code') setInfo('');
+    if (mode !== 'code' && mode !== 'reset') setInfo('');
     try {
-      const answer = mode === 'code'
+      if (mode === 'forgot') {
+        const answer = await post('/api/auth/forgot', { email });
+        setMode('reset');
+        setCode('');
+        setPassword('');
+        setInfo(`Als er een account is voor ${answer.email ?? email}, hebben we daar een code van 6 cijfers naartoe gestuurd. De code is ${answer.codeMinutes ?? 15} minuten geldig. Kijk ook in je spam.`);
+        return;
+      }
+      const answer = mode === 'reset'
+        ? await post('/api/auth/reset', { email, code, password })
+        : mode === 'code'
         ? await post('/api/auth/verify', { email, code })
         : mode === 'login'
           ? await post('/api/auth/login', { email, password })
@@ -93,13 +103,13 @@ function LoginPage({ domains, onDone }: { domains: string[]; onDone: (user: Auth
     }
   };
 
-  const switchTo = (next: 'login' | 'register') => { setMode(next); setError(''); setInfo(''); };
+  const switchTo = (next: 'login' | 'register' | 'forgot') => { setMode(next); setError(''); setInfo(''); };
 
   const resend = async () => {
     setError('');
     setBusy(true);
     try {
-      await post('/api/auth/resend', { email });
+      await post(mode === 'reset' ? '/api/auth/forgot' : '/api/auth/resend', { email });
       setInfo(`Nieuwe code verstuurd naar ${email}.`);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Er ging iets mis.');
@@ -107,6 +117,53 @@ function LoginPage({ domains, onDone }: { domains: string[]; onDone: (user: Auth
       setBusy(false);
     }
   };
+
+  const brand = (
+    <div className="auth-brand">
+      <img src={brandMark} alt="" className="auth-mark" />
+      <div><img src={brandWordmark} alt="Yellowlime" className="auth-wordmark" /><span>AI Agent</span></div>
+    </div>
+  );
+
+  if (mode === 'forgot') {
+    return (
+      <div className="auth-page">
+        <div className="auth-card">
+          {brand}
+          <h1>Wachtwoord vergeten</h1>
+          <p className="auth-lead">Vul je e-mailadres in. Je krijgt een code waarmee je een nieuw wachtwoord kiest.</p>
+          <form onSubmit={submit} className="auth-form">
+            <label>E-mailadres<input type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" placeholder={`naam${domains[0] ? `@${domains[0]}` : ''}`} required autoFocus data-testid="input-email" /></label>
+            {error && <p className="auth-error" role="alert" data-testid="auth-error">{error}</p>}
+            <button type="submit" className="auth-submit" disabled={busy} data-testid="button-send-reset">{busy ? 'Even geduld…' : 'Code sturen'}</button>
+          </form>
+          <div className="auth-links"><span /><button type="button" onClick={() => switchTo('login')} data-testid="button-back">Terug</button></div>
+        </div>
+      </div>
+    );
+  }
+
+  if (mode === 'reset') {
+    return (
+      <div className="auth-page">
+        <div className="auth-card">
+          {brand}
+          <h1>Nieuw wachtwoord</h1>
+          {info && <p className="auth-lead" data-testid="auth-info">{info}</p>}
+          <form onSubmit={submit} className="auth-form">
+            <label>Code<input className="auth-code" value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))} inputMode="numeric" autoComplete="one-time-code" placeholder="000000" required autoFocus data-testid="input-code" /></label>
+            <label>Nieuw wachtwoord<input type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="new-password" required minLength={10} data-testid="input-new-password" /><small>Minstens 10 tekens.</small></label>
+            {error && <p className="auth-error" role="alert" data-testid="auth-error">{error}</p>}
+            <button type="submit" className="auth-submit" disabled={busy || code.length !== 6} data-testid="button-reset">{busy ? 'Even geduld…' : 'Wachtwoord opslaan'}</button>
+          </form>
+          <div className="auth-links">
+            <button type="button" onClick={resend} disabled={busy} data-testid="button-resend">Nieuwe code sturen</button>
+            <button type="button" onClick={() => switchTo('login')} data-testid="button-back">Terug</button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (mode === 'code') {
     return (
@@ -160,6 +217,7 @@ function LoginPage({ domains, onDone }: { domains: string[]; onDone: (user: Auth
             {busy ? 'Even geduld…' : mode === 'login' ? 'Inloggen' : 'Account maken'}
           </button>
         </form>
+        {mode === 'login' && <div className="auth-links"><span /><button type="button" onClick={() => switchTo('forgot')} data-testid="link-forgot">Wachtwoord vergeten?</button></div>}
       </div>
     </div>
   );
