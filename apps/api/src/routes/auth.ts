@@ -27,6 +27,14 @@ import { logger } from "../lib/logger";
 
 const router: IRouter = Router();
 
+/**
+ * E-mail verification is only required when EMAIL_VERIFICATION=on and an
+ * e-mail service is set up. Otherwise accounts work right after sign-up.
+ */
+export function verificationOn(): boolean {
+  return process.env.EMAIL_VERIFICATION?.trim().toLowerCase() === "on" && mailConfigured();
+}
+
 const isSecure = (req: Request) => req.protocol === "https";
 const publicUser = (user: Pick<User, "id" | "email" | "name">) => ({ id: user.id, email: user.email, name: user.name });
 const str = (value: unknown) => (typeof value === "string" ? value : "");
@@ -53,7 +61,7 @@ async function userFromRequest(req: Request) {
     .where(and(
       eq(sessionsTable.id, await hashToken(token)),
       gt(sessionsTable.expiresAt, new Date()),
-      isNotNull(usersTable.emailVerifiedAt),
+      verificationOn() ? isNotNull(usersTable.emailVerifiedAt) : undefined,
     ))
     .limit(1);
   return row ?? null;
@@ -119,18 +127,20 @@ router.post("/auth/register", async (req, res) => {
     res.status(400).json({ error: weak });
     return;
   }
-  if (!mailConfigured()) {
-    codeResponse(res, email, "mail_not_configured");
-    return;
-  }
   const [existing] = await db.select().from(usersTable).where(eq(usersTable.email, email)).limit(1);
-  if (existing?.emailVerifiedAt) {
+  if (existing && (existing.emailVerifiedAt || !verificationOn())) {
     res.status(409).json({ error: "Er bestaat al een account met dit e-mailadres. Log in." });
     return;
   }
   // A never-verified account may be claimed again: only whoever reads the
   // mailbox can finish it, so nobody can block an address by registering first.
   const passwordHash = await hashPassword(password);
+  if (!verificationOn()) {
+    const [user] = await db.insert(usersTable).values({ name, email, passwordHash, lastLoginAt: new Date() }).returning();
+    await startSession(req, res, user.id);
+    res.status(201).json({ user: publicUser(user) });
+    return;
+  }
   const [user] = existing
     ? await db.update(usersTable).set({ name, passwordHash }).where(eq(usersTable.id, existing.id)).returning()
     : await db.insert(usersTable).values({ name, email, passwordHash }).returning();
@@ -214,7 +224,7 @@ router.post("/auth/login", async (req, res) => {
     wrong();
     return;
   }
-  if (!user.emailVerifiedAt) {
+  if (!user.emailVerifiedAt && verificationOn()) {
     // Right password, but the address is not confirmed yet: send a code.
     const result = await sendCode(user);
     codeResponse(res, email, result === "too_soon" ? "sent" : result, 403);
