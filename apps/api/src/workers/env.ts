@@ -1,4 +1,5 @@
 import { env } from "cloudflare:workers";
+import { setMailBinding } from "../services/mailer";
 
 /**
  * The code reads settings from process.env, like on a Node server. Copy the
@@ -10,6 +11,8 @@ const NAMES = [
   "ANTHROPIC_API_KEY",
   "SEMRUSH_API_KEY",
   "ALLOWED_EMAIL_DOMAINS",
+  "MAIL_FROM",
+  "BREVO_API_KEY",
   "SEMRUSH_MODE",
   "SEMRUSH_MCP_URL",
   "GOOGLE_CLIENT_ID",
@@ -30,3 +33,4 @@ export function copyWorkerSettings(source: Record<string, unknown> = env): void 
 }
 
 copyWorkerSettings();
+setMailBinding((env as Record<string, unknown>).EMAIL);

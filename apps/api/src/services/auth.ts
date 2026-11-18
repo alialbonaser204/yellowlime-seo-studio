@@ -11,6 +11,16 @@ export const SESSION_DAYS = 30;
 export const SESSION_COOKIE = "yl_session";
 export const MAX_FAILED_LOGINS = 5;
 export const LOCK_MINUTES = 15;
+export const CODE_MINUTES = 15;
+export const MAX_CODE_ATTEMPTS = 5;
+/** Minimum time between two code e-mails to the same address. */
+export const CODE_RESEND_SECONDS = 60;
+
+/** A random 6-digit code (000000–999999) for e-mail verification. */
+export function newVerificationCode(): string {
+  const n = crypto.getRandomValues(new Uint32Array(1))[0] % 1_000_000;
+  return String(n).padStart(6, "0");
+}
 
 /** Domains whose addresses may create an account (comma-separated in ALLOWED_EMAIL_DOMAINS). */
 export function allowedDomains(): string[] {

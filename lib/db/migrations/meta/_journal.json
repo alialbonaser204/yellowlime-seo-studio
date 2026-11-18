@@ -43,6 +43,13 @@
       "when": 1794991914983,
       "tag": "0005_auth",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1794992458850,
+      "tag": "0006_email_verification",
+      "breakpoints": true
     }
   ]
 }
