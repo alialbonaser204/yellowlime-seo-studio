@@ -53,7 +53,8 @@ import type { ArticleOutline } from '@yellowlime/api-client-react';
 import { SquareCropper } from './components/square-cropper';
 import { useImageUpload } from './hooks/use-image-upload';
 import { ICONS } from './pages/yellowlimers-page';
-import { UserCircle } from 'lucide-react';
+import { UserCircle, LogOut } from 'lucide-react';
+import { AuthGate, useAuth } from './components/auth-gate';
 
 const failedInlineAvatarImages = new Set<string>();
 
@@ -252,7 +253,7 @@ function App() {
     addAssignment: (assignment) => setData((current) => ({ ...current, assignments: [assignment, ...current.assignments] })),
     updateAssignment: (assignment) => setData((current) => ({ ...current, assignments: current.assignments.map((item) => item.id === assignment.id ? assignment : item) })),
   }), [data, toast]);
-  return <QueryClientProvider client={appQueryClient}><TooltipProvider><StudioContext.Provider value={value}><WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, '')}><RoutedApp /></WouterRouter>{toast && <div className="toast" data-testid="toast-message">{toast}</div>}<Toaster /></StudioContext.Provider></TooltipProvider></QueryClientProvider>;
+  return <QueryClientProvider client={appQueryClient}><TooltipProvider><StudioContext.Provider value={value}><AuthGate onLogout={() => appQueryClient.clear()}><WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, '')}><RoutedApp /></WouterRouter></AuthGate>{toast && <div className="toast" data-testid="toast-message">{toast}</div>}<Toaster /></StudioContext.Provider></TooltipProvider></QueryClientProvider>;
 }
 
 function RoutedApp() {
@@ -274,6 +275,7 @@ function RoutedApp() {
 function Shell({ children }: { children: ReactNode }) {
   const [location] = useLocation();
   const [open, setOpen] = useState(false);
+  const { user, logout } = useAuth();
   useEffect(() => { if (!open) return; const onKey = (event: KeyboardEvent) => { if (event.key === 'Escape') setOpen(false); }; window.addEventListener('keydown', onKey); return () => window.removeEventListener('keydown', onKey); }, [open]);
   const nav = [{ href: '/', label: 'Home', icon: Home }, { href: '/overzicht', label: 'Overzicht', icon: LayoutDashboard }, { href: '/partners', label: 'Partners', icon: Users }, { href: '/yellowlimers', label: 'Beheer Yellowlimers', icon: Users }, { href: '/history', label: 'Geschiedenis', icon: History }];
   const title = location === '/' ? 'Home' : location === '/overzicht' ? 'Overzicht' : location.startsWith('/partners') ? 'Partners' : location.startsWith('/yellowlimers') ? 'Beheer Yellowlimers' : location.startsWith('/history') ? 'Geschiedenis' : location.includes('/brief') ? 'SEO-briefing' : location.includes('/article') ? 'Gegenereerd artikel' : location.includes('/review') ? 'Menselijke beoordeling' : 'Nieuwe opdracht';
@@ -287,8 +289,9 @@ function Shell({ children }: { children: ReactNode }) {
       <nav className="side-nav">{nav.map(({ href, label, icon: Icon }) => <Link key={href} href={href} className={`side-link ${location === href ? 'active' : ''}`} data-testid={`link-nav-${label.toLowerCase()}`} onClick={() => setOpen(false)}><Icon /><span>{label}</span></Link>)}</nav>
       <div className="side-section eyebrow" style={{ marginTop: 21 }}>Werkstroom</div>
       <div className="side-nav"><Link href="/assignments/new" className="side-link" data-testid="link-new-assignment" onClick={() => setOpen(false)}><Plus /><span>Nieuwe opdracht</span></Link></div>
+      <div className="side-user"><span><strong>{user.name}</strong><small>{user.email}</small></span><button type="button" className="side-link" onClick={() => { setOpen(false); void logout(); }} data-testid="button-logout"><LogOut /><span>Uitloggen</span></button></div>
     </aside>
-    <div className="main"><header className="topbar"><button className="mobile-menu" onClick={() => setOpen((value) => !value)} data-testid="button-mobile-menu"><Menu size={20} /></button><div className="breadcrumb"><span>Werkruimte</span><ChevronRight size={13} /><strong>{title}</strong></div><div className="top-actions"><span className="eyebrow" style={{ color: 'hsl(var(--muted-foreground))' }}>Lokale werkruimte</span><Link href="/assignments/new" className="button button-primary button-small" data-testid="button-top-new"><Plus size={14} /><span>Nieuwe opdracht</span></Link></div></header><main className="main-content">{children}</main></div>
+    <div className="main"><header className="topbar"><button className="mobile-menu" onClick={() => setOpen((value) => !value)} data-testid="button-mobile-menu"><Menu size={20} /></button><div className="breadcrumb"><span>Werkruimte</span><ChevronRight size={13} /><strong>{title}</strong></div><div className="top-actions"><span className="eyebrow" style={{ color: 'hsl(var(--muted-foreground))' }} data-testid="text-user">{user.name}</span><Link href="/assignments/new" className="button button-primary button-small" data-testid="button-top-new"><Plus size={14} /><span>Nieuwe opdracht</span></Link></div></header><main className="main-content">{children}</main></div>
   </div>;
 }
 

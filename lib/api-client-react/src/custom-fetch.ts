@@ -362,6 +362,11 @@ export async function customFetch<T = unknown>(
 
   const response = await fetch(input, { ...init, method, headers });
 
+  if (response.status === 401 && typeof window !== "undefined") {
+    // The session has ended: let the app show the login page.
+    window.dispatchEvent(new Event("yl:unauthorized"));
+  }
+
   if (!response.ok) {
     const errorData = await parseErrorBody(response, method);
     throw new ApiError(response, errorData, requestInfo);
