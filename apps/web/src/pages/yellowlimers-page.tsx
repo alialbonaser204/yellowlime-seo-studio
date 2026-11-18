@@ -11,7 +11,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useImageUpload } from '../hooks/use-image-upload';
 import type { Yellowlimer, YellowlimerInputAvatarType, YellowlimerUpdateAvatarType } from '@yellowlime/api-client-react';
 import { useStudio } from '../App';
-import { AVATAR_ICONS, AvatarIcon, DEFAULT_AVATAR_ICON } from '../components/avatar-icon';
+import { AVATAR_ICONS, AvatarIcon, avatarIconLabel } from '../components/avatar-icon';
 
 export const ICONS = AVATAR_ICONS;
 
@@ -22,8 +22,7 @@ function YellowlimerAvatar({ type, value, name }: { type: string, value: string,
   if (type === 'image' && !imageFailed) {
     return <img src={`/api/storage${value}`} alt={name} onError={() => { failedAvatarImages.add(value); setImageFailed(true); }} className="avatar-image" style={{ width: 35, height: 35, borderRadius: 9, objectFit: 'cover' }} />;
   }
-  if (value === 'Lemon') return <AvatarIcon value="Lemon" size={20} />;
-  return <div className="partner-symbol"><AvatarIcon value={value} size={16} /></div>;
+  return <AvatarIcon value={value} size={35} />;
 }
 
 export function YellowlimerModal({ 
@@ -123,9 +122,12 @@ export function YellowlimerModal({
                   type="button"
                   onClick={() => setForm(prev => ({ ...prev, avatarType: 'icon', avatarValue: icon }))}
                   className="icon-button"
-                  style={{ width: 45, height: 45, borderColor: form.avatarType === 'icon' && form.avatarValue === icon ? 'hsl(var(--primary))' : '' }}
+                  title={avatarIconLabel(icon)}
+                  aria-label={avatarIconLabel(icon)}
+                  aria-pressed={form.avatarType === 'icon' && form.avatarValue === icon}
+                  style={{ width: 45, height: 45, padding: 2, borderWidth: 2, borderColor: form.avatarType === 'icon' && form.avatarValue === icon ? '#16362f' : 'transparent' }}
                 >
-                  <AvatarIcon value={icon} size={20} />
+                  <AvatarIcon value={icon} size={37} />
                 </button>
               ))}
               

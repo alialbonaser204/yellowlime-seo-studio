@@ -629,5 +629,3 @@ img.partner-symbol { width: 35px; height: 35px; border-radius: 9px; }
 .side-google small { font-size: 10px; letter-spacing: .06em; text-transform: uppercase; color: rgba(246,249,241,.6); }
 .side-google a { color: #f5f966 !important; }
 .side-google a { font-weight: 700; text-decoration: underline; text-underline-offset: 3px; color: inherit; margin-top: 2px; }
-.lemon-avatar { display: inline-grid; place-items: center; flex: none; border-radius: 9px; background: #16362f; }
-.lemon-avatar img { display: block; object-fit: contain; }

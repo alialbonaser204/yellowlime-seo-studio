@@ -63,8 +63,7 @@ const failedInlineAvatarImages = new Set<string>();
 function InlineAvatar({ type, value }: { type: string, value: string }) {
   const [imageFailed, setImageFailed] = useState(() => failedInlineAvatarImages.has(value));
   if (type === 'image' && !imageFailed) return <img src={`/api/storage${value}`} alt="" onError={() => { failedInlineAvatarImages.add(value); setImageFailed(true); }} style={{ width: 18, height: 18, borderRadius: 4, objectFit: 'cover' }} />;
-  if (value === 'Lemon') return <AvatarIcon value="Lemon" size={11} />;
-  return <div style={{ width: 18, height: 18, display: 'grid', placeItems: 'center', background: 'hsl(var(--primary)/.2)', color: 'hsl(80 48% 28%)', borderRadius: 4 }}><AvatarIcon value={value} size={10} /></div>;
+  return <AvatarIcon value={value} size={18} />;
 }
 import { 
   useListPartners, 
