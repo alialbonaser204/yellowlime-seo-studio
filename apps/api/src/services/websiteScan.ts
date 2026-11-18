@@ -2,7 +2,7 @@ import { and, desc, eq, lt, notInArray } from "drizzle-orm";
 import { db, partnersTable, websiteArticlesTable, websiteScansTable, type WebsiteScan } from "@yellowlime/db";
 import { logger } from "../lib/logger";
 import { runInBackground } from "../lib/background";
-import { InventoryError, scanWebsiteArticles, type ScanOptions } from "./articleInventory";
+import { explainEmptyScan, InventoryError, scanWebsiteArticles, type ScanOptions } from "./articleInventory";
 import { WebsitePolicyError } from "./websiteUrlPolicy";
 
 /** A scan that has been "running" longer than this was interrupted (e.g. by a restart). */
@@ -62,6 +62,7 @@ export async function runScan(scanId: number, partnerId: number, websiteUrl: str
     const now = new Date();
 
     if (result.articles.length === 0) {
+      logger.info({ partnerId, pagesChecked: result.pagesChecked, source: result.source, diagnostics: result.diagnostics }, "Website scan found no articles");
       // Keep the previous list: an empty result usually means the site was unreachable.
       await db
         .update(websiteScansTable)
@@ -70,7 +71,7 @@ export async function runScan(scanId: number, partnerId: number, websiteUrl: str
           source: result.source,
           pagesChecked: result.pagesChecked,
           articlesFound: 0,
-          message: "Er zijn geen artikelen gevonden op de website.",
+          message: explainEmptyScan(result.diagnostics),
           finishedAt: now,
         })
         .where(eq(websiteScansTable.id, scanId));

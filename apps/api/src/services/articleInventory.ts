@@ -40,10 +40,20 @@ export interface ScannedArticle {
   wordCount: number;
 }
 
+export interface ScanDiagnostics {
+  /** Requests made, by HTTP status ("200", "403") or "error" when there was no answer. */
+  statuses: Record<string, number>;
+  /** Links that looked like they could be an article. */
+  candidates: number;
+  /** Candidate pages that opened but were not an article. */
+  notArticle: number;
+}
+
 export interface InventoryResult {
   source: DiscoverySource | null;
   pagesChecked: number;
   articles: ScannedArticle[];
+  diagnostics?: ScanDiagnostics;
 }
 
 export class InventoryError extends Error {}
@@ -299,12 +309,16 @@ export async function scanWebsiteArticles(websiteUrl: string, options: ScanOptio
   if (robots.unavailable) throw new InventoryError("De website kon niet worden bereikt vanaf onze server. Mogelijk blokkeert een beveiliging van de website automatische bezoekers.");
   if (!robots.allowed(site.toString())) throw new InventoryError("De website blokkeert scanners via robots.txt.");
 
+  const statuses: Record<string, number> = {};
+  const count = (key: string) => { statuses[key] = (statuses[key] ?? 0) + 1; };
   const fetchOk = async (url: string, extra: SafeHttpOptions = {}): Promise<SafeResponse | null> => {
     try {
       if (!robots.allowed(url)) return null;
       const response = await fetcher(url, { ...options, ...extra });
+      count(String(response.status));
       return response.status >= 200 && response.status < 300 ? response : null;
     } catch {
+      count("error");
       return null;
     }
   };
@@ -416,6 +430,7 @@ export async function scanWebsiteArticles(websiteUrl: string, options: ScanOptio
 
   const limit = options.maxArticles ?? MAX_ARTICLES;
   let pagesChecked = 0;
+  let notArticle = 0;
   const found = new Map<string, ScannedArticle>();
   await mapLimit(ordered, FETCH_CONCURRENCY, async (candidate) => {
     if (found.size >= limit) return;
@@ -423,9 +438,9 @@ export async function scanWebsiteArticles(websiteUrl: string, options: ScanOptio
     pagesChecked++;
     if (!response) return;
     const type = (response.headers["content-type"] ?? "").toLowerCase();
-    if (type && !type.includes("html")) return;
+    if (type && !type.includes("html")) { notArticle++; return; }
     const article = extractArticle(response.url, response.body, { fromPostSource: candidate.fromPostSource });
-    if (!article) return;
+    if (!article) { notArticle++; return; }
     if (!article.publishedAt && candidate.lastModified) article.publishedAt = candidate.lastModified;
     const key = canonicalKey(new URL(article.url));
     if (!found.has(key) && found.size < limit) found.set(key, article);
@@ -434,5 +449,30 @@ export async function scanWebsiteArticles(websiteUrl: string, options: ScanOptio
   const articles = [...found.values()].sort(
     (a, b) => (b.publishedAt?.getTime() ?? 0) - (a.publishedAt?.getTime() ?? 0),
   );
-  return { source, pagesChecked, articles };
+  return { source, pagesChecked, articles, diagnostics: { statuses, candidates: candidates.size, notArticle } };
+}
+
+/** A plain Dutch explanation of why a scan found no articles. */
+export function explainEmptyScan(diagnostics: ScanDiagnostics | undefined): string {
+  const base = "Er zijn geen artikelen gevonden op de website.";
+  if (!diagnostics) return base;
+  const entries = Object.entries(diagnostics.statuses);
+  const total = entries.reduce((sum, [, n]) => sum + n, 0);
+  const ok = entries.filter(([k]) => k.startsWith("2")).reduce((sum, [, n]) => sum + n, 0);
+  const refused = entries.filter(([k]) => k === "401" || k === "403" || k === "429" || k === "503").reduce((sum, [, n]) => sum + n, 0);
+  const failed = diagnostics.statuses.error ?? 0;
+  if (total > 0 && refused >= Math.max(1, total * 0.6)) {
+    const codes = entries.filter(([k]) => k === "401" || k === "403" || k === "429" || k === "503").map(([k]) => k).join("/");
+    return `De website weigert onze scanner: ${refused} van de ${total} verzoeken kregen antwoord ${codes}. Waarschijnlijk blokkeert een beveiliging (bijvoorbeeld Cloudflare of een firewall) automatische bezoekers. De webbeheerder kan de Yellowlime AI Agent toestaan.`;
+  }
+  if (total > 0 && failed >= Math.max(1, total * 0.6)) {
+    return `De website gaf geen antwoord op ${failed} van de ${total} verzoeken. Mogelijk is de website te traag of tijdelijk onbereikbaar. Probeer het later opnieuw.`;
+  }
+  if (diagnostics.candidates === 0) {
+    return `${base} Er is geen sitemap, RSS-feed of blogpagina met links naar artikelen gevonden (${ok} pagina's bekeken). Misschien heeft de website (nog) geen blog of nieuwsberichten.`;
+  }
+  if (diagnostics.notArticle > 0) {
+    return `${base} Er zijn ${diagnostics.candidates} mogelijke pagina's gevonden, maar geen ervan leek een artikel: te weinig tekst (minder dan ${MIN_ARTICLE_WORDS} woorden) of geen artikelopmaak. Denk aan product-, dienst- of projectpagina's.`;
+  }
+  return base;
 }

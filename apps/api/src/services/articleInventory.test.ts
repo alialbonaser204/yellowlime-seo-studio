@@ -118,3 +118,11 @@ test("refuses when robots.txt blocks the whole site", async () => {
   const site: Site = { "/robots.txt": { body: "User-agent: *\nDisallow: /", type: "text/plain" } };
   await assert.rejects(scanWebsiteArticles("https://dicht.nl", { resolver, fetcher: fakeFetcher(site) }), /blokkeert/);
 });
+
+test("empty scan explains a blocking website", async () => {
+  const { explainEmptyScan } = await import("./articleInventory");
+  assert.match(explainEmptyScan({ statuses: { "403": 9, "404": 1 }, candidates: 0, notArticle: 0 }), /weigert onze scanner: 9 van de 10/);
+  assert.match(explainEmptyScan({ statuses: { "200": 5, "404": 3 }, candidates: 0, notArticle: 0 }), /geen sitemap, RSS-feed of blogpagina/);
+  assert.match(explainEmptyScan({ statuses: { "200": 12 }, candidates: 8, notArticle: 8 }), /8 mogelijke pagina's gevonden, maar geen ervan leek een artikel/);
+  assert.match(explainEmptyScan({ statuses: { error: 7 }, candidates: 0, notArticle: 0 }), /geen antwoord op 7 van de 7/);
+});

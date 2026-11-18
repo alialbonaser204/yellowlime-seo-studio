@@ -74,7 +74,9 @@ export function WebsiteArticlesSection({ partnerId }: { partnerId: number }) {
       ? `${articles.length} artikelen · laatst gescand ${formatDate(scan.finishedAt)} via ${SOURCE_LABEL[scan.source ?? ''] ?? 'de website'}`
       : articles.length
         ? `${articles.length} artikelen bekend`
-        : 'Nog niet gescand';
+        : scan?.status === 'failed'
+          ? `Laatste scan op ${formatDate(scan.finishedAt)} vond niets`
+          : 'Nog niet gescand';
 
   return (
     <div className="card" style={{ padding: 20, marginTop: 20 }} data-testid="website-articles">
