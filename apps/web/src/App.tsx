@@ -940,6 +940,10 @@ function NewAssignmentPage() {
   const activeYellowlimers = yellowlimers.filter(y => y.active);
   
   const [form, setForm] = useState({ partnerId: '', reviewerId: '', subject: '', contentGoal: '' });
+  // The topic fields only appear once someone picks a door: an own topic or a suggestion.
+  const [topicDecided, setTopicDecided] = useState(false);
+  useEffect(() => { setTopicDecided(false); }, [form.partnerId]);
+  const showTopicFields = Boolean(form.partnerId) && (topicDecided || form.subject.trim() !== '');
   const [errors, setErrors] = useState({ partnerId: '', reviewerId: '', subject: '', contentGoal: '' });
 
   const change = (key: keyof typeof form, value: string) => setForm((current) => ({ ...current, [key]: value }));
@@ -1130,9 +1134,12 @@ function NewAssignmentPage() {
                 setForm((current) => ({ ...current, subject, contentGoal }));
                 setErrors((current) => ({ ...current, subject: '', contentGoal: '' }));
               }}
+              onDecide={() => setTopicDecided(true)}
             />
+            {!form.partnerId && <p className="text-muted-foreground" style={{ fontSize: 12, margin: 0 }} data-testid="hint-choose-partner">Kies eerst een partner. Daarna kies je een eigen onderwerp of laat je de AI Agent voorstellen doen.</p>}
           </div>
 
+          {showTopicFields && (<>
           <div className="field full">
             <label htmlFor="subject">Onderwerp van het artikel <span style={{ color: 'hsl(var(--destructive))' }}>verplicht</span></label>
             <input id="subject" className="input" value={form.subject} onChange={(event) => change('subject', event.target.value)} placeholder="bijv. Hoe kies je alledaagse schoenen die lang meegaan" data-testid="input-assignment-subject" />
@@ -1165,13 +1172,14 @@ function NewAssignmentPage() {
             <textarea id="goal" className="textarea" value={form.contentGoal} onChange={(event) => change('contentGoal', event.target.value)} placeholder="Wat moet de lezer begrijpen of doen na het lezen?" data-testid="input-assignment-goal" />
             {errors.contentGoal && <span className="text-destructive text-xs" style={{ color: 'hsl(var(--destructive))', fontSize: '11px' }} data-testid="error-assignment-goal">{errors.contentGoal}</span>}
           </div>
+          </>)}
         </div>
-        <div className="form-actions">
+        {showTopicFields && <div className="form-actions">
           <Link href="/" className="button button-ghost" data-testid="button-cancel-assignment">Annuleren</Link>
           <button type="submit" className="button button-primary" data-testid="button-submit-assignment" disabled={createBriefing.isPending || topicCheck.isChecking}>
             {createBriefing.isPending ? 'Bezig met aanmaken...' : topicCheck.isChecking ? 'Yellowlime AI Agent controleert het onderwerp…' : <><ArrowRight size={15} /> Briefing aanmaken</>}
           </button>
-        </div>
+        </div>}
       </form>
     </>
   );

@@ -133,7 +133,7 @@ function SmallIdea({ idea, onChoose, onMore, busy }: { idea: TopicIdea; onChoose
   );
 }
 
-export function TopicWizard({ partnerId, onChoose }: { partnerId: string; onChoose: (subject: string, contentGoal: string) => void }) {
+export function TopicWizard({ partnerId, onChoose, onDecide }: { partnerId: string; onChoose: (subject: string, contentGoal: string) => void; onDecide?: () => void }) {
   const id = Number(partnerId);
   const [mode, setMode] = useState<'start' | 'surprise' | 'closed'>('start');
   const [theme, setTheme] = useState('');
@@ -176,13 +176,18 @@ export function TopicWizard({ partnerId, onChoose }: { partnerId: string; onChoo
     setChosen(idea);
     setMode('closed');
     onChoose(idea.title, contentGoalFor(idea));
+    onDecide?.();
   };
 
   const ownTopic = () => {
     setMode('closed');
-    const input = document.getElementById('subject') as HTMLInputElement | null;
-    input?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    setTimeout(() => input?.focus(), 250);
+    onDecide?.();
+    // The fields appear after this click; wait for them to render.
+    setTimeout(() => {
+      const input = document.getElementById('subject') as HTMLInputElement | null;
+      input?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      setTimeout(() => input?.focus(), 250);
+    }, 50);
   };
 
   if (!id) return null;
@@ -204,7 +209,7 @@ export function TopicWizard({ partnerId, onChoose }: { partnerId: string; onChoo
         <div className="topic-door">
           <span className="topic-door-icon"><PenLine size={22} /></span>
           <h3>Ik heb een onderwerp</h3>
-          <p>Typ het onderwerp hieronder. De AI Agent controleert of het al bestaat, hoeveel er op gezocht wordt en of er een beter alternatief is.</p>
+          <p>Je typt zelf het onderwerp in. De AI Agent controleert of het al bestaat, hoeveel er op gezocht wordt en of er een beter alternatief is.</p>
           <button type="button" className="button button-ghost" onClick={ownTopic} data-testid="door-own">Naar het onderwerp</button>
         </div>
         <div className="topic-door topic-door-dark">
