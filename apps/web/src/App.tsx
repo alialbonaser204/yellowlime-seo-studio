@@ -55,6 +55,7 @@ import { useImageUpload } from './hooks/use-image-upload';
 import { ICONS } from './pages/yellowlimers-page';
 import { UserCircle, LogOut } from 'lucide-react';
 import { AuthGate, useAuth } from './components/auth-gate';
+import { notifyTaskDone, prepareTaskNotifications } from './lib/task-notify';
 
 const failedInlineAvatarImages = new Set<string>();
 
@@ -1455,16 +1456,39 @@ function ArticlePage() {
   const canGenerate = isProfileApproved && hasReviewer && hasContent;
   const isPending = latestGen?.articleStatus === 'Artikel wordt geschreven' || generateMutation.isPending;
 
+  // Notify when an article that was being written is finished (or failed).
+  const notifiedStatus = useRef<string | undefined>(undefined);
+  useEffect(() => {
+    const status = latestGen?.articleStatus;
+    const before = notifiedStatus.current;
+    notifiedStatus.current = status;
+    if (before !== 'Artikel wordt geschreven' || status === before) return;
+    if (status === 'Wacht op controle' || status === 'Concept gereed') {
+      notifyTaskDone({ title: 'Artikel is klaar', body: 'Het conceptartikel staat klaar voor controle.' });
+    } else if (status === 'Generatie mislukt') {
+      notifyTaskDone({ title: 'Artikel schrijven is mislukt', body: latestGen?.failureMessage || 'Probeer het opnieuw.', ok: false });
+    }
+  }, [latestGen?.articleStatus, latestGen?.failureMessage]);
+
   const handleOutline = () => {
     if (!canGenerate || isPending || outlineMutation.isPending) return;
+    prepareTaskNotifications();
     outlineMutation.mutate({ briefingId: briefingDbId }, {
-      onSuccess: (proposal) => setOutline(proposal),
-      onError: (error) => addToast((error as { data?: { error?: string } })?.data?.error ?? 'De opzet kon niet worden gemaakt. Probeer het opnieuw.'),
+      onSuccess: (proposal) => {
+        setOutline(proposal);
+        notifyTaskDone({ title: 'Opzet is klaar', body: 'Bekijk de opzet, pas hem aan en keur hem goed.' });
+      },
+      onError: (error) => {
+        const message = (error as { data?: { error?: string } })?.data?.error ?? 'De opzet kon niet worden gemaakt. Probeer het opnieuw.';
+        addToast(message);
+        notifyTaskDone({ title: 'Opzet maken is mislukt', body: message, ok: false });
+      },
     });
   };
 
   const handleGenerate = (approved: ArticleOutline | null = null) => {
     if (!canGenerate || isPending) return;
+    prepareTaskNotifications();
     generateMutation.mutate({ briefingId: briefingDbId, data: approved ? { outline: approved } : undefined }, {
       onSuccess: () => {
         setOutline(null);

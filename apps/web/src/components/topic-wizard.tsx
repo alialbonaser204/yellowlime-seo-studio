@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { notifyTaskDone, prepareTaskNotifications } from '../lib/task-notify';
 import { ArrowLeft, Check, ChevronDown, ExternalLink, Lightbulb, PenLine, RefreshCw, Sparkles, TriangleAlert } from 'lucide-react';
 import {
   getGetTopicThemesQueryKey,
@@ -154,14 +155,19 @@ export function TopicWizard({ partnerId, onChoose }: { partnerId: string; onChoo
     setMode('surprise');
     setError(null);
     const exclude = opts.fresh ? [] : shown;
+    prepareTaskNotifications();
     ideas.mutate(
       { partnerId: id, data: { goal: 'mix', theme: theme.trim() || null, exclude, like: opts.like ?? null, direction: opts.direction ?? null } },
       {
         onSuccess: (data) => {
+          notifyTaskDone({ title: 'Onderwerpen zijn klaar', body: `${data.ideas.length} voorstellen staan klaar om uit te kiezen.` });
           setResult(data);
           setShown((prev) => [...new Set([...(opts.fresh ? [] : prev), ...data.ideas.map((i) => i.keyword)])]);
         },
-        onError: (e) => setError(errorMessage(e)),
+        onError: (e) => {
+          setError(errorMessage(e));
+          notifyTaskDone({ title: 'Onderwerpen zoeken is mislukt', body: errorMessage(e), ok: false });
+        },
       },
     );
   };

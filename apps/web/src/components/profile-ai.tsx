@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { notifyTaskDone, prepareTaskNotifications } from '../lib/task-notify';
 import { ExternalLink, RefreshCw, Sparkles } from 'lucide-react';
 import {
   useGeneratePartnerProfileFields,
@@ -145,6 +146,7 @@ export function useProfileAi(partnerId: number, onError: (message: string) => vo
     const all = fields === 'all';
     setBusy(all ? 'all' : fields[0]);
     if (all) {
+      prepareTaskNotifications();
       pagesSeen.current = 0;
       setPhase({ step: 'pages', read: 0, max: 16, since: Date.now() });
       generateAllWithProgress(partnerId, refresh, (next) => {
@@ -154,8 +156,12 @@ export function useProfileAi(partnerId: number, onError: (message: string) => vo
         .then((result) => {
           setPhase({ step: 'done', read: 0, max: 0, since: Date.now() });
           applyAll(result, setDraft, true);
+          notifyTaskDone({ title: 'Partnerprofiel is klaar', body: 'Controleer de ingevulde velden en keur het profiel goed.' });
         })
-        .catch((error) => onError(errorMessage(error)))
+        .catch((error) => {
+          onError(errorMessage(error));
+          notifyTaskDone({ title: 'Partnerprofiel is mislukt', body: errorMessage(error), ok: false });
+        })
         .finally(() => { setBusy(null); setTimeout(() => setPhase(null), 600); });
       return;
     }
