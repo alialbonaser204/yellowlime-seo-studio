@@ -365,7 +365,7 @@ button { cursor: pointer; }
 @keyframes home-sweep { from { background-position: 100% 0; } to { background-position: 0 0; } }
 @keyframes home-glow { from { filter: drop-shadow(0 0 2px hsl(var(--primary) / .3)); } to { filter: drop-shadow(0 0 22px hsl(var(--primary) / .95)); } }
 
-.home-strip { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 26px 0 0; font-size: 15px; }
+.home-strip { display: flex; justify-content: flex-end; align-items: center; gap: 16px; padding: 26px 0 0; font-size: 15px; }
 .home-strip strong { font-weight: 800; letter-spacing: -.01em; }
 .home-strip a { display: inline-flex; align-items: center; gap: 6px; font-weight: 700; }
 .home-strip a:hover { color: hsl(167 42% 28%); }

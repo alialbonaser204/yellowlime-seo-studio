@@ -298,7 +298,7 @@ function Shell({ children }: { children: ReactNode }) {
       <div className="side-nav"><Link href="/assignments/new" className="side-link" data-testid="link-new-assignment" onClick={() => setOpen(false)}><Plus /><span>Nieuwe opdracht</span></Link></div>
       <div className="side-user"><span><strong>{user.name}</strong><small>{user.email}</small></span><GoogleAccountMenu /><button type="button" className="side-link" onClick={() => { setOpen(false); void logout(); }} data-testid="button-logout"><LogOut /><span>Uitloggen</span></button></div>
     </aside>
-    <div className="main"><header className="topbar"><button className="mobile-menu" onClick={() => setOpen((value) => !value)} data-testid="button-mobile-menu"><Menu size={20} /></button><div className="breadcrumb"><span>Werkruimte</span><ChevronRight size={13} /><strong>{title}</strong></div><div className="top-actions"><span className="eyebrow" style={{ color: 'hsl(var(--muted-foreground))' }} data-testid="text-user">{user.name}</span><Link href="/assignments/new" className="button button-primary button-small" data-testid="button-top-new"><Plus size={14} /><span>Nieuwe opdracht</span></Link></div></header><main className="main-content">{children}</main></div>
+    <div className="main"><header className="topbar"><button className="mobile-menu" onClick={() => setOpen((value) => !value)} data-testid="button-mobile-menu"><Menu size={20} /></button>{location === '/' ? <div className="breadcrumb" aria-hidden="true" /> : <div className="breadcrumb"><span>Werkruimte</span><ChevronRight size={13} /><strong>{title}</strong></div>}<div className="top-actions"><span className="eyebrow" style={{ color: 'hsl(var(--muted-foreground))' }} data-testid="text-user">{user.name}</span><Link href="/assignments/new" className="button button-primary button-small" data-testid="button-top-new"><Plus size={14} /><span>Nieuwe opdracht</span></Link></div></header><main className="main-content">{children}</main></div>
   </div>;
 }
 
@@ -378,7 +378,7 @@ function HomePartners({ partners }: { partners: Array<{ id: number; companyName:
 function HomePage() {
   const { data: dbPartners = [] } = useListPartners();
   return <><HomeHero />
-    <div className="home-strip"><strong>SEO-schrijfstudio</strong><Link href="/overzicht" data-testid="home-strip-overview">Naar je overzicht <ArrowRight size={14} /></Link></div>
+    <div className="home-strip"><Link href="/overzicht" data-testid="home-strip-overview">Naar je overzicht <ArrowRight size={14} /></Link></div>
     <HomePartners partners={dbPartners} />
   </>;
 }
