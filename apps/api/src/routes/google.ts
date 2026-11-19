@@ -17,7 +17,7 @@ import {
   safeReturnPath,
   verifyState,
 } from "../services/googleAuth";
-import { clearSearchConsoleCache, partnerSearchConsole } from "../services/searchConsole";
+import { clearSearchConsoleCache, partnerSearchConsole, partnerSearchConsolePage } from "../services/searchConsole";
 import { currentUser } from "../lib/requestUser";
 
 const router: IRouter = Router();
@@ -126,6 +126,23 @@ router.get("/partners/:partnerId/search-console", async (req, res): Promise<void
   }
   res.set("Cache-Control", "no-store");
   res.json(GetPartnerSearchConsoleResponse.parse(overview));
+});
+
+/** Full report for the Search Console page. */
+router.get("/partners/:partnerId/search-console/report", async (req, res): Promise<void> => {
+  const partnerId = Number(req.params.partnerId);
+  if (!Number.isInteger(partnerId) || partnerId <= 0) {
+    res.status(400).json({ error: "Ongeldige aanvraag." });
+    return;
+  }
+  const days = [7, 28, 90].includes(Number(req.query.days)) ? Number(req.query.days) : 28;
+  const page = await partnerSearchConsolePage(partnerId, days, { refresh: req.query.refresh === "1" });
+  if (!page) {
+    res.status(404).json({ error: "Partner niet gevonden." });
+    return;
+  }
+  res.set("Cache-Control", "no-store");
+  res.json(page);
 });
 
 export default router;

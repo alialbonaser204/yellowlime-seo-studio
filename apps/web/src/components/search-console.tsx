@@ -47,8 +47,11 @@ function useGoogleResultMessage(): string | null {
   return message;
 }
 
-function connectHref(): string {
-  return `/api/google/connect?returnTo=${encodeURIComponent(window.location.pathname)}`;
+export function connectHref(): string {
+  // Strip an old ?google=... result so it does not pile up.
+  const url = new URL(window.location.href);
+  url.searchParams.delete('google');
+  return `/api/google/connect?returnTo=${encodeURIComponent(url.pathname + url.search)}`;
 }
 
 function MetricTable({ rows, kind }: { rows: SearchConsoleMetricRow[]; kind: 'query' | 'page' }) {

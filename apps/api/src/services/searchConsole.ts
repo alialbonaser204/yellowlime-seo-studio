@@ -16,6 +16,9 @@ import {
   type SearchConsoleSite,
   type TopicPage,
 } from "./searchConsoleData";
+import { buildSearchConsoleReport, type SearchConsoleReport } from "./searchConsoleReport";
+import { rootDomain } from "./domainAnalysis";
+import { currentUser } from "../lib/requestUser";
 
 /**
  * Reads Search Console data for partner websites through the connected
@@ -213,6 +216,86 @@ export async function partnerSearchConsole(
   }
 }
 
+export interface PartnerSearchConsolePage {
+  status: SearchConsoleStatus;
+  account: string | null;
+  shared: boolean;
+  property: string | null;
+  message: string | null;
+  days: number;
+  period: { startDate: string; endDate: string; previousStartDate: string; previousEndDate: string } | null;
+  report: SearchConsoleReport | null;
+}
+
+const reportCache = new Map<string, { at: number; value: PartnerSearchConsolePage }>();
+
+/** Everything for the Search Console page of one partner (7 requests, cached for 6 hours). */
+export async function partnerSearchConsolePage(
+  partnerId: number,
+  days: number,
+  { fetcher = fetch, refresh = false }: { fetcher?: Fetcher; refresh?: boolean } = {},
+): Promise<PartnerSearchConsolePage | null> {
+  const [partner] = await db.select().from(partnersTable).where(eq(partnersTable.id, partnerId));
+  if (!partner) return null;
+  const cacheKey = `${await connectionKey()}:${partnerId}:${partner.websiteUrl}:${days}`;
+  const cached = reportCache.get(cacheKey);
+  if (!refresh && cached && Date.now() - cached.at < OVERVIEW_CACHE_MS) return cached.value;
+
+  const empty = (overview: SearchConsoleOverview): PartnerSearchConsolePage => ({
+    status: overview.status, account: overview.account, shared: false, property: overview.property,
+    message: overview.message, days, period: null, report: null,
+  });
+  try {
+    const resolved = await resolveProperty(partner.websiteUrl, fetcher);
+    if (!resolved.ok) return empty(resolved.overview);
+    const { property, account } = resolved;
+    const period = reportPeriod(days);
+    const range = { startDate: period.startDate, endDate: period.endDate };
+    const previous = { startDate: period.previousStartDate, endDate: period.previousEndDate };
+    const [totals, previousTotals, daily, devices, queries, pages, previousPages] = await Promise.all([
+      query(property, { ...range }, fetcher),
+      query(property, { ...previous }, fetcher),
+      query(property, { ...range, dimensions: ["date"], rowLimit: 500 }, fetcher),
+      query(property, { ...range, dimensions: ["device"], rowLimit: 10 }, fetcher),
+      query(property, { ...range, dimensions: ["query"], rowLimit: 1000 }, fetcher),
+      query(property, { ...range, dimensions: ["page"], rowLimit: 500 }, fetcher),
+      query(property, { ...previous, dimensions: ["page"], rowLimit: 500 }, fetcher),
+    ]);
+    let domain = "";
+    try { domain = rootDomain(partner.websiteUrl); } catch { /* keep empty */ }
+    const connection = await currentConnection();
+    const me = currentUser()?.id ?? null;
+    const value: PartnerSearchConsolePage = {
+      status: "ok",
+      account,
+      // True when the data comes through a colleague's Google account.
+      shared: Boolean(connection && connection.userId !== me),
+      property,
+      message: null,
+      days,
+      period,
+      report: buildSearchConsoleReport({
+        domain, days,
+        totals: totals[0], previousTotals: previousTotals[0],
+        daily, devices, queries, pages, previousPages,
+      }),
+    };
+    reportCache.set(cacheKey, { at: Date.now(), value });
+    return value;
+  } catch (error) {
+    if (error instanceof GoogleNotConnectedError) {
+      return empty(emptyOverview("not_connected", "De verbinding met Google is verlopen. Verbind opnieuw met Google."));
+    }
+    logger.warn({ errorType: error instanceof Error ? error.message : typeof error }, "Search Console page request failed");
+    return empty(emptyOverview(
+      "error",
+      error instanceof SearchConsoleError && error.status === 403
+        ? "Google weigert de toegang tot deze website. Controleer of het verbonden account nog toegang heeft in Search Console."
+        : "Search Console kon niet worden bereikt. Probeer het later opnieuw.",
+    ));
+  }
+}
+
 /**
  * The partner's pages that Google already shows for searches about a topic
  * (last 90 days). Returns null when Search Console is not available for this
@@ -253,6 +336,7 @@ export function clearSearchConsoleCache(): void {
   overviewCache.clear();
   pageMetricsCache.clear();
   sitesCache.clear();
+  reportCache.clear();
 }
 
 export interface QueryPageRow {

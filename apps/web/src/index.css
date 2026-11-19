@@ -669,3 +669,15 @@ img.partner-symbol { width: 35px; height: 35px; border-radius: 9px; }
 .semrush-url { display: inline-flex; align-items: center; gap: 4px; max-width: 280px; color: inherit; text-decoration: underline; text-decoration-color: hsl(var(--border)); text-underline-offset: 3px; }
 .semrush-url span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
 .semrush-url svg { flex: none; }
+
+/* ---------- Search Console-pagina ---------- */
+.gsc-controls { display: flex; flex-wrap: wrap; gap: 14px 24px; align-items: flex-end; }
+.gsc-field { display: flex; flex-direction: column; gap: 8px; min-width: 0; flex: 1 1 260px; max-width: 420px; }
+.gsc-field label, .gsc-label { font-size: 13px; font-weight: 700; }
+.gsc-periods { display: inline-flex; gap: 4px; padding: 4px; border-radius: 12px; background: hsl(var(--muted)); align-self: flex-start; }
+.gsc-periods button { border: 0; background: transparent; padding: 8px 12px; border-radius: 9px; font: inherit; font-size: 13px; font-weight: 600; color: hsl(var(--muted-foreground)); cursor: pointer; white-space: nowrap; }
+.gsc-periods button.active { background: hsl(var(--card)); color: hsl(var(--foreground)); box-shadow: 0 1px 3px rgba(22,54,47,.15); }
+.gsc-up { display: inline-flex; align-items: center; gap: 4px; color: #24572a; font-weight: 600; }
+.gsc-down { display: inline-flex; align-items: center; gap: 4px; color: #a33a12; font-weight: 600; }
+.gsc-banner { padding: 12px 14px; margin-bottom: 16px; border-radius: 12px; background: #fde8dc; color: #8a2d0b; font-size: 14px; }
+.gsc-banner.is-ok { background: #e8f3dc; color: #24572a; }
