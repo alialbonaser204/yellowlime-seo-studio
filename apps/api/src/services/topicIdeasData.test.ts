@@ -77,7 +77,7 @@ test("only accepts numbers that are in the data", () => {
   assert.ok(!numbersGrounded("Dit levert al snel 5.000 extra bezoekers op.", cs));
 });
 
-test("parses Claude's ideas, drops unknown candidates and ungrounded reasons, never suggests writing a covered topic again", () => {
+test("parses Claude's ideas, drops unknown candidates, ungrounded reasons and topics already on the website", () => {
   const candidates = [
     cand({ id: "k1", keyword: "warmtepomp onderhoud", score: 70 }),
     cand({ id: "k2", keyword: "sprinkler keuring", semrush: { volume: 480, difficulty: 22, intent: "1", trend: null }, covered: { url: "https://w.nl/blog/sprinkler", title: "Sprinkler" }, score: 55 }),
@@ -91,12 +91,13 @@ test("parses Claude's ideas, drops unknown candidates and ungrounded reasons, ne
     ],
   });
   const ideas = parseIdeas(raw, candidates, new Set(["https://w.nl/blog/sprinkler"]), 6);
-  assert.equal(ideas.length, 2);
+  // Only new articles: the topic that is already on the website is left out.
+  assert.equal(ideas.length, 1);
   assert.equal(ideas[0].keyword, "warmtepomp onderhoud");
+  assert.equal(ideas[0].type, "nieuw");
+  assert.equal(ideas[0].updateUrl, null);
   assert.deepEqual(ideas[0].why, ["1.300 mensen zoeken hier maandelijks naar."], "the invented number is dropped");
   assert.deepEqual(ideas[0].supportingKeywords, ["sprinkler keuring"]);
-  assert.equal(ideas[1].type, "update");
-  assert.equal(ideas[1].updateUrl, "https://w.nl/blog/sprinkler");
   assert.throws(() => parseIdeas("geen json", candidates, new Set(), 6), /invalid_claude_json/);
 });
 

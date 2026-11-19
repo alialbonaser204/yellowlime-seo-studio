@@ -1412,7 +1412,7 @@ function ArticlePage() {
   const outlineMutation = useSuggestArticleOutline();
   const [outline, setOutline] = useState<ArticleOutline | null>(null);
   // Estimated progress for the two long AI steps (no exact progress is available for them).
-  const writingPct = useEstimatedProgress(generations[0]?.articleStatus === 'Artikel wordt geschreven' || generateMutation.isPending, 90_000);
+  const writingPct = useEstimatedProgress(generations[0]?.articleStatus === 'Artikel wordt geschreven' || generateMutation.isPending, 150_000);
   const outlinePct = useEstimatedProgress(outlineMutation.isPending, 35_000);
   
   const latestGen = generations[0];
@@ -1600,34 +1600,12 @@ function ArticlePage() {
                 </div>
               )}
 
-              {outlineMutation.isPending && (
-                <div style={{ marginBottom: 14 }}>
-                  <ProgressPanel
-                    title="Opzet wordt gemaakt"
-                    subtitle="Ongeveer een halve minuut"
-                    steps={[
-                      { label: 'Top 5 in Google lezen', at: 0 },
-                      { label: 'Onderwerpen vergelijken', at: 40 },
-                      { label: 'Opzet maken', at: 60 },
-                    ]}
-                    pct={outlinePct}
-                    testId="outline-progress"
-                  />
-                </div>
-              )}
-              {outline ? (
-                <OutlineEditor outline={outline} onChange={setOutline} onApprove={() => handleGenerate(outline)} onRedo={handleOutline} busy={isPending || outlineMutation.isPending} />
-              ) : (
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                  <button className="button button-primary" onClick={handleOutline} disabled={!canGenerate || isPending || outlineMutation.isPending} data-testid="make-outline">
-                    {outlineMutation.isPending ? <><RefreshCw size={15} className="animate-spin" /> Opzet wordt gemaakt…</> : <><Sparkles size={15} /> Opzet maken</>}
-                  </button>
-                  <button className="button button-ghost" onClick={() => handleGenerate(null)} disabled={!canGenerate || isPending || outlineMutation.isPending} data-testid="generate-article">
-                    Direct schrijven zonder opzet
-                  </button>
-                </div>
-              )}
-              {!outline && <p className="outline-hint">Aanrader: laat eerst een opzet maken. Je past koppen, volgorde en lengte aan en keurt hem goed; daarna schrijft de Yellowlime AI Agent het artikel precies volgens die opzet.</p>}
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                <button className="button button-primary" onClick={() => handleGenerate(null)} disabled={!canGenerate || isPending} data-testid="generate-article">
+                  <Sparkles size={15} /> Artikel schrijven
+                </button>
+              </div>
+              <p className="outline-hint">De Yellowlime AI Agent bepaalt zelf de opzet: hij bekijkt eerst de top 5 in Google voor het hoofdzoekwoord, kiest de koppen en de lengte, en schrijft daarna het artikel.</p>
             </div>
           )}
 
@@ -1635,13 +1613,14 @@ function ArticlePage() {
             <div data-testid="article-generation-loading">
               <ProgressPanel
                 title="Artikel wordt geschreven"
-                subtitle="Duurt 1 tot 2 minuten · laat deze pagina open"
+                subtitle="Duurt een paar minuten · laat deze pagina open"
                 steps={[
-                  { label: 'Profiel, onderzoek en opzet lezen', at: 0 },
-                  { label: 'Inleiding en "In het kort" schrijven', at: 15 },
-                  { label: 'Secties schrijven', at: 35 },
-                  { label: 'Veelgestelde vragen en conclusie', at: 70 },
-                  { label: 'Metatitel en controle', at: 88 },
+                  { label: 'Top 5 in Google bekijken', at: 0 },
+                  { label: 'Opzet bepalen', at: 15 },
+                  { label: 'Inleiding en "In het kort" schrijven', at: 35 },
+                  { label: 'Secties schrijven', at: 50 },
+                  { label: 'Veelgestelde vragen en conclusie', at: 75 },
+                  { label: 'Metatitel en controle', at: 90 },
                 ]}
                 pct={writingPct}
               />

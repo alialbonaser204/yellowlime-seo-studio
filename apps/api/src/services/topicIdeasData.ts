@@ -257,15 +257,15 @@ export function makeIdeasPrompt(input: {
     "KANDIDATEN (alle cijfers komen uit Semrush en Google Search Console):",
     lines.join("\n"),
     input.articles.length
-      ? `ARTIKELEN DIE AL OP DE WEBSITE STAAN (niet nog eens schrijven, wel eventueel bijwerken):\n${input.articles.slice(0, 80).map((a) => `- ${a.title} (${pathOf(a.url)})`).join("\n")}`
+      ? `ARTIKELEN DIE AL OP DE WEBSITE STAAN (niet nog eens schrijven; kies een onderwerp dat er nog niet is):\n${input.articles.slice(0, 80).map((a) => `- ${a.title} (${pathOf(a.url)})`).join("\n")}`
       : "Er is geen lijst met bestaande artikelen.",
     `Kies de ${input.count} beste onderwerpen. Regels:`,
     "1. Elk idee is gebaseerd op precies één hoofdkandidaat (candidate) en eventueel maximaal 3 ondersteunende kandidaten (supporting), via hun id.",
     "2. Kies onderwerpen die passen bij de producten, diensten en doelgroep van de partner. Sla kandidaten over die niets met de partner te maken hebben, en zoekwoorden die vooral een naam zijn van een klant, project, gebouw, evenementenlocatie of ander merk (mensen die daarop zoeken, zoeken niet de partner). Gebruik de paden van de pagina's (bijv. /diensten/...) om te begrijpen wat de partner doet.",
     input.goal === "mix"
-      ? "3. Geen twee ideeën met dezelfde zoekintentie of hetzelfde hoofdzoekwoord. Zorg voor variatie in soort kans (snelle winst, meer bezoekers, seizoen, opfrissen) als de kandidaten dat toelaten."
+      ? "3. Geen twee ideeën met dezelfde zoekintentie of hetzelfde hoofdzoekwoord. Zorg voor variatie in soort kans (snelle winst, meer bezoekers, seizoen) als de kandidaten dat toelaten."
       : "3. Geen twee ideeën met dezelfde zoekintentie of hetzelfde hoofdzoekwoord. Zorg voor variatie.",
-    "4. type is \"update\" als een bestaande pagina beter bijgewerkt kan worden (geef dan update_url, alleen een URL uit de kandidaten of artikelen hierboven); anders \"nieuw\". Een kandidaat die al op de website staat wordt nooit \"nieuw\".",
+    "4. Elk idee is een NIEUW artikel (type \"nieuw\"). Stel nooit voor om een bestaande pagina bij te werken, en kies geen onderwerp dat een artikel hierboven al behandelt.",
     "5. title: een concrete werktitel in het Nederlands die het hoofdzoekwoord bevat, geen clickbait.",
     "6. angle: één zin met de invalshoek en wat de lezer leert of kan doen.",
     "7. why: precies 3 korte zinnen, in deze volgorde: (1) wat de cijfers zeggen (zoekvolume, positie, piek of daling); (2) waarom het past bij deze partner, met een product, dienst of doelgroep uit het profiel; (3) waarom nu, of hoe het zich verhoudt tot wat al op de website staat. Gebruik ALLEEN getallen die letterlijk in de kandidaten staan; verzin geen cijfers en geen feiten over de partner.",
@@ -378,15 +378,10 @@ export function parseIdeas(raw: string, candidates: Candidate[], knownUrls: Set<
       .filter((c): c is Candidate => Boolean(c) && c!.id !== main.id)
       .slice(0, 3);
     const related = [main, ...supporting];
-    let type: TopicIdea["type"] = entry.type === "update" ? "update" : "nieuw";
-    let updateUrl = typeof entry.update_url === "string" && knownUrls.has(entry.update_url) ? entry.update_url : null;
-    if (type === "update" && !updateUrl) updateUrl = main.declining?.page ?? main.covered?.url ?? main.gsc?.page ?? null;
-    if (type === "update" && !updateUrl) type = "nieuw";
-    if (type === "nieuw" && main.covered) {
-      // Already on the website: suggest updating that article instead of writing it twice.
-      type = "update";
-      updateUrl = main.covered.url;
-    }
+    // Only new articles: a topic that is already on the website is skipped.
+    if (main.covered) continue;
+    const type: TopicIdea["type"] = "nieuw";
+    const updateUrl: string | null = null;
     const why = (Array.isArray(entry.why) ? entry.why : [])
       .filter((w): w is string => typeof w === "string" && w.trim().length > 0)
       .map((w) => w.trim())

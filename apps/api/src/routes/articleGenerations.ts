@@ -256,6 +256,8 @@ router.post(
         outline,
       },
       req.log,
+      // No outline supplied: the AI decides the structure itself first.
+      outline ? null : semrushResearchSnapshot.organicCompetitors,
     );
   },
 );
@@ -264,9 +266,32 @@ function queueArticleGeneration(
   generationId: number,
   input: Parameters<typeof generateArticle>[0],
   log: SafeLogger,
+  autoOutlineFrom: Parameters<typeof analyseSerp>[0] | null = null,
 ): void {
   runInBackground(async () => {
     try {
+      if (autoOutlineFrom !== null && !input.outline) {
+        // The AI makes the outline (based on the top 5 in Google) and then
+        // writes with it. If that fails, writing continues without an outline.
+        try {
+          const serp = await analyseSerp(autoOutlineFrom).catch(() => null);
+          const outline = await generateOutline({
+            partnerName: input.partnerName,
+            approvedPartnerProfile: input.approvedPartnerProfile,
+            subject: input.subject,
+            contentGoal: input.contentGoal,
+            semrushResearch: input.semrushResearch,
+            serp,
+          });
+          input = { ...input, outline };
+          await db
+            .update(articleGenerationsTable)
+            .set({ outline: outline as unknown as Record<string, unknown> })
+            .where(eq(articleGenerationsTable.id, generationId));
+        } catch (error) {
+          log.error({ code: "auto_outline_failed", errorType: error instanceof Error ? error.message : typeof error }, "Automatische opzet mislukt; schrijven zonder opzet");
+        }
+      }
       const generated = await generateArticle(input);
       await db
         .update(articleGenerationsTable)

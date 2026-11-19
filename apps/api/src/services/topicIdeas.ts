@@ -177,15 +177,10 @@ async function collect(
   };
   const byImpressions = [...gscByQuery.entries()].sort((a, b) => b[1].impressions - a[1].impressions);
   if (goal === "mix") {
-    // A bit of everything: near-top keywords, the biggest queries and declining pages.
+    // A bit of everything: near-top keywords and the biggest queries. Existing
+    // pages are not updated, so declining pages are not used as a source.
     for (const [query, d] of byImpressions) if (d.position >= 4 && d.position <= 20 && d.impressions >= 10) add(query, "Search Console");
     for (const [query] of byImpressions.slice(0, 8)) add(query, "Search Console");
-    if (gsc) {
-      for (const page of findDecliningPages(gsc.pagesNow, gsc.pagesBefore, 4)) {
-        const top = gsc.rows.filter((r) => r.page === page.page).sort((a, b) => b.impressions - a.impressions).slice(0, 1);
-        for (const row of top) add(row.query, "Search Console", { page: page.page, clicks: page.clicks, previousClicks: page.previousClicks });
-      }
-    }
   } else if (goal === "kansen") {
     for (const [query, d] of byImpressions) if (d.position >= 4 && d.position <= 20 && d.impressions >= 10) add(query, "Search Console");
   } else if (goal === "opfrissen" && gsc) {
@@ -250,6 +245,8 @@ async function collect(
   })
     .filter((c) => c.semrush || c.gsc)
     .filter((c) => !isUnsuitableKeyword(c.keyword, brandWords, c.semrush?.intent))
+    // Only new articles: skip topics that an article on the website already covers.
+    .filter((c) => !c.covered)
     .sort((a, b) => b.score - a.score)
     .slice(0, MAX_CANDIDATES)
     .map((c, i) => ({ ...c, id: `k${i + 1}` }));

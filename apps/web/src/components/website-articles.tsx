@@ -231,7 +231,7 @@ export function TopicCheckCard({
       {result.verdict === 'duplicate' && (
         <label style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 12, cursor: 'pointer' }}>
           <input type="checkbox" checked={acknowledged} onChange={(e) => onAcknowledge(e.target.checked)} data-testid="acknowledge-duplicate" />
-          Ik weet het, ik wil toch over dit onderwerp schrijven (bijvoorbeeld als bewuste update).
+          Ik weet het, ik wil toch een nieuw artikel over dit onderwerp schrijven.
         </label>
       )}
     </div>
