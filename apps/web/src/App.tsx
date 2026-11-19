@@ -1527,14 +1527,25 @@ function ArticlePage() {
   const handleGenerate = (approved: ArticleOutline | null = null) => {
     if (!canGenerate || isPending) return;
     prepareTaskNotifications();
+    const listKey = getListArticleGenerationsQueryKey(briefingDbId);
+    const previousId = generations[0]?.id ?? null;
+    // The server answers this request only when the whole article is written
+    // (a few minutes). The new attempt is saved within a second, so start
+    // following its progress right away instead of waiting for that answer.
+    setTimeout(() => { void queryClient.invalidateQueries({ queryKey: listKey }); }, 1500);
     generateMutation.mutate({ briefingId: briefingDbId, data: approved ? { outline: approved } : undefined }, {
       onSuccess: () => {
         setOutline(null);
-        addToast(approved ? 'Opzet goedgekeurd. Het artikel wordt geschreven.' : 'Artikel generatie gestart.');
-        queryClient.invalidateQueries({ queryKey: getListArticleGenerationsQueryKey(briefingDbId) });
+        void queryClient.invalidateQueries({ queryKey: listKey });
       },
-      onError: () => {
-        addToast('Fout bij het starten van de generatie.');
+      onError: async (error) => {
+        await queryClient.invalidateQueries({ queryKey: listKey });
+        const latest = queryClient.getQueryData<Array<{ id: number; articleStatus?: string }>>(listKey)?.[0];
+        // A new attempt exists and is still being written (or done): only the
+        // connection dropped, the writing itself goes on.
+        if (latest && latest.id !== previousId && latest.articleStatus !== 'Generatie mislukt') return;
+        const reason = (error as { data?: { error?: string } })?.data?.error;
+        addToast(reason ? `Het schrijven kon niet starten: ${reason}` : 'Het schrijven kon niet starten. Controleer je verbinding en probeer het opnieuw.');
       }
     });
   };

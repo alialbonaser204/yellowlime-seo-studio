@@ -198,7 +198,15 @@ router.post(
           .orderBy(desc(articleGenerationsTable.versionNumber))
           .limit(1);
         if (latest?.articleStatus === "Artikel wordt geschreven") {
-          throw new Error("article_generation_pending");
+          // An attempt that is still "being written" after 15 minutes was
+          // interrupted (e.g. the page was closed). Mark it failed so a new
+          // attempt can start instead of being blocked forever.
+          const stale = Date.now() - new Date(latest.createdAt).getTime() > 15 * 60_000;
+          if (!stale) throw new Error("article_generation_pending");
+          await tx
+            .update(articleGenerationsTable)
+            .set({ articleStatus: "Generatie mislukt", failureMessage: "Deze poging is onderbroken. Er is een nieuwe poging gestart." })
+            .where(eq(articleGenerationsTable.id, latest.id));
         }
         const versionNumber = (latest?.versionNumber ?? 0) + 1;
         const [inserted] = await tx
@@ -231,7 +239,7 @@ router.post(
       });
     } catch (error) {
       if (error instanceof Error && error.message === "article_generation_pending") {
-        res.status(409).json({ error: "Er wordt al een artikel gegenereerd." });
+        res.status(409).json({ error: "Er wordt al een artikel geschreven voor deze briefing. Wacht tot het klaar is." });
         return;
       }
       req.log.error(
