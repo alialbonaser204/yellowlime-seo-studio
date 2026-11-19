@@ -57,6 +57,7 @@ import { UserCircle, LogOut } from 'lucide-react';
 import { AuthGate, useAuth } from './components/auth-gate';
 import { AvatarIcon } from './components/avatar-icon';
 import { SemrushPage } from './pages/semrush-page';
+import { Spotlight } from './components/spotlight';
 import { notifyTaskDone, prepareTaskNotifications } from './lib/task-notify';
 
 const failedInlineAvatarImages = new Set<string>();
@@ -332,11 +333,15 @@ function getPartner(data: StudioData, partnerId: string) { return data.partners.
  * a spaced subtitle. The logo animation (slow spin, shine, glow, typing) plays
  * once on load and again on hover or tap.
  */
+/** Gedempt Yellowlime-groen podium onder het meebewegende licht. */
+const HOME_STAGE_COLOR = 'rgba(168,201,160,0.72)';
+
 function HomeHero() {
   const [playing, setPlaying] = useState(false);
   const replay = () => { setPlaying(false); requestAnimationFrame(() => requestAnimationFrame(() => setPlaying(true))); };
   useEffect(() => { const timer = setTimeout(() => setPlaying(true), 250); return () => clearTimeout(timer); }, []);
   return <section className="home-stage" aria-label="Yellowlime AI Agent">
+    <Spotlight stageColor={HOME_STAGE_COLOR} anchorSelector=".home-mark" />
     <div className={`home-hero ${playing ? 'on' : ''}`} onMouseEnter={replay} onClick={replay}>
       <div className="home-orbit">
         <span className="home-mark" role="img" aria-label="Yellowlime-logo" style={{ ['--mark' as string]: `url(${brandMark})` }} />
