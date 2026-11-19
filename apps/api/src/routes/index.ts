@@ -13,6 +13,7 @@ import googleRouter from "./google";
 import topicIdeasRouter from "./topicIdeas";
 import internalLinksRouter from "./internalLinks";
 import authRouter, { requireLogin } from "./auth";
+import semrushAnalysisRouter from "./semrushAnalysis";
 
 const router: IRouter = Router();
 
@@ -20,6 +21,7 @@ router.use(healthRouter);
 router.use(authRouter);
 // Everything below needs a logged-in Yellowlimer.
 router.use(requireLogin);
+router.use(semrushAnalysisRouter);
 router.use(partnersRouter);
 router.use(briefingsRouter);
 router.use(yellowlimersRouter);

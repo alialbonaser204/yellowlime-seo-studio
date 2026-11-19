@@ -629,3 +629,43 @@ img.partner-symbol { width: 35px; height: 35px; border-radius: 9px; }
 .side-google small { font-size: 10px; letter-spacing: .06em; text-transform: uppercase; color: rgba(246,249,241,.6); }
 .side-google a { color: #f5f966 !important; }
 .side-google a { font-weight: 700; text-decoration: underline; text-underline-offset: 3px; color: inherit; margin-top: 2px; }
+
+/* ---------- Semrush-analyse ---------- */
+.semrush-picker { display: flex; flex-direction: column; gap: 8px; padding: 16px 18px; margin-bottom: 16px; }
+.semrush-picker label { font-size: 13px; font-weight: 700; }
+.semrush-picker select { max-width: 420px; }
+.semrush-meta { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; font-size: 13px; color: hsl(var(--muted-foreground)); }
+.semrush-error { display: flex; align-items: center; gap: 8px; padding: 12px 14px; margin-bottom: 16px; border-radius: 12px; background: #fde8dc; color: #8a2d0b; font-size: 14px; }
+.semrush-view { display: flex; flex-direction: column; gap: 16px; }
+.semrush-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; }
+.semrush-kpi { display: flex; flex-direction: column; gap: 4px; padding: 16px 18px; }
+.semrush-kpi > span { font-size: 12px; color: hsl(var(--muted-foreground)); }
+.semrush-kpi > strong { font-family: 'Bricolage Grotesque', sans-serif; font-size: 30px; letter-spacing: -0.04em; line-height: 1.1; }
+.semrush-kpi > small { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; color: hsl(var(--muted-foreground)); }
+.semrush-section { padding: 18px 20px; min-width: 0; }
+.semrush-section h2 { display: flex; align-items: center; gap: 8px; margin: 0 0 12px; font-size: 16px; letter-spacing: -0.01em; }
+.semrush-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 380px), 1fr)); gap: 16px; }
+.semrush-insights { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.semrush-insights li { display: flex; gap: 10px; align-items: baseline; font-size: 14px; line-height: 1.45; padding: 10px 12px; border-radius: 10px; background: hsl(var(--muted) / .45); }
+.semrush-insights li > span { flex: none; font-size: 11px; font-weight: 800; padding: 2px 7px; border-radius: 6px; }
+.semrush-insights li.is-goed > span { background: #e8f3dc; color: #24572a; }
+.semrush-insights li.is-kans > span { background: #fbf9c4; color: #5c5a0a; }
+.semrush-insights li.is-let-op > span { background: #fde8dc; color: #8a2d0b; }
+.semrush-bars { display: flex; flex-direction: column; gap: 10px; }
+.semrush-bar { display: grid; grid-template-columns: 90px 1fr 56px; align-items: center; gap: 10px; font-size: 13px; }
+.semrush-bar > div { height: 10px; border-radius: 99px; background: hsl(var(--muted)); overflow: hidden; }
+.semrush-bar i { display: block; height: 100%; border-radius: 99px; background: #16362f; }
+.semrush-bar strong { text-align: right; }
+.semrush-note { margin: 8px 0 0; font-size: 12px; color: hsl(var(--muted-foreground)); }
+.semrush-section .semrush-note:first-of-type { margin: -4px 0 10px; }
+.semrush-table-wrap { overflow-x: auto; margin: 0 -4px; }
+.semrush-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.semrush-table th { text-align: left; font-size: 11px; font-weight: 700; color: hsl(var(--muted-foreground)); padding: 6px 8px; border-bottom: 1px solid hsl(var(--border)); white-space: nowrap; }
+.semrush-table td { padding: 8px; border-bottom: 1px solid hsl(var(--border) / .6); vertical-align: top; }
+.semrush-table tr:last-child td { border-bottom: 0; }
+.semrush-table small.up { color: #24572a; font-weight: 700; }
+.semrush-table small.down { color: #a33a12; font-weight: 700; }
+.semrush-tag { margin-left: 6px; font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 5px; background: hsl(var(--muted)); color: hsl(var(--muted-foreground)); white-space: nowrap; }
+.semrush-url { display: inline-flex; align-items: center; gap: 4px; max-width: 280px; color: inherit; text-decoration: underline; text-decoration-color: hsl(var(--border)); text-underline-offset: 3px; }
+.semrush-url span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.semrush-url svg { flex: none; }

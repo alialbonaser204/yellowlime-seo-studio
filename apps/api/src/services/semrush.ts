@@ -143,6 +143,25 @@ function getMcpClient(apiKey: string): SemrushMcpClient {
   return mcpClient.client;
 }
 
+/**
+ * Runs a Semrush report by its MCP name (e.g. "domain_rank") and returns the
+ * data rows without the header. Only available in MCP mode.
+ */
+export async function runMcpReport(
+  report: string,
+  params: Record<string, unknown>,
+  timeoutMs = 25_000,
+): Promise<string[][]> {
+  const rawKey = process.env.SEMRUSH_API_KEY;
+  if (!rawKey?.trim()) throw new SemrushServiceError("invalid_key", "Semrush API-sleutel ontbreekt.");
+  if (semrushMode() !== "mcp") {
+    throw new SemrushServiceError("report_disabled", "De Semrush-analyse werkt alleen via de Semrush-koppeling (MCP).");
+  }
+  const client = getMcpClient(normalizeSemrushApiKey(rawKey));
+  const body = await requestReport("", () => client.report(report, params), timeoutMs);
+  return parseSemrushCsv(body).slice(1).filter((row) => row.some((cell) => cell.trim() !== ""));
+}
+
 export const defaultSemrushTransport: SemrushTransport = (path) => {
   const rawKey = process.env.SEMRUSH_API_KEY;
   if (!rawKey?.trim()) {

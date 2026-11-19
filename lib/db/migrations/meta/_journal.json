@@ -57,6 +57,13 @@
       "when": 1795012336724,
       "tag": "0007_google_per_user",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1795087284364,
+      "tag": "0008_semrush_analyses",
+      "breakpoints": true
     }
   ]
 }

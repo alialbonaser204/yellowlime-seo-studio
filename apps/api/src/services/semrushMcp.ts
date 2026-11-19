@@ -192,6 +192,11 @@ export class SemrushMcpClient {
 
   async request(path: string): Promise<Response> {
     const { report, params } = mcpRequestFromPath(path);
+    return this.report(report, params);
+  }
+
+  /** Run any Semrush report by its MCP name with MCP parameters. */
+  async report(report: string, params: Record<string, unknown>): Promise<Response> {
     for (let attempt = 0; ; attempt += 1) {
       try {
         const client = await this.connect();

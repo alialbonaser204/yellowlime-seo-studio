@@ -10,3 +10,4 @@ export * from "./uploads";
 export * from "./websiteArticles";
 export * from "./googleConnections";
 export * from "./users";
+export * from "./semrushAnalyses";

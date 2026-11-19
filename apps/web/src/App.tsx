@@ -56,6 +56,7 @@ import { ICONS } from './pages/yellowlimers-page';
 import { UserCircle, LogOut } from 'lucide-react';
 import { AuthGate, useAuth } from './components/auth-gate';
 import { AvatarIcon } from './components/avatar-icon';
+import { SemrushPage } from './pages/semrush-page';
 import { notifyTaskDone, prepareTaskNotifications } from './lib/task-notify';
 
 const failedInlineAvatarImages = new Set<string>();
@@ -264,6 +265,7 @@ function RoutedApp() {
     <Route path="/overzicht" component={DashboardPage} />
     <Route path="/partners" component={PartnersPage} />
     <Route path="/partners/:id" component={PartnerDetailPage} />
+    <Route path="/semrush" component={SemrushPage} />
     <Route path="/yellowlimers" component={YellowlimersPage} />
     <Route path="/assignments/new" component={NewAssignmentPage} />
     <Route path="/assignments/:id/brief" component={BriefPage} />
@@ -279,8 +281,8 @@ function Shell({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState(false);
   const { user, logout } = useAuth();
   useEffect(() => { if (!open) return; const onKey = (event: KeyboardEvent) => { if (event.key === 'Escape') setOpen(false); }; window.addEventListener('keydown', onKey); return () => window.removeEventListener('keydown', onKey); }, [open]);
-  const nav = [{ href: '/', label: 'Home', icon: Home }, { href: '/overzicht', label: 'Overzicht', icon: LayoutDashboard }, { href: '/partners', label: 'Partners', icon: Users }, { href: '/yellowlimers', label: 'Beheer Yellowlimers', icon: Users }, { href: '/history', label: 'Geschiedenis', icon: History }];
-  const title = location === '/' ? 'Home' : location === '/overzicht' ? 'Overzicht' : location.startsWith('/partners') ? 'Partners' : location.startsWith('/yellowlimers') ? 'Beheer Yellowlimers' : location.startsWith('/history') ? 'Geschiedenis' : location.includes('/brief') ? 'SEO-briefing' : location.includes('/article') ? 'Gegenereerd artikel' : location.includes('/review') ? 'Menselijke beoordeling' : 'Nieuwe opdracht';
+  const nav = [{ href: '/', label: 'Home', icon: Home }, { href: '/overzicht', label: 'Overzicht', icon: LayoutDashboard }, { href: '/partners', label: 'Partners', icon: Users }, { href: '/semrush', label: 'Semrush', icon: BarChart3 }, { href: '/yellowlimers', label: 'Beheer Yellowlimers', icon: Users }, { href: '/history', label: 'Geschiedenis', icon: History }];
+  const title = location === '/' ? 'Home' : location === '/overzicht' ? 'Overzicht' : location.startsWith('/partners') ? 'Partners' : location.startsWith('/semrush') ? 'Semrush' : location.startsWith('/yellowlimers') ? 'Beheer Yellowlimers' : location.startsWith('/history') ? 'Geschiedenis' : location.includes('/brief') ? 'SEO-briefing' : location.includes('/article') ? 'Gegenereerd artikel' : location.includes('/review') ? 'Menselijke beoordeling' : 'Nieuwe opdracht';
   return <div className={`app-shell ${open ? 'menu-open' : ''}`}>
     <button type="button" className="menu-tab" onClick={() => setOpen(true)} aria-expanded={open} aria-controls="app-menu" data-testid="button-menu-tab"><i aria-hidden="true" /><span>Menu</span></button>
     {open && <div className="menu-backdrop" onClick={() => setOpen(false)} aria-hidden="true" />}
