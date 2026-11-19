@@ -1225,6 +1225,9 @@ function BriefPage() {
   });
 
   const runSeoResearch = useRunSeoResearch();
+  // While Semrush is still researching you cannot continue to the article.
+  const researchBusy = Boolean(briefingDbId) && (!seoResearch || seoResearch.apiStatus === 'pending' || runSeoResearch.isPending);
+  const researchPct = useEstimatedProgress(researchBusy, 12_000);
 
   const apiStatus = seoResearch?.apiStatus;
   const seoMessage = seoResearch?.message;
@@ -1283,9 +1286,19 @@ function BriefPage() {
         {!briefingDbId ? (
           <p className="link-muted" style={{ fontSize: 13 }}>Dit is een verouderde opdracht zonder API-koppeling. SEO onderzoek is niet beschikbaar.</p>
         ) : (!seoResearch || seoResearch.apiStatus === 'pending') ? (
-          <div className="empty-state" data-testid="research-status-pending">
-            <RefreshCw size={28} className="animate-spin" style={{ color: 'hsl(var(--primary))', marginBottom: 10, marginInline: 'auto' }} />
-            <p>Yellowlime AI Agent onderzoekt de zoekmogelijkheden.</p>
+          <div data-testid="research-status-pending">
+            <ProgressPanel
+              title="SEO-onderzoek in Semrush"
+              subtitle="Duurt meestal 5 tot 15 seconden · daarna kun je verder naar het artikel"
+              steps={[
+                { label: 'Hoofdzoekwoord en zoekvolume', at: 0 },
+                { label: 'Verwante zoekwoorden', at: 30 },
+                { label: 'Vragen die mensen stellen', at: 55 },
+                { label: 'Top 5 in Google', at: 75 },
+              ]}
+              pct={researchPct}
+              testId="research-progress"
+            />
           </div>
         ) : seoResearch.apiStatus === 'failed' ? (
           <div className="empty-state" data-testid="research-status-failed" style={{ borderColor: 'hsl(var(--destructive)/.5)' }}>
@@ -1369,7 +1382,9 @@ function BriefPage() {
         ) : null}
       </div>
       
-      <div className="card brief-block" style={{ marginTop: 18, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 15 }}><div><div className="eyebrow">Redactionele context</div><h3 style={{ margin: '8px 0 5px' }}>{assignment.subject}</h3><p className="assignment-meta" style={{ maxWidth: 620 }}>Merkrichtlijnen van <strong>{partnerName}</strong> worden toegepast in de volgende stap. Dit is onderzoeksondersteuning, geen publicatiebeslissing.</p></div><Link className="button button-primary" href={`/assignments/${assignment.id}/article`} data-testid="button-goto-article-generation"><ArrowRight size={15} /> Door naar artikel</Link></div></>}
+      <div className="card brief-block" style={{ marginTop: 18, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 15 }}><div><div className="eyebrow">Redactionele context</div><h3 style={{ margin: '8px 0 5px' }}>{assignment.subject}</h3><p className="assignment-meta" style={{ maxWidth: 620 }}>Merkrichtlijnen van <strong>{partnerName}</strong> worden toegepast in de volgende stap. Dit is onderzoeksondersteuning, geen publicatiebeslissing.</p></div>{researchBusy
+        ? <button type="button" className="button button-primary" disabled title="Wacht tot het SEO-onderzoek klaar is" data-testid="button-goto-article-generation"><RefreshCw size={15} className="animate-spin" /> Wacht op het SEO-onderzoek…</button>
+        : <Link className="button button-primary" href={`/assignments/${assignment.id}/article`} data-testid="button-goto-article-generation"><ArrowRight size={15} /> Door naar artikel</Link>}</div></>}
   </>;
 }
 function ArticlePage() {
@@ -1393,7 +1408,11 @@ function ArticlePage() {
   });
   
   const { data: seoResearch } = useGetSeoResearch(briefingDbId!, {
-    query: { enabled: !!briefingDbId, queryKey: getGetSeoResearchQueryKey(briefingDbId!) }
+    query: {
+      enabled: !!briefingDbId,
+      queryKey: getGetSeoResearchQueryKey(briefingDbId!),
+      refetchInterval: (q) => (q.state.data?.apiStatus === 'pending' ? 2000 : false),
+    }
   });
 
   const { data: generations = [] } = useListArticleGenerations(briefingDbId!, {
@@ -1471,7 +1490,8 @@ function ArticlePage() {
   const hasReviewer = !!assignment.reviewerId;
   const hasContent = !!assignment.subject && !!assignment.contentGoal;
   
-  const canGenerate = isProfileApproved && hasReviewer && hasContent;
+  const researchRunning = seoResearch?.apiStatus === 'pending';
+  const canGenerate = isProfileApproved && hasReviewer && hasContent && !researchRunning;
   const isPending = latestGen?.articleStatus === 'Artikel wordt geschreven' || generateMutation.isPending;
 
   // Notify when an article that was being written is finished (or failed).
@@ -1573,14 +1593,20 @@ function ArticlePage() {
                 </div>
               </div>
 
-              {!isSeoSuccess && (
+              {researchRunning && (
+                <div className="callout" data-testid="seo-running-notice" style={{ marginBottom: 20 }}>
+                  <RefreshCw size={16} className="animate-spin" />
+                  <p>Het SEO-onderzoek loopt nog. Zodra het klaar is, kun je het artikel laten schrijven.</p>
+                </div>
+              )}
+              {!isSeoSuccess && !researchRunning && (
                 <div className="callout" data-testid="seo-optional-notice" style={{ marginBottom: 20 }}>
                   <TriangleAlert size={16} />
                   <p>SEO-onderzoek is niet beschikbaar. Je kunt doorgaan; het onderwerp van de briefing wordt als hoofdzoekwoord gebruikt.</p>
                 </div>
               )}
               
-              {!canGenerate && (
+              {!(isProfileApproved && hasReviewer && hasContent) && (
                 <div style={{ marginBottom: '20px', padding: '15px', background: 'hsl(var(--destructive)/.1)', borderRadius: '8px', border: '1px solid hsl(var(--destructive)/.2)' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'hsl(var(--destructive))', fontWeight: 600, marginBottom: '10px' }}>
                     <TriangleAlert size={16} /> Voorwaarden voor generatie
