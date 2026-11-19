@@ -34,7 +34,6 @@ export function contentGoalFor(idea: TopicIdea): string {
     idea.angle,
     `Hoofdzoekwoord: ${idea.keyword}`,
     idea.supportingKeywords.length ? `Verwerk ook: ${idea.supportingKeywords.join(', ')}` : '',
-    idea.type === 'update' && idea.updateUrl ? `Dit is een update van de bestaande pagina ${idea.updateUrl}` : '',
   ].filter(Boolean).join('\n');
 }
 
@@ -57,7 +56,7 @@ function Badges({ idea }: { idea: TopicIdea }) {
   return (
     <div className="idea-badges">
       {idea.kind && <span className="idea-badge idea-kind">{idea.kind}</span>}
-      <span className={`idea-badge ${idea.type === 'update' ? 'idea-update' : 'idea-new'}`}>{idea.type === 'update' ? 'Bestaande pagina bijwerken' : 'Nieuw artikel'}</span>
+      <span className="idea-badge idea-new">Nieuw artikel</span>
     </div>
   );
 }
@@ -79,9 +78,9 @@ function ScoreParts({ idea }: { idea: TopicIdea }) {
   );
 }
 
-function UpdateLink({ idea }: { idea: TopicIdea }) {
-  if (idea.type !== 'update' || !idea.updateUrl) return null;
-  return <a className="idea-update-link" href={idea.updateUrl} target="_blank" rel="noreferrer">Bijwerken: {pathOf(idea.updateUrl)} <ExternalLink size={10} /></a>;
+// Only new articles are suggested, so there is no "update this page" link any more.
+function UpdateLink(_props: { idea: TopicIdea }) {
+  return null;
 }
 
 function TopIdea({ idea, sources, onChoose, onMore, busy }: { idea: TopicIdea; sources: string; onChoose: () => void; onMore: () => void; busy: boolean }) {
