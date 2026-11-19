@@ -98,6 +98,9 @@ export function responseFromMcpError(payload: McpErrorPayload): Response {
   if (classic) return textResponse(`ERROR ${classic[1]} :: ${classic[2]}`);
 
   switch (payload.code) {
+    case "no_data":
+      // Same as the classic API's "nothing found": not an error, just no rows.
+      return textResponse("ERROR 50 :: NOTHING FOUND");
     case "no_api_units":
       return textResponse("ERROR 132 :: API UNITS BALANCE IS ZERO");
     case "no_subscription":

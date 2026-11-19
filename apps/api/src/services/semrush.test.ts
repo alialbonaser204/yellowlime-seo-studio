@@ -110,3 +110,31 @@ test("chooses the most relevant broad keyword before volume", () => {
   );
   assert.equal(selection.selected.keyword, "duurzame tuin ideeën");
 });
+
+test("research looks up the keyword, not the long working title", async () => {
+  const { researchPhrases, runSemrushResearch } = await import("./semrush");
+  assert.deepEqual(
+    researchPhrases({ originalSubject: "Transportbedrijf voor bouw en infra: waar let je op?", contentGoal: "Uitleg voor aannemers.\nHoofdzoekwoord: transportbedrijf bouw\nVerwerk ook: bouwtransport" }),
+    ["transportbedrijf bouw", "transportbedrijf voor bouw en infra: waar let je op?", "transportbedrijf voor bouw en infra"],
+  );
+  const asked: string[] = [];
+  const transport = async (path: string) => {
+    const phrase = new URL(path, "https://x.invalid").searchParams.get("phrase") ?? "";
+    asked.push(phrase);
+    // Semrush has nothing for the long title, but does know the short part.
+    if (phrase !== "transportbedrijf voor bouw en infra") return new Response("ERROR 50 :: NOTHING FOUND");
+    if (path.includes("phrase_this")) return new Response("Keyword;Search Volume;Keyword Difficulty;Intent;Trend\ntransportbedrijf voor bouw en infra;90;20;1;1,1,1,1,1,1,1,1,1,1,1,1");
+    return new Response("ERROR 50 :: NOTHING FOUND");
+  };
+  const result = await runSemrushResearch({ originalSubject: "Transportbedrijf voor bouw en infra: waar let je op?", contentGoal: "Uitleg." }, transport);
+  assert.equal(result.selectedMainKeyword, "transportbedrijf voor bouw en infra");
+  assert.equal(result.searchVolume, 90);
+  assert.ok(asked.includes("transportbedrijf voor bouw en infra: waar let je op?"));
+});
+
+test("Semrush MCP 'no_data' counts as nothing found, not as an error", async () => {
+  const { responseFromToolResult } = await import("./semrushMcp");
+  const res = responseFromToolResult({ isError: true, content: [{ type: "text", text: JSON.stringify({ code: "no_data", message: "No data found" }) }] });
+  assert.equal(await res.text(), "ERROR 50 :: NOTHING FOUND");
+  assert.equal(res.status, 200);
+});

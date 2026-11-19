@@ -33,6 +33,8 @@ export interface SemrushCompetitor {
 export interface SeoResearchInput {
   originalSubject: string;
   contentGoal: string;
+  /** The keyword to look up, when known (e.g. chosen with "Verras me"). */
+  keyword?: string | null;
 }
 
 export interface SeoResearchResult {
@@ -469,21 +471,44 @@ export function selectMainKeyword(
   };
 }
 
+/** Phrases to look up in Semrush, best first, without duplicates. */
+export function researchPhrases(input: SeoResearchInput): string[] {
+  const fromGoal = input.contentGoal.match(/^\s*Hoofdzoekwoord:\s*(.+)$/im)?.[1];
+  const subject = input.originalSubject.trim();
+  const beforeBreak = subject.split(/[:?!–—|]/)[0].trim();
+  const clean = (value: string | null | undefined) => (value ?? "").replace(/\s+/g, " ").trim().toLocaleLowerCase("nl-NL");
+  const out: string[] = [];
+  for (const phrase of [input.keyword, fromGoal, subject, beforeBreak].map(clean)) {
+    if (phrase.length >= 2 && phrase.length <= 120 && !out.includes(phrase)) out.push(phrase);
+  }
+  return out.slice(0, 3);
+}
+
 export async function runSemrushResearch(
   input: SeoResearchInput,
   transport: SemrushTransport = defaultSemrushTransport,
   timeoutMs = REQUEST_TIMEOUT_MS,
 ): Promise<SeoResearchResult> {
-  const [overviewRaw, broadRaw, questionsRaw, organicRaw] = await Promise.all([
-    requestReport(reportPath("phrase_this", input.originalSubject, "Ph,Nq,Kd,In,Td"), transport, timeoutMs),
-    requestReport(reportPath("phrase_fullsearch", input.originalSubject, "Ph,Nq,Kd,In,Td", { limit: "10", sort: "nq_desc" }), transport, timeoutMs),
-    requestReport(reportPath("phrase_questions", input.originalSubject, "Ph,Nq,Kd,In", { limit: "5", sort: "nq_desc" }), transport, timeoutMs),
-    requestReport(reportPath("phrase_organic", input.originalSubject, "Po,Dn,Ur", { limit: "5" }), transport, timeoutMs),
-  ]);
-  const overview = overviewRaw ? parseKeywordReport(overviewRaw) : [];
-  const broad = broadRaw ? parseKeywordReport(broadRaw) : [];
-  const questions = questionsRaw ? parseQuestionReport(questionsRaw) : [];
-  const organic = organicRaw ? parseOrganicReport(organicRaw) : [];
+  // People search with keywords, not with a working title. Try the known
+  // keyword first, then the title, then the part before ":" or "?".
+  const phrases = researchPhrases(input);
+  let overview: SemrushKeyword[] = [];
+  let broad: SemrushKeyword[] = [];
+  let questions: SemrushQuestion[] = [];
+  let organic: SemrushCompetitor[] = [];
+  for (const phrase of phrases) {
+    const [overviewRaw, broadRaw, questionsRaw, organicRaw] = await Promise.all([
+      requestReport(reportPath("phrase_this", phrase, "Ph,Nq,Kd,In,Td"), transport, timeoutMs),
+      requestReport(reportPath("phrase_fullsearch", phrase, "Ph,Nq,Kd,In,Td", { limit: "10", sort: "nq_desc" }), transport, timeoutMs),
+      requestReport(reportPath("phrase_questions", phrase, "Ph,Nq,Kd,In", { limit: "5", sort: "nq_desc" }), transport, timeoutMs),
+      requestReport(reportPath("phrase_organic", phrase, "Po,Dn,Ur", { limit: "5" }), transport, timeoutMs),
+    ]);
+    overview = overviewRaw ? parseKeywordReport(overviewRaw) : [];
+    broad = broadRaw ? parseKeywordReport(broadRaw) : [];
+    questions = questionsRaw ? parseQuestionReport(questionsRaw) : [];
+    organic = organicRaw ? parseOrganicReport(organicRaw) : [];
+    if (overview.length || broad.length || organic.length) break;
+  }
   const { selected, message } = selectMainKeyword(input.originalSubject, input.contentGoal, overview, broad);
 
   return {
