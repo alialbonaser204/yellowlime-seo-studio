@@ -243,7 +243,13 @@ router.post(
         return;
       }
       req.log.error(
-        { code: "article_generation_storage_failed", errorType: error instanceof Error ? error.name : typeof error },
+        {
+          code: "article_generation_storage_failed",
+          errorType: error instanceof Error ? error.name : typeof error,
+          // Postgres error code and message (no data from the request).
+          dbCode: (error as { cause?: { code?: string }; code?: string })?.cause?.code ?? (error as { code?: string })?.code,
+          dbMessage: ((error as { cause?: { message?: string } })?.cause?.message ?? (error instanceof Error ? error.message : "")).slice(0, 300),
+        },
         "Artikelgeneratie kon niet worden gestart",
       );
       res.status(500).json({ error: "De artikelgeneratie kon niet worden gestart." });

@@ -1,0 +1,2 @@
+ALTER TABLE "article_generations" DROP CONSTRAINT "article_generations_prompt_version_check";--> statement-breakpoint
+ALTER TABLE "article_generations" ADD CONSTRAINT "article_generations_prompt_version_check" CHECK ("article_generations"."prompt_version" ~ '^article_generation_v[0-9]+$');

@@ -105,7 +105,7 @@ export const articleGenerationsTable = pgTable(
     ),
     check(
       "article_generations_prompt_version_check",
-      sql`${table.promptVersion} = 'article_generation_v1'`,
+      sql`${table.promptVersion} ~ '^article_generation_v[0-9]+$'`,
     ),
   ],
 );

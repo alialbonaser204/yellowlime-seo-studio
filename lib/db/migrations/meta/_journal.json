@@ -64,6 +64,13 @@
       "when": 1795087284364,
       "tag": "0008_semrush_analyses",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1795161211760,
+      "tag": "0009_prompt_version_check",
+      "breakpoints": true
     }
   ]
 }
