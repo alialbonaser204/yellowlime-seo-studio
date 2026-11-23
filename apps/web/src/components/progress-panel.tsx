@@ -30,13 +30,15 @@ export interface ProgressStep {
   at: number;
 }
 
-export function ProgressPanel({ title, subtitle, steps, pct, done = false, testId }: {
+export function ProgressPanel({ title, subtitle, steps, pct, done = false, testId, onCancel }: {
   title: string;
   subtitle?: string;
   steps: ProgressStep[];
   pct: number;
   done?: boolean;
   testId?: string;
+  /** Shows an "Afbreken" button that stops waiting for this task. */
+  onCancel?: () => void;
 }) {
   const shown = done ? 100 : Math.min(99, Math.max(0, Math.round(pct)));
   const current = steps.reduce((idx, step, i) => (shown >= step.at ? i : idx), 0);
@@ -54,6 +56,9 @@ export function ProgressPanel({ title, subtitle, steps, pct, done = false, testI
           return <li key={step.label} className={`is-${state}`}><span className="progress-panel-dot" aria-hidden="true">{state === 'done' ? '✓' : state === 'now' ? '•' : ''}</span>{step.label}</li>;
         })}
       </ol>
+      {onCancel && !done && (
+        <button type="button" className="button button-ghost button-small progress-panel-cancel" onClick={onCancel} data-testid="progress-cancel">Afbreken</button>
+      )}
     </div>
   );
 }

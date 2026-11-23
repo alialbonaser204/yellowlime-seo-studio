@@ -681,3 +681,4 @@ img.partner-symbol { width: 35px; height: 35px; border-radius: 9px; }
 .gsc-down { display: inline-flex; align-items: center; gap: 4px; color: #a33a12; font-weight: 600; }
 .gsc-banner { padding: 12px 14px; margin-bottom: 16px; border-radius: 12px; background: #fde8dc; color: #8a2d0b; font-size: 14px; }
 .gsc-banner.is-ok { background: #e8f3dc; color: #24572a; }
+.progress-panel-cancel { margin-top: 14px; }

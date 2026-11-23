@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { notifyTaskDone, prepareTaskNotifications } from '../lib/task-notify';
 import { ArrowLeft, Check, ChevronDown, ExternalLink, Lightbulb, PenLine, RefreshCw, Sparkles, TriangleAlert } from 'lucide-react';
 import {
@@ -150,20 +150,33 @@ export function TopicWizard({ partnerId, onChoose, onDecide }: { partnerId: stri
     setMode('start'); setTheme(''); setResult(null); setShown([]); setChosen(null); setError(null);
   }, [partnerId]);
 
+  // Each search gets a number; after "Afbreken" the answer of an old search is ignored.
+  const searchId = useRef(0);
+  const cancelSearch = () => {
+    searchId.current += 1;
+    ideas.reset();
+    setError(null);
+    // Back to the earlier suggestions, or to the two doors if there were none.
+    if (!result) setMode('start');
+  };
+
   const fetchIdeas = (opts: { like?: string; direction?: 'specifieker' | 'breder'; fresh?: boolean } = {}) => {
     setMode('surprise');
     setError(null);
+    const myId = ++searchId.current;
     const exclude = opts.fresh ? [] : shown;
     prepareTaskNotifications();
     ideas.mutate(
       { partnerId: id, data: { goal: 'mix', theme: theme.trim() || null, exclude, like: opts.like ?? null, direction: opts.direction ?? null } },
       {
         onSuccess: (data) => {
+          if (myId !== searchId.current) return;
           notifyTaskDone({ title: 'Onderwerpen zijn klaar', body: `${data.ideas.length} voorstellen staan klaar om uit te kiezen.` });
           setResult(data);
           setShown((prev) => [...new Set([...(opts.fresh ? [] : prev), ...data.ideas.map((i) => i.keyword)])]);
         },
         onError: (e) => {
+          if (myId !== searchId.current) return;
           setError(errorMessage(e));
           notifyTaskDone({ title: 'Onderwerpen zoeken is mislukt', body: errorMessage(e), ok: false });
         },
@@ -240,7 +253,7 @@ export function TopicWizard({ partnerId, onChoose, onDecide }: { partnerId: stri
           <button type="button" className="button button-ink button-small" onClick={() => fetchIdeas()} disabled={ideas.isPending} data-testid="other-ideas"><RefreshCw size={13} /> Andere 5</button>
         </div>
       </div>
-      {ideas.isPending && <ProgressPanel title="Voorstellen worden gezocht" subtitle="Duurt ongeveer een minuut" steps={IDEA_STEPS} pct={pct} testId="ideas-loading" />}
+      {ideas.isPending && <ProgressPanel title="Voorstellen worden gezocht" subtitle="Duurt ongeveer een minuut" steps={IDEA_STEPS} pct={pct} testId="ideas-loading" onCancel={cancelSearch} />}
       {error && !ideas.isPending && <div className="callout"><TriangleAlert size={16} /><span>{error}</span></div>}
       {result && !ideas.isPending && (
         <>
