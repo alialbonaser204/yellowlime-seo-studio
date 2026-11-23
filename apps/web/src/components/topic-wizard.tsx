@@ -253,7 +253,7 @@ export function TopicWizard({ partnerId, onChoose, onDecide }: { partnerId: stri
           <button type="button" className="button button-ink button-small" onClick={() => fetchIdeas()} disabled={ideas.isPending} data-testid="other-ideas"><RefreshCw size={13} /> Andere 5</button>
         </div>
       </div>
-      {ideas.isPending && <ProgressPanel title="Voorstellen worden gezocht" subtitle="Duurt ongeveer een minuut" steps={IDEA_STEPS} pct={pct} testId="ideas-loading" onCancel={cancelSearch} />}
+      {ideas.isPending && <ProgressPanel title="Voorstellen worden gezocht" subtitle="Dit kan even duren" steps={IDEA_STEPS} pct={pct} testId="ideas-loading" onCancel={cancelSearch} />}
       {error && !ideas.isPending && <div className="callout"><TriangleAlert size={16} /><span>{error}</span></div>}
       {result && !ideas.isPending && (
         <>
