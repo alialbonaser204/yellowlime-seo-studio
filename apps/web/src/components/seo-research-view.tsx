@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { ExternalLink, HelpCircle, Search, TrendingUp } from 'lucide-react';
 
 interface Keyword { keyword: string; searchVolume: number | null; keywordDifficulty?: number | null }
@@ -26,6 +27,14 @@ const INTENT_HELP: Record<string, string> = {
   Navigatie: 'mensen zoeken een bepaalde website of bedrijf',
   Transactie: 'mensen willen iets kopen of regelen',
 };
+
+/** What the difficulty means, in plain words, for the tile. */
+export function difficultyHelp(kd: number): string {
+  if (kd < 30) return 'Weinig sterke concurrenten: met een goed artikel is pagina 1 goed haalbaar.';
+  if (kd < 50) return 'Redelijke concurrentie: een sterk, volledig artikel maakt kans op pagina 1.';
+  if (kd < 70) return 'Sterke concurrenten: het artikel moet beter zijn dan wat er nu bovenaan staat.';
+  return 'Grote, sterke websites staan bovenaan: pagina 1 halen is lastig.';
+}
 
 /** Semrush's own scale for keyword difficulty. */
 export function difficultyLabel(kd: number): string {
@@ -67,89 +76,87 @@ function Sparkline({ values }: { values: number[] }) {
   );
 }
 
-export function SeoResearchView({ research }: { research: ResearchData }) {
+export function SeoResearchView({ research, eyebrow, title, action }: { research: ResearchData; eyebrow?: string; title?: string; action?: ReactNode }) {
   const intents = intentLabels(research.searchIntent);
   const trend = parseTrend(research.trend, research.createdAt);
   const keywords = [...(research.secondaryKeywords ?? [])]
     .filter((k) => k.keyword && k.keyword !== research.selectedMainKeyword)
     .sort((a, b) => (b.searchVolume ?? 0) - (a.searchVolume ?? 0))
-    .slice(0, 8);
-  const questions = (research.relevantQuestions ?? []).filter((q) => q.question).slice(0, 6);
+    .slice(0, 6);
+  const questions = (research.relevantQuestions ?? []).filter((q) => q.question).slice(0, 5);
   const competitors = (research.organicCompetitors ?? []).filter((c) => c.domain).slice(0, 5);
-  const subjectDiffers = research.originalSubject && research.selectedMainKeyword
-    && research.originalSubject.trim().toLowerCase() !== research.selectedMainKeyword.trim().toLowerCase();
+  const kd = research.keywordDifficulty;
 
   return (
     <div className="seo-view" data-testid="research-status-success">
-      <section className="seo-hero">
-        <div className="eyebrow">Hoofdzoekwoord</div>
-        <h2 data-testid="research-main-keyword">{research.selectedMainKeyword ?? 'Geen zoekwoord gevonden'}</h2>
-        {subjectDiffers && <p className="seo-hero-note">Het artikel gaat over “{research.originalSubject}”. Dit is waar mensen in Google op zoeken.</p>}
-        <div className="seo-metrics">
-          <div>
-            <strong>{research.searchVolume != null ? nf(research.searchVolume) : '—'}</strong>
-            <span>zoekopdrachten per maand</span>
-          </div>
-          <div>
-            <strong>{research.keywordDifficulty != null ? difficultyLabel(research.keywordDifficulty) : '—'}</strong>
-            <span>{research.keywordDifficulty != null ? `moeilijkheid ${research.keywordDifficulty}/100` : 'moeilijkheid'}</span>
-          </div>
-          <div>
-            <strong>{intents.length ? intents.join(' · ') : '—'}</strong>
-            <span>{intents.length === 1 && INTENT_HELP[intents[0]] ? INTENT_HELP[intents[0]] : 'zoekintentie'}</span>
-          </div>
-          {trend.values.length > 0 && (
-            <div className="seo-trend">
-              <Sparkline values={trend.values} />
-              <span>afgelopen 12 maanden{trend.peakMonth ? ` · drukst in ${trend.peakMonth}` : ''}</span>
-            </div>
-          )}
+      <section className="seo-head">
+        <div>
+          {eyebrow && <div className="eyebrow">{eyebrow}</div>}
+          {title && <h1>{title}</h1>}
+          <p>Hoofdzoekwoord: <strong data-testid="research-main-keyword">{research.selectedMainKeyword ?? 'geen zoekwoord gevonden'}</strong></p>
         </div>
+        {action}
       </section>
 
-      {(keywords.length > 0 || questions.length > 0) && (
-        <div className="seo-grid">
-          {keywords.length > 0 && (
-            <section className="seo-card">
-              <h3><TrendingUp size={15} /> Verwante zoekwoorden</h3>
-              <p className="seo-sub">De AI verwerkt deze waar ze passen.</p>
-              <ul className="seo-keywords" data-testid="research-list-secondary">
-                {keywords.map((k) => (
-                  <li key={k.keyword}><span>{k.keyword}</span><small>{k.searchVolume != null ? `${nf(k.searchVolume)}/mnd` : '—'}</small></li>
-                ))}
-              </ul>
-            </section>
-          )}
-          {questions.length > 0 && (
-            <section className="seo-card">
-              <h3><HelpCircle size={15} /> Vragen die mensen stellen</h3>
-              <p className="seo-sub">Goede kandidaten voor de veelgestelde vragen.</p>
-              <ul className="seo-questions" data-testid="research-list-questions">
-                {questions.map((q) => <li key={q.question}>{q.question}</li>)}
-              </ul>
-            </section>
-          )}
+      <div className="seo-tiles">
+        <div className="seo-tile">
+          <div className="eyebrow">Zoekvolume</div>
+          <strong>{research.searchVolume != null ? nf(research.searchVolume) : '—'}</strong>
+          <span>zoekopdrachten per maand in Google</span>
         </div>
-      )}
+        <div className="seo-tile">
+          <div className="eyebrow">Moeilijkheid</div>
+          <strong>{kd != null ? difficultyLabel(kd) : '—'}</strong>
+          <span>{kd != null ? <>{kd}/100 · {difficultyHelp(kd)}</> : 'Hoe lastig het is om op pagina 1 van Google te komen.'}</span>
+        </div>
+        <div className="seo-tile">
+          <div className="eyebrow">Intentie</div>
+          <strong>{intents.length ? intents.join(' · ') : '—'}</strong>
+          <span>{intents.length === 1 && INTENT_HELP[intents[0]] ? INTENT_HELP[intents[0]] : 'wat de zoeker wil'}</span>
+        </div>
+        <div className="seo-tile">
+          <div className="eyebrow">Drukste maand</div>
+          <strong>{trend.peakMonth ?? '—'}</strong>
+          {trend.values.length > 0 ? <Sparkline values={trend.values} /> : <span>afgelopen 12 maanden</span>}
+        </div>
+      </div>
 
-      {competitors.length > 0 && (
+      <div className="seo-cols">
+        <section className="seo-card">
+          <h3><TrendingUp size={15} /> Verwante zoekwoorden</h3>
+          {keywords.length ? (
+            <ul className="seo-keywords" data-testid="research-list-secondary">
+              {keywords.map((k) => (
+                <li key={k.keyword}><span>{k.keyword}</span><small>{k.searchVolume != null ? `${nf(k.searchVolume)}/mnd` : '—'}</small></li>
+              ))}
+            </ul>
+          ) : <p className="seo-sub">Geen gevonden.</p>}
+        </section>
+        <section className="seo-card">
+          <h3><HelpCircle size={15} /> Vragen voor de FAQ</h3>
+          {questions.length ? (
+            <ul className="seo-questions" data-testid="research-list-questions">
+              {questions.map((q) => <li key={q.question}>{q.question}</li>)}
+            </ul>
+          ) : <p className="seo-sub">Geen gevonden.</p>}
+        </section>
         <section className="seo-card">
           <h3><Search size={15} /> Top 5 in Google</h3>
-          <p className="seo-sub">Hier moet het artikel tegenop. De AI bekijkt deze pagina’s voor de opzet en de lengte.</p>
-          <ol className="seo-serp" data-testid="research-list-competitors">
-            {competitors.map((c, i) => (
-              <li key={`${c.domain}-${i}`}>
-                <span className="seo-pos">{c.position ?? i + 1}</span>
-                <a href={c.url} target="_blank" rel="noreferrer noopener" title={c.url}>
-                  <strong>{c.domain.replace(/^www\./, '')}</strong>
-                  <small>{c.url.replace(/^https?:\/\/(www\.)?[^/]+/, '') || '/'}</small>
-                </a>
-                <ExternalLink size={12} />
-              </li>
-            ))}
-          </ol>
+          {competitors.length ? (
+            <ol className="seo-serp" data-testid="research-list-competitors">
+              {competitors.map((c, i) => (
+                <li key={`${c.domain}-${i}`}>
+                  <span className="seo-pos">{c.position ?? i + 1}</span>
+                  <a href={c.url} target="_blank" rel="noreferrer noopener" title={c.url}>
+                    <strong>{c.domain.replace(/^www\./, '')}</strong>
+                  </a>
+                  <ExternalLink size={12} />
+                </li>
+              ))}
+            </ol>
+          ) : <p className="seo-sub">Geen gevonden.</p>}
         </section>
-      )}
+      </div>
     </div>
   );
 }

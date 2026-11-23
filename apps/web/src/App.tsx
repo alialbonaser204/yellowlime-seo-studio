@@ -1278,7 +1278,12 @@ function BriefPage() {
   
 
 
-  return <><WorkflowHeader assignment={assignment} step={1} /><PageHeader eyebrow={`SEO-briefing / ${partnerName}`} title={assignment.subject} description="Wat Semrush laat zien over dit onderwerp. De AI gebruikt dit bij het schrijven van het artikel." />
+const writeButton = researchBusy
+    ? <button type="button" className="button button-primary seo-cta" disabled title="Wacht tot het SEO-onderzoek klaar is" data-testid="button-goto-article-generation"><RefreshCw size={15} className="animate-spin" /> Wacht op het SEO-onderzoek…</button>
+    : <Link className="button button-primary seo-cta" href={`/assignments/${assignment.id}/article?schrijf=1`} data-testid="button-goto-article-generation"><Sparkles size={15} /> Artikel schrijven</Link>;
+  const showHead = !briefing || !(seoResearch?.apiStatus === 'success');
+
+  return <><WorkflowHeader assignment={assignment} step={1} />{showHead && <PageHeader eyebrow={`Briefing · ${partnerName}`} title={assignment.subject} description="Het SEO-onderzoek wordt klaargezet." />}
     {!briefing ? <div className="card empty-state"><BarChart3 size={30} /><h3>Briefing nog niet aangemaakt</h3><p>Maak eerst de briefing aan voor deze opdracht.</p><button className="button button-primary" onClick={generateBrief} data-testid="button-generate-brief"><Sparkles size={15} />Briefing aanmaken</button></div> : <>
       
       <div className="brief-block" style={{ marginTop: 6 }}>
@@ -1309,7 +1314,7 @@ function BriefPage() {
           </div>
         ) : seoResearch.apiStatus === 'success' ? (
           <div>
-            <SeoResearchView research={{ ...seoResearch, createdAt: seoResearch.researchedAt }} />
+            <SeoResearchView research={{ ...seoResearch, createdAt: seoResearch.researchedAt }} eyebrow={`Briefing · ${partnerName}`} title={assignment.subject} action={writeButton} />
             <div className="seo-footer">
               <button className="button button-ghost button-small" onClick={handleRerunSeoResearch} data-testid="button-rerun-research" disabled={runSeoResearch.isPending}>
                 <RefreshCw size={14} className={runSeoResearch.isPending ? 'animate-spin' : ''} /> Onderzoek opnieuw doen
@@ -1319,9 +1324,7 @@ function BriefPage() {
         ) : null}
       </div>
       
-      <div className="seo-continue">{researchBusy
-        ? <button type="button" className="button button-primary" disabled title="Wacht tot het SEO-onderzoek klaar is" data-testid="button-goto-article-generation"><RefreshCw size={15} className="animate-spin" /> Wacht op het SEO-onderzoek…</button>
-        : <Link className="button button-primary" href={`/assignments/${assignment.id}/article`} data-testid="button-goto-article-generation"><ArrowRight size={15} /> Door naar artikel</Link>}</div></>}
+      {!(seoResearch?.apiStatus === 'success') && <div className="seo-continue">{writeButton}</div>}</>}
   </>;
 }
 function ArticlePage() {
@@ -1486,6 +1489,17 @@ function ArticlePage() {
       }
     });
   };
+
+  // "Artikel schrijven" on the briefing page opens this page with ?schrijf=1:
+  // start writing straight away (once), so nobody has to click twice.
+  const autoStarted = useRef(false);
+  useEffect(() => {
+    if (autoStarted.current || !new URLSearchParams(window.location.search).has('schrijf')) return;
+    if (!canGenerate || isPending || !profile) return;
+    autoStarted.current = true;
+    window.history.replaceState(null, '', window.location.pathname);
+    handleGenerate(null);
+  });
 
   const inline = (text: string) => withLinks(text.replace(/\*\*([^*]+)\*\*/g, '$1'));
   const safeRender = (text: string) => {

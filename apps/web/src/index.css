@@ -712,3 +712,18 @@ img.partner-symbol { width: 35px; height: 35px; border-radius: 9px; }
 .seo-serp a small { font-size: 12px; color: hsl(var(--muted-foreground)); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .seo-footer { display: flex; justify-content: flex-start; margin-top: 4px; }
 .seo-continue { display: flex; justify-content: flex-end; margin-top: 22px; }
+
+/* Briefing, layout 1: head with button, four tiles, three columns */
+.seo-head{display:flex;justify-content:space-between;align-items:center;gap:24px;background:hsl(var(--card));border:1px solid hsl(var(--border));border-radius:14px;padding:22px 24px;flex-wrap:wrap}
+.seo-head h1{margin:4px 0 6px;font-size:26px;line-height:1.2}
+.seo-head p{margin:0;font-size:14px;color:hsl(var(--muted-foreground))}
+.seo-head p strong{color:hsl(var(--foreground))}
+.seo-cta{font-size:15px;padding:12px 20px}
+.seo-tiles{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin-top:16px}
+.seo-tile{background:hsl(var(--card));border:1px solid hsl(var(--border));border-radius:14px;padding:18px;display:flex;flex-direction:column;gap:6px}
+.seo-tile strong{font-size:24px;line-height:1.2}
+.seo-tile span{font-size:13px;color:hsl(var(--muted-foreground));line-height:1.45}
+.seo-cols{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-top:16px}
+.seo-cols .seo-card{margin:0}
+@media (max-width:900px){.seo-tiles{grid-template-columns:repeat(2,minmax(0,1fr))}.seo-cols{grid-template-columns:1fr}}
+@media (max-width:520px){.seo-tiles{grid-template-columns:1fr}}
