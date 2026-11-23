@@ -10,7 +10,7 @@ import { serpContext, type SerpAnalysis } from "./serpAnalysis";
  */
 
 export const OUTLINE_PROMPT_VERSION = "article_outline_v1" as const;
-export const OUTLINE_TIMEOUT_MS = 120_000;
+export const OUTLINE_TIMEOUT_MS = 0; // 0 = geen tijdslimiet
 
 export const SECTION_TYPES = ["uitleg", "stappenplan", "vergelijking", "lijst", "voorbeeld"] as const;
 export type SectionType = (typeof SECTION_TYPES)[number];

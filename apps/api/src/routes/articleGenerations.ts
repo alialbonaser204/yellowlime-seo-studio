@@ -198,10 +198,10 @@ router.post(
           .orderBy(desc(articleGenerationsTable.versionNumber))
           .limit(1);
         if (latest?.articleStatus === "Artikel wordt geschreven") {
-          // An attempt that is still "being written" after 15 minutes was
+          // An attempt that is still "being written" after 60 minutes was
           // interrupted (e.g. the page was closed). Mark it failed so a new
           // attempt can start instead of being blocked forever.
-          const stale = Date.now() - new Date(latest.createdAt).getTime() > 15 * 60_000;
+          const stale = Date.now() - new Date(latest.createdAt).getTime() > 60 * 60_000;
           if (!stale) throw new Error("article_generation_pending");
           await tx
             .update(articleGenerationsTable)
