@@ -205,6 +205,14 @@ export function makeArticleGenerationPrompt(input: ArticleGenerationInput): stri
   ].join("\n\n");
 }
 
+/** The JSON object in Claude's answer, without ```json fences or text around it. */
+export function extractJson(raw: string): string {
+  const text = raw.replace(/^\s*```(?:json)?\s*/i, "").replace(/\s*```\s*$/, "");
+  const start = text.indexOf("{");
+  const end = text.lastIndexOf("}");
+  return start >= 0 && end > start ? text.slice(start, end + 1) : text;
+}
+
 function parseArticleResponse(
   decoded: unknown,
   primaryKeyword: string,
@@ -215,11 +223,22 @@ function parseArticleResponse(
     throw new Error("invalid_article_shape");
   }
   const input = decoded as Record<string, unknown>;
-  if (
-    Object.keys(input).length !== outputKeys.length ||
-    outputKeys.some((key) => !Object.prototype.hasOwnProperty.call(input, key))
-  ) {
-    throw new Error("invalid_article_shape");
+  // Be forgiving about small slips (extra fields, a missing full text or
+  // keyword lists): only a missing title, text or meta fails the attempt.
+  if (!stringArray(input.secondary_keywords_used)) input.secondary_keywords_used = [];
+  if (!stringArray(input.questions_answered)) input.questions_answered = [];
+  if (!nonEmptyString(input.primary_keyword) || input.primary_keyword.trim().toLowerCase() === primaryKeyword.toLowerCase()) {
+    input.primary_keyword = primaryKeyword;
+  }
+  if (!nonEmptyString(input.full_article) && Array.isArray(input.sections)) {
+    input.full_article = [
+      input.introduction,
+      ...input.sections.map((sec) => {
+        const x = (sec ?? {}) as Record<string, unknown>;
+        return `${x.heading_level === "H3" ? "###" : "##"} ${String(x.heading ?? "")}\n\n${String(x.content ?? "")}`;
+      }),
+      input.conclusion,
+    ].filter((v) => typeof v === "string" && v.trim()).join("\n\n");
   }
   if (
     !nonEmptyString(input.title) ||
@@ -238,12 +257,9 @@ function parseArticleResponse(
   if (input.primary_keyword !== primaryKeyword) {
     throw new Error("wrong_primary_keyword");
   }
-  if (
-    input.secondary_keywords_used.some((value) => !allowedKeywords.has(value)) ||
-    input.questions_answered.some((value) => !allowedQuestions.has(value))
-  ) {
-    throw new Error("invented_article_reference");
-  }
+  // Keep only keywords and questions that were really supplied.
+  const keywordsUsed = input.secondary_keywords_used.filter((value) => allowedKeywords.has(value));
+  const questionsUsed = input.questions_answered.filter((value) => allowedQuestions.has(value));
   const sections: ArticleSectionContent[] = [];
   for (const section of input.sections) {
     if (!section || typeof section !== "object" || Array.isArray(section)) {
@@ -251,16 +267,14 @@ function parseArticleResponse(
     }
     const item = section as Record<string, unknown>;
     if (
-      Object.keys(item).length !== 3 ||
       !nonEmptyString(item.heading) ||
-      (item.heading_level !== "H2" && item.heading_level !== "H3") ||
       !nonEmptyString(item.content)
     ) {
       throw new Error("invalid_article_shape");
     }
     sections.push({
       heading: item.heading,
-      headingLevel: item.heading_level,
+      headingLevel: item.heading_level === "H3" ? "H3" : "H2",
       content: item.content,
     });
   }
@@ -274,8 +288,8 @@ function parseArticleResponse(
     metaTitle: input.meta_title,
     metaDescription: input.meta_description,
     primaryKeyword: input.primary_keyword,
-    secondaryKeywordsUsed: input.secondary_keywords_used,
-    questionsAnswered: input.questions_answered,
+    secondaryKeywordsUsed: keywordsUsed,
+    questionsAnswered: questionsUsed,
   };
 }
 
@@ -329,7 +343,7 @@ export async function generateArticle(
     try {
       let decoded: unknown;
       try {
-        decoded = JSON.parse(raw);
+        decoded = JSON.parse(extractJson(raw));
       } catch {
         throw new Error("invalid_article_json");
       }

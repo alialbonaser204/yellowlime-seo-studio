@@ -2,7 +2,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { logger } from "../lib/logger";
 
 export const CLAUDE_MODEL = "claude-sonnet-5" as const;
-export const CLAUDE_MAX_TOKENS = 16000;
+export const CLAUDE_MAX_TOKENS = 32000;
 /** A call is aborted when Claude sends nothing at all for this long. */
 export const CLAUDE_IDLE_TIMEOUT_MS = 60_000;
 /**

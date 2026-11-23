@@ -73,22 +73,21 @@ test("fails after exactly two invalid Claude responses", async () => {
   assert.equal(calls, 2);
 });
 
-test("rejects an empty article", async () => {
-  await assert.rejects(
-    () => generateArticle(input, async () => JSON.stringify({ ...valid, full_article: "" })),
-    /empty_article/,
-  );
+test("builds the full text from the sections when it is missing", async () => {
+  const article = await generateArticle(input, async () => JSON.stringify({ ...valid, full_article: "" }));
+  assert.ok(article.fullArticle.length > 0);
 });
 
-test("rejects invented secondary keywords and questions", async () => {
-  await assert.rejects(
-    () => generateArticle(input, async () => JSON.stringify({ ...valid, secondary_keywords_used: ["verzonnen"] })),
-    /invented_article_reference/,
-  );
-  await assert.rejects(
-    () => generateArticle(input, async () => JSON.stringify({ ...valid, questions_answered: ["Verzonnen vraag?"] })),
-    /invented_article_reference/,
-  );
+test("drops invented secondary keywords and questions instead of failing", async () => {
+  const a = await generateArticle(input, async () => JSON.stringify({ ...valid, secondary_keywords_used: ["verzonnen"] }));
+  assert.deepEqual(a.secondaryKeywordsUsed, []);
+  const b = await generateArticle(input, async () => JSON.stringify({ ...valid, questions_answered: ["Verzonnen vraag?"] }));
+  assert.deepEqual(b.questionsAnswered, []);
+});
+
+test("accepts JSON inside markdown fences and with extra fields", async () => {
+  const article = await generateArticle(input, async () => "Hier is het artikel:\n```json\n" + JSON.stringify({ ...valid, extra: 1 }) + "\n```");
+  assert.ok(article.title);
 });
 
 test("rejects a wrong primary keyword", async () => {
