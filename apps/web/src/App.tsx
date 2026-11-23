@@ -56,6 +56,7 @@ import { ICONS } from './pages/yellowlimers-page';
 import { UserCircle, LogOut } from 'lucide-react';
 import { AuthGate, useAuth } from './components/auth-gate';
 import { AvatarIcon } from './components/avatar-icon';
+import { SeoResearchView } from './components/seo-research-view';
 import { SemrushPage } from './pages/semrush-page';
 import { SearchConsolePage } from './pages/search-console-page';
 import { Spotlight } from './components/spotlight';
@@ -1277,12 +1278,10 @@ function BriefPage() {
   
 
 
-  return <><WorkflowHeader assignment={assignment} step={1} /><PageHeader eyebrow={`SEO inlichtingen / ${partnerName}`} title="Zoekbriefing" description="Een mock Semrush uitlezing om de schrijvende agent een gefocust, transparant startpunt te geven." action={<span className="status-pill status-brief"><BarChart3 size={12} />Mock Semrush data</span>} />
-    {!briefing ? <div className="card empty-state"><BarChart3 size={30} /><h3>Briefing nog niet gegenereerd</h3><p>Genereer een mock Semrush briefing. Deze blijft in het dossier van deze opdracht en kan opnieuw gegenereerd worden voordat het artikel bestaat.</p><button className="button button-primary" onClick={generateBrief} data-testid="button-generate-brief"><Sparkles size={15} />Mock briefing genereren</button></div> : <>
-      <div className="brief-grid"><div className="keyword-hero"><div className="eyebrow">Doelzoekwoord</div><h2 data-testid="text-primary-keyword">{briefing.primaryKeyword}</h2><div className="keyword-metrics"><div><strong>{briefing.searchVolume}</strong><span>zoekvolume</span></div><div><strong>Informatief</strong><span>intentie</span></div></div></div><SectionCard title="Zoekintentie" subtitle="Wat de lezer probeert op te lossen"><div className="intent-line"><span className="intent-dot" /><span>{briefing.intent}</span></div></SectionCard><SectionCard title="Gerelateerde signalen" subtitle="Onderwerpgebied om te dekken"><div className="tag-list">{briefing.relatedKeywords.map((keyword) => <span className="tag" key={keyword} data-testid={`tag-keyword-${keyword}`}>{keyword}</span>)}</div></SectionCard><SectionCard title="Aanbevolen structuur" subtitle="Een nuttig pad, geen rigide opzet"><ol className="bullet-list">{briefing.recommendedStructure.map((item) => <li key={item}>{item}</li>)}</ol></SectionCard></div>
+  return <><WorkflowHeader assignment={assignment} step={1} /><PageHeader eyebrow={`SEO-briefing / ${partnerName}`} title={assignment.subject} description="Wat Semrush laat zien over dit onderwerp. De AI gebruikt dit bij het schrijven van het artikel." />
+    {!briefing ? <div className="card empty-state"><BarChart3 size={30} /><h3>Briefing nog niet aangemaakt</h3><p>Maak eerst de briefing aan voor deze opdracht.</p><button className="button button-primary" onClick={generateBrief} data-testid="button-generate-brief"><Sparkles size={15} />Briefing aanmaken</button></div> : <>
       
-      <div className="card brief-block" style={{ marginTop: 18 }}>
-        <h3 style={{ marginBottom: 15, fontSize: 16 }}>SEO onderzoek</h3>
+      <div className="brief-block" style={{ marginTop: 6 }}>
         {!briefingDbId ? (
           <p className="link-muted" style={{ fontSize: 13 }}>Dit is een verouderde opdracht zonder API-koppeling. SEO onderzoek is niet beschikbaar.</p>
         ) : (!seoResearch || seoResearch.apiStatus === 'pending') ? (
@@ -1309,80 +1308,18 @@ function BriefPage() {
             </button>
           </div>
         ) : seoResearch.apiStatus === 'success' ? (
-          <div data-testid="research-status-success">
-            <div className="callout" style={{ marginBottom: 20, background: 'hsl(var(--primary)/.15)', color: 'hsl(81 50% 28%)' }}>
-              <CheckCircle2 size={16} /> 
-              <p>Het SEO onderzoek is afgerond.</p>
-            </div>
-            
-            {seoResearch.selectedMainKeyword ? (
-              <div className="keyword-hero" style={{ marginBottom: 24 }}>
-                <div className="eyebrow">Hoofdzoekwoord</div>
-                <h2 data-testid="research-main-keyword">{seoResearch.selectedMainKeyword}</h2>
-                <div className="keyword-metrics">
-                  <div><strong>{seoResearch.searchVolume ?? '—'}</strong><span>Zoekvolume</span></div>
-                  <div><strong>{seoResearch.keywordDifficulty ?? '—'}/100</strong><span>Keyword difficulty</span></div>
-                </div>
-                <div className="keyword-metrics" style={{ marginTop: 15 }}>
-                  <div><strong>{seoResearch.searchIntent || '—'}</strong><span>Zoekintentie</span></div>
-                  <div><strong>{seoResearch.trend || '—'}</strong><span>Trend</span></div>
-                </div>
-              </div>
-            ) : (
-              <div className="empty-state" style={{ padding: '20px 10px', marginBottom: 24 }}>
-                <p>Er is geen geschikt alternatief zoekwoord gevonden.</p>
-              </div>
-            )}
-
-            {seoResearch.secondaryKeywords && seoResearch.secondaryKeywords.length > 0 && (
-              <div style={{ marginBottom: 24 }}>
-                <div className="eyebrow" style={{ marginBottom: 10 }}>Aanvullende zoekwoorden</div>
-                <div className="tag-list" data-testid="research-list-secondary">
-                  {seoResearch.secondaryKeywords.map((kw, i) => (
-                    <span key={i} className="tag">{kw.keyword} <small style={{ opacity: 0.6 }}>({kw.searchVolume || 0})</small></span>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {seoResearch.relevantQuestions && seoResearch.relevantQuestions.length > 0 && (
-              <div style={{ marginBottom: 24 }}>
-                <div className="eyebrow" style={{ marginBottom: 10 }}>Relevante vragen</div>
-                <ul className="bullet-list" data-testid="research-list-questions">
-                  {seoResearch.relevantQuestions.map((q, i) => (
-                    <li key={i}>{q.question}</li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
-            {seoResearch.organicCompetitors && seoResearch.organicCompetitors.length > 0 && (
-              <div style={{ marginBottom: 24 }}>
-                <div className="eyebrow" style={{ marginBottom: 10 }}>Organische concurrenten</div>
-                <div style={{ display: 'grid', gap: '8px' }} data-testid="research-list-competitors">
-                  {seoResearch.organicCompetitors.map((comp, i) => (
-                    <div key={i} style={{ display: 'flex', gap: '10px', alignItems: 'center', fontSize: '11px', background: 'hsl(var(--muted)/.4)', padding: '9px 12px', borderRadius: '6px' }}>
-                      <strong style={{ width: '22px', color: 'hsl(var(--muted-foreground))', fontSize: '12px' }}>#{comp.position || '?'}</strong>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontWeight: 600, color: 'hsl(var(--foreground))', marginBottom: '2px' }}>{comp.domain}</div>
-                        <a href={comp.url} target="_blank" rel="noreferrer" className="link-muted" style={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{comp.url}</a>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            <div style={{ borderTop: '1px solid hsl(var(--border))', paddingTop: 18, marginTop: 10 }}>
+          <div>
+            <SeoResearchView research={{ ...seoResearch, createdAt: seoResearch.researchedAt }} />
+            <div className="seo-footer">
               <button className="button button-ghost button-small" onClick={handleRerunSeoResearch} data-testid="button-rerun-research" disabled={runSeoResearch.isPending}>
-                <RefreshCw size={14} className={runSeoResearch.isPending ? 'animate-spin' : ''} /> SEO onderzoek opnieuw uitvoeren
+                <RefreshCw size={14} className={runSeoResearch.isPending ? 'animate-spin' : ''} /> Onderzoek opnieuw doen
               </button>
             </div>
           </div>
         ) : null}
       </div>
       
-      <div className="card brief-block" style={{ marginTop: 18, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 15 }}><div><div className="eyebrow">Redactionele context</div><h3 style={{ margin: '8px 0 5px' }}>{assignment.subject}</h3><p className="assignment-meta" style={{ maxWidth: 620 }}>Merkrichtlijnen van <strong>{partnerName}</strong> worden toegepast in de volgende stap. Dit is onderzoeksondersteuning, geen publicatiebeslissing.</p></div>{researchBusy
+      <div className="seo-continue">{researchBusy
         ? <button type="button" className="button button-primary" disabled title="Wacht tot het SEO-onderzoek klaar is" data-testid="button-goto-article-generation"><RefreshCw size={15} className="animate-spin" /> Wacht op het SEO-onderzoek…</button>
         : <Link className="button button-primary" href={`/assignments/${assignment.id}/article`} data-testid="button-goto-article-generation"><ArrowRight size={15} /> Door naar artikel</Link>}</div></>}
   </>;

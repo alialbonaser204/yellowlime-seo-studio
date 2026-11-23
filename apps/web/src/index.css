@@ -682,3 +682,33 @@ img.partner-symbol { width: 35px; height: 35px; border-radius: 9px; }
 .gsc-banner { padding: 12px 14px; margin-bottom: 16px; border-radius: 12px; background: #fde8dc; color: #8a2d0b; font-size: 14px; }
 .gsc-banner.is-ok { background: #e8f3dc; color: #24572a; }
 .progress-panel-cancel { margin-top: 14px; }
+
+/* ---------- SEO-briefing ---------- */
+.seo-view { display: flex; flex-direction: column; gap: 16px; }
+.seo-hero { background: #16362f; color: #f6f9f1; border-radius: 22px; padding: 26px 28px; }
+.seo-hero .eyebrow { color: #f5f966; }
+.seo-hero h2 { font-family: 'Bricolage Grotesque', sans-serif; font-size: clamp(30px, 4vw, 44px); letter-spacing: -0.04em; line-height: 1.05; margin: 8px 0 6px; overflow-wrap: anywhere; }
+.seo-hero-note { margin: 0 0 4px; font-size: 13px; color: rgba(246,249,241,.7); }
+.seo-metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 18px 24px; margin-top: 20px; padding-top: 18px; border-top: 1px solid rgba(246,249,241,.15); }
+.seo-metrics > div { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.seo-metrics strong { font-size: 20px; letter-spacing: -0.02em; }
+.seo-metrics span { font-size: 12px; color: rgba(246,249,241,.65); line-height: 1.35; }
+.seo-trend { color: #f5f966; }
+.seo-spark { display: block; }
+.seo-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr)); gap: 16px; }
+.seo-card { background: hsl(var(--card)); border: 1px solid hsl(var(--border)); border-radius: 18px; padding: 18px 20px; min-width: 0; }
+.seo-card h3 { display: flex; align-items: center; gap: 8px; margin: 0; font-size: 15px; }
+.seo-sub { margin: 4px 0 12px; font-size: 12px; color: hsl(var(--muted-foreground)); }
+.seo-keywords, .seo-questions, .seo-serp { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.seo-keywords li { display: flex; justify-content: space-between; gap: 12px; padding: 8px 0; border-bottom: 1px solid hsl(var(--border) / .6); font-size: 14px; }
+.seo-keywords li:last-child, .seo-questions li:last-child { border-bottom: 0; }
+.seo-keywords small { color: hsl(var(--muted-foreground)); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.seo-questions li { padding: 8px 0; border-bottom: 1px solid hsl(var(--border) / .6); font-size: 14px; line-height: 1.4; }
+.seo-serp { gap: 6px; }
+.seo-serp li { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 12px; background: hsl(var(--muted) / .45); color: hsl(var(--muted-foreground)); }
+.seo-pos { flex: none; width: 26px; height: 26px; border-radius: 8px; display: grid; place-items: center; background: #16362f; color: #f5f966; font-weight: 800; font-size: 13px; }
+.seo-serp a { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; color: hsl(var(--foreground)); text-decoration: none; }
+.seo-serp a strong { font-size: 14px; }
+.seo-serp a small { font-size: 12px; color: hsl(var(--muted-foreground)); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.seo-footer { display: flex; justify-content: flex-start; margin-top: 4px; }
+.seo-continue { display: flex; justify-content: flex-end; margin-top: 22px; }
