@@ -35,7 +35,7 @@ function PhotoBlock({ photo }: { photo: Photo }) {
   return (
     <figure className="pv-photo">
       <img src={photo.url} alt={photo.alt} loading="lazy" />
-      {photo.credit && <figcaption>Foto: <a href={photo.credit.pageUrl} target="_blank" rel="noreferrer noopener">{photo.credit.name}</a> via Pexels</figcaption>}
+      {photo.credit && <figcaption>Foto: <a href={photo.credit.pageUrl} target="_blank" rel="noreferrer noopener">{photo.credit.name}</a></figcaption>}
     </figure>
   );
 }
@@ -113,7 +113,7 @@ export function ArticlePreviewPage() {
         <span>Voorbeeld in de stijl van <strong>{d.partnerName}</strong>. Lettertype en kleur zijn van de website gelezen en kunnen iets afwijken.</span>
       </div>
       {d.styleMessage && <p className="pv-note">{d.styleMessage}</p>}
-      {!d.stockPhotos && <p className="pv-note">Stockfoto’s staan nog uit: voeg de instelling PEXELS_API_KEY toe in Cloudflare.</p>}
+      
 
       <div className="pv-google">
         <small>{host} › blog</small>
