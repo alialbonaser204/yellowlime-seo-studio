@@ -21,6 +21,7 @@ import {
   partnersTable,
   semrushResearchTable,
   yellowlimersTable,
+  websiteArticlesTable,
 } from "@yellowlime/db";
 import {
   articleGenerationPrerequisiteError,
@@ -29,6 +30,7 @@ import {
   ARTICLE_PROMPT_VERSION,
   generateArticle,
   styleSampleFrom,
+  detectPartnerHabits,
 } from "../services/articleGeneration";
 import { generateOutline, validateOutline, type ArticleOutline } from "../services/articleOutline";
 import { analyseSerp } from "../services/serpAnalysis";
@@ -258,6 +260,12 @@ router.post(
       return;
     }
 
+    // Headings of the partner's own published articles: what do they do themselves?
+    const partnerHeadings = (await db
+      .select({ headings: websiteArticlesTable.headings })
+      .from(websiteArticlesTable)
+      .where(eq(websiteArticlesTable.partnerId, partner!.id))
+      .catch(() => [] as { headings: string[] }[])).flatMap((r) => r.headings ?? []);
     res.status(202).json(GenerateArticleGenerationResponse.parse(pending));
     queueArticleGeneration(
       pending.id,
@@ -269,6 +277,7 @@ router.post(
         semrushResearch: semrushResearchSnapshot,
         yellowlimerName: reviewer!.name,
         styleSample: styleSampleFrom(profile?.websiteText),
+        partnerHabits: detectPartnerHabits([profile?.websiteText ?? ""], partnerHeadings),
         outline,
       },
       req.log,

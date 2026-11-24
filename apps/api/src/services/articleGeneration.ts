@@ -24,6 +24,32 @@ export interface ArticleGenerationInput {
   outline?: ArticleOutline | null;
   /** What Google Search Console shows for the partner's own website (may be missing). */
   searchConsole?: SearchConsoleContext | null;
+  /** What the partner itself does in its own texts (null = unknown, so: don't). */
+  partnerHabits?: PartnerHabits | null;
+}
+
+export interface PartnerHabits {
+  /** The partner has a summary block ("In het kort", "Samenvatting", ...) somewhere. */
+  summary: { used: boolean; label: string | null };
+}
+
+const SUMMARY_LABELS = ["in het kort", "kort samengevat", "samengevat", "samenvatting", "in een notendop", "de belangrijkste punten", "belangrijkste punten", "tl;dr", "tldr", "key takeaways", "het belangrijkste op een rij", "snel overzicht"];
+
+/**
+ * Looks in the partner's own texts (website text and headings of their
+ * published articles) whether they ever use a summary block, and with which
+ * words. Only then does the article get one.
+ */
+export function detectPartnerHabits(texts: string[], headings: string[]): PartnerHabits {
+  const lines = [
+    ...headings,
+    ...texts.flatMap((t) => t.split(/\n+/)).filter((l) => l.trim().length > 0 && l.trim().length <= 60),
+  ].map((l) => l.trim().toLowerCase().replace(/[:.!]+$/, ""));
+  for (const label of SUMMARY_LABELS) {
+    const hit = lines.find((l) => l === label || l.startsWith(`${label} `) && l.length <= label.length + 25);
+    if (hit) return { summary: { used: true, label: label === "tldr" ? "TL;DR" : label.charAt(0).toUpperCase() + label.slice(1) } };
+  }
+  return { summary: { used: false, label: null } };
 }
 
 export interface SearchConsoleContext {
@@ -201,7 +227,7 @@ export function makeArticleGenerationPrompt(input: ArticleGenerationInput): stri
       "Opbouw van full_article (markdown):",
       "1. Begin met '# ' + de titel. De titel bevat het hoofdzoekwoord.",
       "2. Inleiding: de eerste één à twee zinnen geven direct antwoord op de zoekvraag achter het onderwerp, zonder aanloop. Het hoofdzoekwoord staat in de eerste 100 woorden. Daarna kort waarom dit belangrijk is voor de lezer en wat hij in het artikel leert.",
-      "3. Direct na de inleiding een blok 'In het kort' als blockquote: de regel '> **In het kort**' en daarna 3 tot 5 regels '> - ' met de belangrijkste conclusies van het artikel zelf, elk concreet en op zichzelf te begrijpen. Alleen feiten uit het profiel of het onderzoek.",
+      summaryInstruction(input.partnerHabits ?? null),
       "4. Daarna de H2- en H3-secties ('## ' en '### '), één duidelijk onderwerp per sectie, met het hoofdzoekwoord in ongeveer een derde van de H2-koppen.",
       "5. Daarna '## Veelgestelde vragen' met 3 tot 5 vragen als '### ' kop, geformuleerd zoals mensen ze aan Google of ChatGPT stellen, elk met een antwoord van 2 tot 4 zinnen. Gebruik eerst de toegestane vragen.",
       "6. Geen aparte 'Conclusie'-kop en geen samenvatting aan het eind: het artikel stopt als de vraag beantwoord is. Sluit hooguit af met 2 of 3 zinnen die de lezer een concrete volgende stap bij de partner geven (zet die ook in conclusion). Is er niets zinnigs te zeggen, laat conclusion dan leeg.",
@@ -210,7 +236,7 @@ export function makeArticleGenerationPrompt(input: ArticleGenerationInput): stri
     "Vermijd standaardzinnen die als AI-tekst klinken, zoals 'in de wereld van', 'in de huidige digitale wereld', 'het is belangrijk om te weten', 'laten we eens kijken', 'duiken in', 'speelt een cruciale rol', 'het is geen geheim dat', 'naadloos', 'baanbrekend', 'gamechanger' en 'niet alleen … maar ook'.",
     "meta_title is 50 tot 60 tekens en bevat het hoofdzoekwoord. meta_description is 140 tot 160 tekens en geeft zelf al het antwoord in plaats van alleen nieuwsgierig te maken.",
     "Gebruik het hoofdzoekwoord natuurlijk, relevante secundaire zoekwoorden zonder keyword stuffing, en gebruik vragen als H2/H3 of FAQ-kop wanneer dat nuttig is.",
-    "Geen herhaling: leg elk feit (prijs, garantie, locaties, levering) één keer uit, op de plek waar het hoort. Alleen 'In het kort' mag samenvatten. Een FAQ-antwoord herhaalt een sectie niet, maar verwijst kort of voegt iets toe.",
+    "Geen herhaling: leg elk feit (prijs, garantie, locaties, levering) één keer uit, op de plek waar het hoort. Alleen een samenvattingsblok (als dat er mag zijn) mag samenvatten. Een FAQ-antwoord herhaalt een sectie niet, maar verwijst kort of voegt iets toe.",
     "Zoekwoorden alleen in natuurlijk, correct Nederlands. Schrijf nooit omgedraaide of losse zoekwoordvarianten letterlijk uit (dus 'een Gazelle e-bike voor heren', niet 'e bike gazelle heren'). Liever een variant overslaan dan een rare zin.",
     "Gebruik geen verzonnen personen, voorbeelden of anekdotes ('Toen Sarah…'). Concreet maken doe je met echte details uit het profiel.",
     "Zet één passende call-to-action halverwege het artikel (bijvoorbeeld bij de sectie over de dienst zelf), niet alleen aan het eind.",
@@ -218,6 +244,15 @@ export function makeArticleGenerationPrompt(input: ArticleGenerationInput): stri
     "Noem in het artikel nooit Semrush, Claude, Limey, Yellowlime AI Agent of briefing. Concurrenten en hun URL's zijn uitsluitend context: kopieer nooit hun tekst, structuur of claims.",
     "primary_keyword moet exact het opgegeven hoofdzoekwoord zijn. Als SEO-onderzoek ontbreekt, is dit het briefingonderwerp. secondary_keywords_used en questions_answered mogen uitsluitend waarden uit de toegestane lijsten bevatten.",
   ].join("\n\n");
+}
+
+/** A summary block only when the partner uses one itself, with their own words. */
+function summaryInstruction(habits: PartnerHabits | null): string {
+  if (habits?.summary.used) {
+    const label = habits.summary.label ?? "In het kort";
+    return `3. De partner gebruikt in zijn eigen teksten een samenvattingsblok ('${label}'). Zet daarom direct na de inleiding zo'n blok als blockquote: de regel '> **${label}**' en daarna 3 tot 5 regels '> - ' met de belangrijkste punten van het artikel, elk concreet en op zichzelf te begrijpen. Alleen feiten uit het profiel of het onderzoek.`;
+  }
+  return "3. GEEN samenvattingsblok: de partner gebruikt in zijn eigen teksten nooit een blok als 'In het kort', 'Samenvatting' of 'Key takeaways'. Schrijf het dus ook niet, ook niet onder een andere naam. Ga na de inleiding direct door naar de eerste sectie.";
 }
 
 /** Turns the partner's own writing rules from the approved profile into instructions. */
@@ -272,13 +307,14 @@ export function makeEditorPrompt(articleJson: string, input: ArticleGenerationIn
   return [
     "Je bent eindredacteur van een Nederlands webbureau. Hieronder staat een conceptartikel als JSON. Verbeter het en geef UITSLUITEND hetzelfde JSON-schema terug, zonder markdown eromheen.",
     "Controleer en herstel:",
-    "1. Herhaling: komt een feit (prijs, garantie, locatie, levering, werkwijze) vaker dan één keer voor buiten 'In het kort', schrap dan de herhalingen.",
+    "1. Herhaling: komt een feit (prijs, garantie, locatie, levering, werkwijze) vaker dan één keer voor buiten het samenvattingsblok (als dat er is), schrap dan de herhalingen.",
     "2. Afsluiting: staat er een conclusie of samenvatting aan het eind, schrap die. Laat hooguit 2 of 3 zinnen over met een concrete volgende stap, of niets. Er is geen kop 'Conclusie'.",
     "3. Zoekwoorden: herschrijf elke zin waarin een zoekwoord onnatuurlijk of grammaticaal fout staat (zoals 'e bike gazelle heren').",
     "4. AI-taal: schrap vage openers, holle overgangen ('Daarnaast', 'Bovendien', 'Kortom'), opvulzinnen en alles wat zo in elk ander artikel kan staan.",
     "5. Toon: het moet klinken als de partner zelf. Volg de schrijfregels van de partner hieronder en de voorbeeldtekst.",
     "6. Feiten: voeg geen nieuwe feiten, cijfers, personen of links toe. Laat bestaande interne links staan.",
-    "Houd de titel, het hoofdzoekwoord, 'In het kort', de veelgestelde vragen en de koppen in principe zoals ze zijn; verander alleen wat beter moet. Werk full_article, sections, introduction en conclusion consequent bij, zodat ze dezelfde tekst bevatten.",
+    input.partnerHabits?.summary.used ? "Laat het samenvattingsblok staan." : "Deze partner gebruikt nooit een samenvattingsblok: staat er toch een blok als 'In het kort' of 'Samenvatting', schrap het dan helemaal.",
+    "Houd de titel, het hoofdzoekwoord, de veelgestelde vragen en de koppen in principe zoals ze zijn; verander alleen wat beter moet. Werk full_article, sections, introduction en conclusion consequent bij, zodat ze dezelfde tekst bevatten.",
     partnerStyleRules(cloneSnapshot(input.approvedPartnerProfile)),
     input.styleSample ? `Voorbeeldtekst van de partner:\n"""\n${input.styleSample}\n"""` : "",
     "Conceptartikel:",

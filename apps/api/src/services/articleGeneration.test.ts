@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   articleGenerationErrorMessage,
+  detectPartnerHabits,
   articleGenerationPrerequisiteError,
   generateArticle,
   makeArticleGenerationPrompt,
@@ -232,4 +233,14 @@ test("style sample takes whole sentences from the website text and skips menus",
   assert.ok(sample!.includes("inheemse planten"));
   assert.equal(styleSampleFrom("Te kort."), null);
   assert.equal(styleSampleFrom(null), null);
+});
+
+test("summary block only when the partner uses one itself", () => {
+  assert.deepEqual(detectPartnerHabits(["Welkom bij ons\nIn het kort:\nWe leveren snel."], []).summary, { used: true, label: "In het kort" });
+  assert.deepEqual(detectPartnerHabits([""], ["Samenvatting"]).summary, { used: true, label: "Samenvatting" });
+  assert.equal(detectPartnerHabits(["We leggen het in het kort uit in deze lange zin over fietsen en meer dingen die erbij horen."], ["Prijzen"]).summary.used, false);
+  const without = makeArticleGenerationPrompt({ ...input, partnerHabits: { summary: { used: false, label: null } } });
+  assert.match(without, /GEEN samenvattingsblok/);
+  const withIt = makeArticleGenerationPrompt({ ...input, partnerHabits: { summary: { used: true, label: "Samenvatting" } } });
+  assert.match(withIt, /> \*\*Samenvatting\*\*/);
 });
