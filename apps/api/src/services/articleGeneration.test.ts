@@ -73,7 +73,7 @@ test("editor pass result is used, and a broken editor answer keeps the draft", a
 
 test("prompt has no forced conclusion and includes Search Console data", () => {
   const prompt = makeArticleGenerationPrompt({ ...input, searchConsole: { relatedQueries: [{ query: "tuin aanleggen kosten", clicks: 12, impressions: 300, position: 7.2 }], pages: [{ url: "https://voorbeeld.nl/tuinontwerp", clicks: 40 }], existingPageForKeyword: null } });
-  assert.match(prompt, /Geen aparte 'Conclusie'-kop/);
+  assert.match(prompt, /GEEN afsluitende kop/);
   assert.match(prompt, /tuin aanleggen kosten/);
   assert.match(prompt, /voorbeeld\.nl\/tuinontwerp/);
   assert.match(prompt, /SCHRIJFREGELS VAN DEZE PARTNER/);
@@ -213,7 +213,7 @@ test("v2 prompt asks for a direct answer, an In het kort block and a FAQ, and pa
   assert.match(prompt, /article_generation_v3/);
   assert.match(prompt, /direct antwoord/);
   assert.match(prompt, /In het kort/);
-  assert.match(prompt, /## Veelgestelde vragen/);
+  assert.match(prompt, /GEEN vragenblok/); // unknown habits: no FAQ block
   assert.match(prompt, /Bel ons gerust/);
   assert.match(prompt, /geen feiten uit die niet in het goedgekeurde profiel staan/);
   assert.doesNotMatch(makeArticleGenerationPrompt(input), /Voorbeeldtekst van de eigen website/);
@@ -237,10 +237,17 @@ test("style sample takes whole sentences from the website text and skips menus",
 
 test("summary block only when the partner uses one itself", () => {
   assert.deepEqual(detectPartnerHabits(["Welkom bij ons\nIn het kort:\nWe leveren snel."], []).summary, { used: true, label: "In het kort" });
+  const h = detectPartnerHabits([""], ["Veelgestelde vragen over e-bikes", "Tot slot"]);
+  assert.deepEqual(h.faq, { used: true, label: "Veelgestelde vragen" });
+  assert.deepEqual(h.closing, { used: true, label: "Tot slot" });
+  assert.equal(detectPartnerHabits([""], ["Onze fietsen"]).faq.used, false);
   assert.deepEqual(detectPartnerHabits([""], ["Samenvatting"]).summary, { used: true, label: "Samenvatting" });
   assert.equal(detectPartnerHabits(["We leggen het in het kort uit in deze lange zin over fietsen en meer dingen die erbij horen."], ["Prijzen"]).summary.used, false);
-  const without = makeArticleGenerationPrompt({ ...input, partnerHabits: { summary: { used: false, label: null } } });
+  const without = makeArticleGenerationPrompt({ ...input, partnerHabits: { summary: { used: false, label: null }, faq: { used: false, label: null }, closing: { used: false, label: null } } });
   assert.match(without, /GEEN samenvattingsblok/);
-  const withIt = makeArticleGenerationPrompt({ ...input, partnerHabits: { summary: { used: true, label: "Samenvatting" } } });
+  assert.match(without, /GEEN vragenblok/);
+  assert.match(without, /GEEN afsluitende kop/);
+  const withIt = makeArticleGenerationPrompt({ ...input, partnerHabits: { summary: { used: true, label: "Samenvatting" }, faq: { used: true, label: "FAQ" }, closing: { used: false, label: null } } });
+  assert.match(withIt, /## FAQ/);
   assert.match(withIt, /> \*\*Samenvatting\*\*/);
 });

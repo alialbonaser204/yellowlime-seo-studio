@@ -31,7 +31,14 @@ export interface ArticleGenerationInput {
 export interface PartnerHabits {
   /** The partner has a summary block ("In het kort", "Samenvatting", ...) somewhere. */
   summary: { used: boolean; label: string | null };
+  /** The partner has a questions section ("Veelgestelde vragen", "FAQ", ...). */
+  faq: { used: boolean; label: string | null };
+  /** The partner ends texts with a closing section ("Conclusie", "Tot slot", ...). */
+  closing: { used: boolean; label: string | null };
 }
+
+const FAQ_LABELS = ["veelgestelde vragen", "veel gestelde vragen", "faq", "vragen en antwoorden", "vraag en antwoord", "veelgestelde vragen over"];
+const CLOSING_LABELS = ["conclusie", "tot slot", "ten slotte", "afsluitend", "tot besluit", "samenvattend", "concluderend"];
 
 const SUMMARY_LABELS = ["in het kort", "kort samengevat", "samengevat", "samenvatting", "in een notendop", "de belangrijkste punten", "belangrijkste punten", "tl;dr", "tldr", "key takeaways", "het belangrijkste op een rij", "snel overzicht"];
 
@@ -44,12 +51,18 @@ export function detectPartnerHabits(texts: string[], headings: string[]): Partne
   const lines = [
     ...headings,
     ...texts.flatMap((t) => t.split(/\n+/)).filter((l) => l.trim().length > 0 && l.trim().length <= 60),
-  ].map((l) => l.trim().toLowerCase().replace(/[:.!]+$/, ""));
-  for (const label of SUMMARY_LABELS) {
-    const hit = lines.find((l) => l === label || l.startsWith(`${label} `) && l.length <= label.length + 25);
-    if (hit) return { summary: { used: true, label: label === "tldr" ? "TL;DR" : label.charAt(0).toUpperCase() + label.slice(1) } };
-  }
-  return { summary: { used: false, label: null } };
+  ].map((l) => l.trim().toLowerCase().replace(/[:.!?]+$/, ""));
+  const find = (labels: string[]) => {
+    for (const label of labels) {
+      const hit = lines.find((l) => l === label || (l.startsWith(`${label} `) && l.length <= label.length + 40));
+      if (hit) {
+        const name = label === "tldr" ? "TL;DR" : label === "faq" ? "FAQ" : label.charAt(0).toUpperCase() + label.slice(1);
+        return { used: true, label: name.replace(/ over$/i, "") };
+      }
+    }
+    return { used: false, label: null };
+  };
+  return { summary: find(SUMMARY_LABELS), faq: find(FAQ_LABELS), closing: find(CLOSING_LABELS) };
 }
 
 export interface SearchConsoleContext {
@@ -229,13 +242,13 @@ export function makeArticleGenerationPrompt(input: ArticleGenerationInput): stri
       "2. Inleiding: de eerste één à twee zinnen geven direct antwoord op de zoekvraag achter het onderwerp, zonder aanloop. Het hoofdzoekwoord staat in de eerste 100 woorden. Daarna kort waarom dit belangrijk is voor de lezer en wat hij in het artikel leert.",
       summaryInstruction(input.partnerHabits ?? null),
       "4. Daarna de H2- en H3-secties ('## ' en '### '), één duidelijk onderwerp per sectie, met het hoofdzoekwoord in ongeveer een derde van de H2-koppen.",
-      "5. Daarna '## Veelgestelde vragen' met 3 tot 5 vragen als '### ' kop, geformuleerd zoals mensen ze aan Google of ChatGPT stellen, elk met een antwoord van 2 tot 4 zinnen. Gebruik eerst de toegestane vragen.",
-      "6. Geen aparte 'Conclusie'-kop en geen samenvatting aan het eind: het artikel stopt als de vraag beantwoord is. Sluit hooguit af met 2 of 3 zinnen die de lezer een concrete volgende stap bij de partner geven (zet die ook in conclusion). Is er niets zinnigs te zeggen, laat conclusion dan leeg.",
+      faqInstruction(input.partnerHabits ?? null),
+      closingInstruction(input.partnerHabits ?? null),
     ].join("\n"),
     "Leesbaarheid: alinea's van hooguit 4 zinnen, gemiddeld niet meer dan 20 woorden per zin, actieve zinnen, gewone woorden.",
     "Vermijd standaardzinnen die als AI-tekst klinken, zoals 'in de wereld van', 'in de huidige digitale wereld', 'het is belangrijk om te weten', 'laten we eens kijken', 'duiken in', 'speelt een cruciale rol', 'het is geen geheim dat', 'naadloos', 'baanbrekend', 'gamechanger' en 'niet alleen … maar ook'.",
     "meta_title is 50 tot 60 tekens en bevat het hoofdzoekwoord. meta_description is 140 tot 160 tekens en geeft zelf al het antwoord in plaats van alleen nieuwsgierig te maken.",
-    "Gebruik het hoofdzoekwoord natuurlijk, relevante secundaire zoekwoorden zonder keyword stuffing, en gebruik vragen als H2/H3 of FAQ-kop wanneer dat nuttig is.",
+    "Gebruik het hoofdzoekwoord natuurlijk, relevante secundaire zoekwoorden zonder keyword stuffing, en gebruik de vragen van zoekers als H2/H3-kop of in de tekst wanneer dat nuttig is.",
     "Geen herhaling: leg elk feit (prijs, garantie, locaties, levering) één keer uit, op de plek waar het hoort. Alleen een samenvattingsblok (als dat er mag zijn) mag samenvatten. Een FAQ-antwoord herhaalt een sectie niet, maar verwijst kort of voegt iets toe.",
     "Zoekwoorden alleen in natuurlijk, correct Nederlands. Schrijf nooit omgedraaide of losse zoekwoordvarianten letterlijk uit (dus 'een Gazelle e-bike voor heren', niet 'e bike gazelle heren'). Liever een variant overslaan dan een rare zin.",
     "Gebruik geen verzonnen personen, voorbeelden of anekdotes ('Toen Sarah…'). Concreet maken doe je met echte details uit het profiel.",
@@ -244,6 +257,24 @@ export function makeArticleGenerationPrompt(input: ArticleGenerationInput): stri
     "Noem in het artikel nooit Semrush, Claude, Limey, Yellowlime AI Agent of briefing. Concurrenten en hun URL's zijn uitsluitend context: kopieer nooit hun tekst, structuur of claims.",
     "primary_keyword moet exact het opgegeven hoofdzoekwoord zijn. Als SEO-onderzoek ontbreekt, is dit het briefingonderwerp. secondary_keywords_used en questions_answered mogen uitsluitend waarden uit de toegestane lijsten bevatten.",
   ].join("\n\n");
+}
+
+/** A questions section only when the partner has one itself. */
+function faqInstruction(habits: PartnerHabits | null): string {
+  if (habits?.faq.used) {
+    const label = habits.faq.label ?? "Veelgestelde vragen";
+    return `5. De partner gebruikt zelf een vragenblok ('${label}'). Zet daarom na de secties '## ${label}' met 3 tot 5 vragen als '### ' kop, geformuleerd zoals mensen ze aan Google stellen, elk met een antwoord van 2 tot 4 zinnen. Gebruik eerst de toegestane vragen.`;
+  }
+  return "5. GEEN vragenblok: de partner gebruikt in zijn eigen teksten nooit een kop als 'Veelgestelde vragen' of 'FAQ'. Schrijf dat blok dus niet. Beantwoord de belangrijkste vragen van zoekers in de gewone secties, bijvoorbeeld als H2- of H3-kop in de vorm van een vraag, waar dat natuurlijk past.";
+}
+
+/** A closing section only when the partner ends texts like that itself. */
+function closingInstruction(habits: PartnerHabits | null): string {
+  if (habits?.closing.used) {
+    const label = habits.closing.label ?? "Tot slot";
+    return `6. De partner sluit zijn teksten af met een kop '${label}'. Sluit daarom af met '## ${label}' en hooguit 3 zinnen die iets toevoegen: een concrete volgende stap bij de partner, geen herhaling van wat er al staat. Zet die tekst ook in conclusion.`;
+  }
+  return "6. GEEN afsluitende kop: de partner gebruikt geen 'Conclusie', 'Tot slot' of iets vergelijkbaars. Het artikel stopt als de vraag beantwoord is. Hooguit 2 of 3 zinnen aan het eind van de laatste sectie met een concrete volgende stap bij de partner (zet die ook in conclusion), of niets; dan blijft conclusion leeg.";
 }
 
 /** A summary block only when the partner uses one itself, with their own words. */
@@ -308,13 +339,15 @@ export function makeEditorPrompt(articleJson: string, input: ArticleGenerationIn
     "Je bent eindredacteur van een Nederlands webbureau. Hieronder staat een conceptartikel als JSON. Verbeter het en geef UITSLUITEND hetzelfde JSON-schema terug, zonder markdown eromheen.",
     "Controleer en herstel:",
     "1. Herhaling: komt een feit (prijs, garantie, locatie, levering, werkwijze) vaker dan één keer voor buiten het samenvattingsblok (als dat er is), schrap dan de herhalingen.",
-    "2. Afsluiting: staat er een conclusie of samenvatting aan het eind, schrap die. Laat hooguit 2 of 3 zinnen over met een concrete volgende stap, of niets. Er is geen kop 'Conclusie'.",
+    "2. Afsluiting: een samenvatting aan het eind die alleen herhaalt, schrap je.",
     "3. Zoekwoorden: herschrijf elke zin waarin een zoekwoord onnatuurlijk of grammaticaal fout staat (zoals 'e bike gazelle heren').",
     "4. AI-taal: schrap vage openers, holle overgangen ('Daarnaast', 'Bovendien', 'Kortom'), opvulzinnen en alles wat zo in elk ander artikel kan staan.",
     "5. Toon: het moet klinken als de partner zelf. Volg de schrijfregels van de partner hieronder en de voorbeeldtekst.",
     "6. Feiten: voeg geen nieuwe feiten, cijfers, personen of links toe. Laat bestaande interne links staan.",
     input.partnerHabits?.summary.used ? "Laat het samenvattingsblok staan." : "Deze partner gebruikt nooit een samenvattingsblok: staat er toch een blok als 'In het kort' of 'Samenvatting', schrap het dan helemaal.",
-    "Houd de titel, het hoofdzoekwoord, de veelgestelde vragen en de koppen in principe zoals ze zijn; verander alleen wat beter moet. Werk full_article, sections, introduction en conclusion consequent bij, zodat ze dezelfde tekst bevatten.",
+    input.partnerHabits?.faq.used ? "Laat het vragenblok staan." : "Deze partner gebruikt nooit een vragenblok: staat er toch een kop als 'Veelgestelde vragen' of 'FAQ', verwerk de belangrijkste vragen dan in de secties en schrap het blok.",
+    input.partnerHabits?.closing.used ? "" : "Deze partner gebruikt geen afsluitende kop: schrap een kop als 'Conclusie' of 'Tot slot' en laat hooguit 2 of 3 zinnen met een volgende stap over.",
+    "Houd de titel, het hoofdzoekwoord en de koppen in principe zoals ze zijn; verander alleen wat beter moet. Werk full_article, sections, introduction en conclusion consequent bij, zodat ze dezelfde tekst bevatten.",
     partnerStyleRules(cloneSnapshot(input.approvedPartnerProfile)),
     input.styleSample ? `Voorbeeldtekst van de partner:\n"""\n${input.styleSample}\n"""` : "",
     "Conceptartikel:",
