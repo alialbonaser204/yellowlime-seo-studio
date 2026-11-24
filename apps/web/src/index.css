@@ -822,3 +822,23 @@ img.partner-symbol { width: 35px; height: 35px; border-radius: 9px; }
 .rq-scope legend { font-size: 12px; color: hsl(var(--muted-foreground)); margin-bottom: 4px; }
 .rq-scope label { display: flex; gap: 8px; align-items: center; cursor: pointer; }
 .rq-scope small { color: hsl(var(--muted-foreground)); font-size: 11px; line-height: 1.4; }
+
+/* Review bar (design 4): dark, slowly moving background, breathing button */
+@keyframes rq-drift { 0% { background-position: 0% 50%; } 100% { background-position: 100% 50%; } }
+@keyframes rq-breathe { 0%, 100% { box-shadow: 0 0 0 0 rgba(233,245,106,0), 0 0 18px rgba(233,245,106,.25); } 50% { box-shadow: 0 0 0 6px rgba(233,245,106,.18), 0 0 34px rgba(233,245,106,.55); } }
+@keyframes rq-in { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: none; } }
+.rq-bar { position: sticky; top: 8px; z-index: 20; display: flex; align-items: center; gap: 20px; flex-wrap: wrap; padding: 18px 22px; margin-bottom: 18px; border-radius: 18px; color: #fff; background: linear-gradient(100deg, #16301d, #1f3d26 45%, #24492d); background-size: 220% 100%; animation: rq-drift 8s ease-in-out infinite alternate, rq-in .5s ease-out both; box-shadow: 0 12px 30px rgba(22, 48, 29, .18); }
+.rq-bar svg { flex-shrink: 0; }
+.rq-bar-text { flex: 1 1 280px; display: flex; flex-direction: column; gap: 2px; }
+.rq-bar-text strong { font-size: 17px; }
+.rq-bar-text span { font-size: 13px; color: #c8dcc4; }
+.rq-bar-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.rq-bar-cta, .rq-bar-ghost { display: inline-flex; align-items: center; gap: 7px; border-radius: 999px; padding: 13px 22px; font: 700 14px var(--app-font-sans, Inter, sans-serif); cursor: pointer; transition: transform .15s ease, background .2s ease; }
+.rq-bar-cta { border: 0; background: #e9f56a; color: #1f2a1c; }
+.rq-bar-cta.breathe { animation: rq-breathe 2.4s ease-in-out infinite; }
+.rq-bar-ghost { border: 1px solid rgba(255,255,255,.28); background: transparent; color: #fff; }
+.rq-bar-cta:hover, .rq-bar-ghost:hover { transform: translateY(-1px); }
+.rq-bar-ghost:hover { background: rgba(255,255,255,.08); }
+.rq-bar button:disabled { opacity: .6; cursor: wait; }
+.rq-bar.is-done { background: linear-gradient(100deg, #1f3d26, #2b5235); }
+@media (prefers-reduced-motion: reduce) { .rq-bar, .rq-bar-cta.breathe { animation: none; } }

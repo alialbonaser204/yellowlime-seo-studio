@@ -129,6 +129,31 @@ export function ReviewArticlePage() {
   return (
     <>
       <Link href="/controle" className="button button-ghost button-small" style={{ marginBottom: 12, width: 'fit-content' }}><ArrowLeft size={14} /> Terug naar controle</Link>
+      <div className={`rq-bar ${editing ? 'is-editing' : ''} ${a.reviewDecision ? 'is-done' : ''}`} data-testid="review-bar">
+        <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#e9f56a" strokeWidth="1.8" aria-hidden="true"><path d="M9 11l3 3 8-8" /><path d="M20 12v6a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h9" /></svg>
+        <div className="rq-bar-text">
+          {a.reviewDecision ? (
+            <><strong>{a.reviewDecision === 'goedgekeurd' ? 'Dit artikel is goedgekeurd' : 'Dit artikel is afgekeurd'}</strong><span>{stats ? `${stats.changed} gewijzigd · ${stats.removed} verwijderd · ${stats.added} toegevoegd · ${Math.round(stats.keptShare * 100)}% van de AI-tekst ongewijzigd` : 'De versies van vóór en na de controle zijn opgeslagen.'}</span></>
+          ) : editing ? (
+            <><strong>Je bent dit artikel aan het controleren</strong><span>Pas tekst aan, verwijder blokken of voeg iets toe. Opslaan gebeurt pas bij goedkeuren of afkeuren.</span></>
+          ) : (
+            <><strong>Dit artikel wacht op jouw controle</strong><span>Lees het, pas aan waar nodig en keur het goed of af.</span></>
+          )}
+        </div>
+        <div className="rq-bar-actions">
+          {a.reviewDecision ? (
+            <button type="button" className="rq-bar-ghost" onClick={() => decide(null)} disabled={busy}>Controle opnieuw openen</button>
+          ) : editing ? (
+            <>
+              <button type="button" className="rq-bar-ghost" onClick={() => setEditing(false)} disabled={busy}>Annuleren</button>
+              <button type="button" className="rq-bar-ghost" onClick={() => decide('afgekeurd')} disabled={busy} data-testid="button-review-reject"><X size={15} /> Afkeuren</button>
+              <button type="button" className="rq-bar-cta" onClick={() => decide('goedgekeurd')} disabled={busy} data-testid="button-review-approve"><Check size={15} /> Goedkeuren en opslaan</button>
+            </>
+          ) : (
+            <button type="button" className="rq-bar-cta breathe" onClick={startCheck} data-testid="button-review-start"><PenLine size={15} /> Controle beginnen</button>
+          )}
+        </div>
+      </div>
       <div className="article-layout">
         {editing ? (
           <article className="card article-paper rq-article rq-editing">
@@ -175,13 +200,9 @@ export function ReviewArticlePage() {
             {a.reviewDecision ? (
               <>
                 <span className={`rq-status ${a.reviewDecision === 'goedgekeurd' ? 'rq-ok' : 'rq-no'}`}>{a.reviewDecision === 'goedgekeurd' ? 'Goedgekeurd' : 'Afgekeurd'}</span>
-                {stats && <p className="rq-stats">{stats.changed} gewijzigd · {stats.removed} verwijderd · {stats.added} toegevoegd · {Math.round(stats.keptShare * 100)}% van de AI-tekst ongewijzigd</p>}
-                {a.reviewNote && <p style={{ margin: 0, fontSize: 13 }}><small>Opmerking</small>{a.reviewNote}</p>}
-                <button type="button" className="button button-ghost button-small" onClick={() => decide(null)} disabled={busy}>Controle opnieuw openen</button>
+                {a.reviewNote ? <p style={{ margin: 0, fontSize: 13 }}><small>Opmerking</small>{a.reviewNote}</p> : <small>Geen opmerking.</small>}
               </>
-            ) : !editing ? (
-              <button type="button" className="button button-primary" onClick={startCheck} data-testid="button-review-start"><PenLine size={15} /> Controle beginnen</button>
-            ) : (
+            ) : editing ? (
               <>
                 <label className="rq-note">Opmerkingen voor de AI (optioneel)<textarea value={note} onChange={(e) => setNote(e.target.value)} rows={4} placeholder="Bijvoorbeeld: te formeel, geen opsommingen gebruiken, prijs niet noemen" /></label>
                 <fieldset className="rq-scope">
@@ -190,10 +211,9 @@ export function ReviewArticlePage() {
                   <label><input type="checkbox" checked={noteScope === 'algemeen'} onChange={(e) => setNoteScope(e.target.checked ? 'algemeen' : null)} /> Voor alle partners</label>
                   <small>Niets aangevinkt: de AI bepaalt het later zelf, op basis van hoe vaak het bij andere partners voorkomt.</small>
                 </fieldset>
-                <button type="button" className="button button-primary" onClick={() => decide('goedgekeurd')} disabled={busy} data-testid="button-review-approve"><Check size={15} /> Goedkeuren en opslaan</button>
-                <button type="button" className="button button-ghost" onClick={() => decide('afgekeurd')} disabled={busy} data-testid="button-review-reject"><X size={15} /> Afkeuren en opslaan</button>
-                <button type="button" className="button button-ghost button-small" onClick={() => setEditing(false)} disabled={busy}>Annuleren</button>
               </>
+            ) : (
+              <small>Klik bovenaan op <b>Controle beginnen</b> om het artikel te bewerken en goed of af te keuren.</small>
             )}
             {message && <p className="rq-error">{message}</p>}
           </div>
