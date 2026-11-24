@@ -32,6 +32,7 @@ import {
 } from "../services/articleGeneration";
 import { generateOutline, validateOutline, type ArticleOutline } from "../services/articleOutline";
 import { analyseSerp } from "../services/serpAnalysis";
+import { articleSearchConsoleContext } from "../services/searchConsole";
 
 const router: IRouter = Router();
 
@@ -272,6 +273,7 @@ router.post(
       req.log,
       // No outline supplied: the AI decides the structure itself first.
       outline ? null : semrushResearchSnapshot.organicCompetitors,
+      partner!.id,
     );
   },
 );
@@ -281,6 +283,7 @@ function queueArticleGeneration(
   input: Parameters<typeof generateArticle>[0],
   log: SafeLogger,
   autoOutlineFrom: Parameters<typeof analyseSerp>[0] | null = null,
+  partnerIdForGsc: number | null = null,
 ): void {
   runInBackground(async () => {
     try {
@@ -305,6 +308,10 @@ function queueArticleGeneration(
         } catch (error) {
           log.error({ code: "auto_outline_failed", errorType: error instanceof Error ? error.message : typeof error }, "Automatische opzet mislukt; schrijven zonder opzet");
         }
+      }
+      if (input.searchConsole === undefined && partnerIdForGsc) {
+        const keyword = String(input.semrushResearch.selectedMainKeyword ?? input.subject);
+        input = { ...input, searchConsole: await articleSearchConsoleContext(partnerIdForGsc, keyword) };
       }
       const generated = await generateArticle(input);
       await db

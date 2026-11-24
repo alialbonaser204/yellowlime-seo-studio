@@ -6,7 +6,7 @@ import {
 import { outlineInstructions, type ArticleOutline } from "./articleOutline";
 
 export const CLAUDE_MODEL = SHARED_CLAUDE_MODEL;
-export const PROMPT_VERSION = "article_generation_v2" as const;
+export const PROMPT_VERSION = "article_generation_v3" as const;
 export const ARTICLE_CLAUDE_MODEL = CLAUDE_MODEL;
 export const ARTICLE_PROMPT_VERSION = PROMPT_VERSION;
 export const ARTICLE_GENERATION_TIMEOUT_MS = 0; // 0 = geen tijdslimiet
@@ -22,6 +22,17 @@ export interface ArticleGenerationInput {
   styleSample?: string | null;
   /** The outline a Yellowlimer approved; when present the article follows it exactly. */
   outline?: ArticleOutline | null;
+  /** What Google Search Console shows for the partner's own website (may be missing). */
+  searchConsole?: SearchConsoleContext | null;
+}
+
+export interface SearchConsoleContext {
+  /** Searches the website already appears for that share words with the main keyword. */
+  relatedQueries: { query: string; clicks: number; impressions: number; position: number }[];
+  /** The website's own pages that get clicks from Google: candidates for internal links. */
+  pages: { url: string; clicks: number }[];
+  /** A page that already ranks for the main keyword itself, if any. */
+  existingPageForKeyword?: { url: string; position: number } | null;
 }
 
 /** At most this much of the partner's website text is sent as a style example. */
@@ -109,7 +120,7 @@ const outputSchema = `{
   "title": "string",
   "introduction": "string",
   "sections": [{"heading": "string", "heading_level": "H2" or "H3", "content": "string"}],
-  "conclusion": "string",
+  "conclusion": "string (de korte afsluiter; leeg als het artikel geen afsluiter nodig heeft)",
   "meta_title": "string",
   "meta_description": "string",
   "primary_keyword": "string",
@@ -184,7 +195,8 @@ export function makeArticleGenerationPrompt(input: ArticleGenerationInput): stri
       ? `Voorbeeldtekst van de eigen website van de partner (alleen als voorbeeld van toon, aanspreekvorm en zinsbouw; neem er geen zinnen letterlijk uit over en gebruik er geen feiten uit die niet in het goedgekeurde profiel staan):\n"""\n${input.styleSample}\n"""`
       : "Er is geen voorbeeldtekst van de website; volg de toon en stijl uit het partnerprofiel.",
     ...(input.outline ? [outlineInstructions(input.outline)] : []),
-    "Schrijf in de toon en stijl van het partnerprofiel, passend bij doel en zoekintentie.",
+    partnerStyleRules(profile),
+    searchConsoleBlock(input.searchConsole ?? null, primaryKeyword),
     [
       "Opbouw van full_article (markdown):",
       "1. Begin met '# ' + de titel. De titel bevat het hoofdzoekwoord.",
@@ -192,17 +204,86 @@ export function makeArticleGenerationPrompt(input: ArticleGenerationInput): stri
       "3. Direct na de inleiding een blok 'In het kort' als blockquote: de regel '> **In het kort**' en daarna 3 tot 5 regels '> - ' met de belangrijkste conclusies van het artikel zelf, elk concreet en op zichzelf te begrijpen. Alleen feiten uit het profiel of het onderzoek.",
       "4. Daarna de H2- en H3-secties ('## ' en '### '), één duidelijk onderwerp per sectie, met het hoofdzoekwoord in ongeveer een derde van de H2-koppen.",
       "5. Daarna '## Veelgestelde vragen' met 3 tot 5 vragen als '### ' kop, geformuleerd zoals mensen ze aan Google of ChatGPT stellen, elk met een antwoord van 2 tot 4 zinnen. Gebruik eerst de toegestane vragen.",
-      "6. Sluit af met een conclusie en een passende call-to-action.",
+      "6. Geen aparte 'Conclusie'-kop en geen samenvatting aan het eind: het artikel stopt als de vraag beantwoord is. Sluit hooguit af met 2 of 3 zinnen die de lezer een concrete volgende stap bij de partner geven (zet die ook in conclusion). Is er niets zinnigs te zeggen, laat conclusion dan leeg.",
     ].join("\n"),
     "Leesbaarheid: alinea's van hooguit 4 zinnen, gemiddeld niet meer dan 20 woorden per zin, actieve zinnen, gewone woorden.",
     "Vermijd standaardzinnen die als AI-tekst klinken, zoals 'in de wereld van', 'in de huidige digitale wereld', 'het is belangrijk om te weten', 'laten we eens kijken', 'duiken in', 'speelt een cruciale rol', 'het is geen geheim dat', 'naadloos', 'baanbrekend', 'gamechanger' en 'niet alleen … maar ook'.",
     "meta_title is 50 tot 60 tekens en bevat het hoofdzoekwoord. meta_description is 140 tot 160 tekens en geeft zelf al het antwoord in plaats van alleen nieuwsgierig te maken.",
     "Gebruik het hoofdzoekwoord natuurlijk, relevante secundaire zoekwoorden zonder keyword stuffing, en gebruik vragen als H2/H3 of FAQ-kop wanneer dat nuttig is.",
-    "Maak een duidelijke titel en introductie, gebruik H2- en H3-secties met korte leesbare alinea's, sluit af met een passende CTA en conclusie.",
+    "Geen herhaling: leg elk feit (prijs, garantie, locaties, levering) één keer uit, op de plek waar het hoort. Alleen 'In het kort' mag samenvatten. Een FAQ-antwoord herhaalt een sectie niet, maar verwijst kort of voegt iets toe.",
+    "Zoekwoorden alleen in natuurlijk, correct Nederlands. Schrijf nooit omgedraaide of losse zoekwoordvarianten letterlijk uit (dus 'een Gazelle e-bike voor heren', niet 'e bike gazelle heren'). Liever een variant overslaan dan een rare zin.",
+    "Gebruik geen verzonnen personen, voorbeelden of anekdotes ('Toen Sarah…'). Concreet maken doe je met echte details uit het profiel.",
+    "Zet één passende call-to-action halverwege het artikel (bijvoorbeeld bij de sectie over de dienst zelf), niet alleen aan het eind.",
     "Verzin nooit feiten, producten, diensten, prijzen of locaties en doe geen onbewezen claims. Gebruik geen generieke AI-tekst.",
     "Noem in het artikel nooit Semrush, Claude, Limey, Yellowlime AI Agent of briefing. Concurrenten en hun URL's zijn uitsluitend context: kopieer nooit hun tekst, structuur of claims.",
     "primary_keyword moet exact het opgegeven hoofdzoekwoord zijn. Als SEO-onderzoek ontbreekt, is dit het briefingonderwerp. secondary_keywords_used en questions_answered mogen uitsluitend waarden uit de toegestane lijsten bevatten.",
   ].join("\n\n");
+}
+
+/** Turns the partner's own writing rules from the approved profile into instructions. */
+function partnerStyleRules(profile: Record<string, unknown>): string {
+  const pick = (...keys: string[]) => keys
+    .map((k) => profile[k])
+    .map((v) => (Array.isArray(v) ? v.filter((x) => typeof x === "string").join(", ") : typeof v === "string" ? v : ""))
+    .filter((v) => v.trim())
+    .join(" · ");
+  const lines = [
+    ["Toon", pick("tone", "toneOfVoice", "toon")],
+    ["Schrijfstijl", pick("writingStyle", "schrijfstijl", "style")],
+    ["Doelgroep", pick("targetAudience", "audience", "doelgroep")],
+    ["Aanspreekvorm", pick("formOfAddress", "aanspreekvorm")],
+    ["Wel doen", pick("dos", "do", "welDoen")],
+    ["Niet doen", pick("donts", "dont", "nietDoen", "avoid")],
+  ].filter(([, v]) => v);
+  return [
+    "SCHRIJFREGELS VAN DEZE PARTNER (deze gaan vóór de algemene regels hieronder; elke partner schrijft anders):",
+    ...(lines.length ? lines.map(([k, v]) => `- ${k}: ${v}`) : ["- Leid toon, aanspreekvorm (je of u), doelgroep en stijl af uit het partnerprofiel en de voorbeeldtekst."]),
+    "- Neem de aanspreekvorm, zinslengte en woordkeus van de voorbeeldtekst over. Klinkt de partner zakelijk, schrijf dan zakelijk; klinkt hij informeel, schrijf dan informeel.",
+    "- Schrijf zoals een vakman van deze partner het een klant zou uitleggen, niet als een algemene SEO-tekst.",
+  ].join("\n");
+}
+
+/** What Search Console shows about the partner's own website, as instructions. */
+export function searchConsoleBlock(gsc: SearchConsoleContext | null, primaryKeyword: string): string {
+  if (!gsc || (!gsc.relatedQueries.length && !gsc.pages.length)) {
+    return "Er zijn geen Search Console-gegevens van de website beschikbaar.";
+  }
+  const out = ["GEGEVENS UIT GOOGLE SEARCH CONSOLE VAN DE EIGEN WEBSITE VAN DE PARTNER:"];
+  if (gsc.relatedQueries.length) {
+    out.push(
+      "Zoekopdrachten waarop de website nu al in Google verschijnt (zoekopdracht · klikken · vertoningen · positie). Gebruik deze bewoordingen waar ze natuurlijk passen: zo zoeken de klanten van deze partner echt.",
+      ...gsc.relatedQueries.map((q) => `- ${q.query} · ${q.clicks} · ${q.impressions} · ${q.position.toFixed(1)}`),
+    );
+  }
+  if (gsc.pages.length) {
+    out.push(
+      "Bestaande pagina's van de website die bezoekers uit Google krijgen. Zet 2 tot 4 interne links in het artikel (markdown [tekst](url)) naar pagina's uit deze lijst die echt aansluiten. Link nooit naar een URL die niet in deze lijst staat.",
+      ...gsc.pages.map((p) => `- ${p.url}`),
+    );
+  }
+  if (gsc.existingPageForKeyword) {
+    out.push(`Let op: de pagina ${gsc.existingPageForKeyword.url} staat al op positie ${gsc.existingPageForKeyword.position.toFixed(1)} voor "${primaryKeyword}". Schrijf een andere invalshoek die die pagina aanvult in plaats van ermee te concurreren, en link er één keer naar.`);
+  }
+  return out.join("\n");
+}
+
+/** Second pass, like an editor: same JSON back, tighter and more human. */
+export function makeEditorPrompt(articleJson: string, input: ArticleGenerationInput): string {
+  return [
+    "Je bent eindredacteur van een Nederlands webbureau. Hieronder staat een conceptartikel als JSON. Verbeter het en geef UITSLUITEND hetzelfde JSON-schema terug, zonder markdown eromheen.",
+    "Controleer en herstel:",
+    "1. Herhaling: komt een feit (prijs, garantie, locatie, levering, werkwijze) vaker dan één keer voor buiten 'In het kort', schrap dan de herhalingen.",
+    "2. Afsluiting: staat er een conclusie of samenvatting aan het eind, schrap die. Laat hooguit 2 of 3 zinnen over met een concrete volgende stap, of niets. Er is geen kop 'Conclusie'.",
+    "3. Zoekwoorden: herschrijf elke zin waarin een zoekwoord onnatuurlijk of grammaticaal fout staat (zoals 'e bike gazelle heren').",
+    "4. AI-taal: schrap vage openers, holle overgangen ('Daarnaast', 'Bovendien', 'Kortom'), opvulzinnen en alles wat zo in elk ander artikel kan staan.",
+    "5. Toon: het moet klinken als de partner zelf. Volg de schrijfregels van de partner hieronder en de voorbeeldtekst.",
+    "6. Feiten: voeg geen nieuwe feiten, cijfers, personen of links toe. Laat bestaande interne links staan.",
+    "Houd de titel, het hoofdzoekwoord, 'In het kort', de veelgestelde vragen en de koppen in principe zoals ze zijn; verander alleen wat beter moet. Werk full_article, sections, introduction en conclusion consequent bij, zodat ze dezelfde tekst bevatten.",
+    partnerStyleRules(cloneSnapshot(input.approvedPartnerProfile)),
+    input.styleSample ? `Voorbeeldtekst van de partner:\n"""\n${input.styleSample}\n"""` : "",
+    "Conceptartikel:",
+    articleJson,
+  ].filter(Boolean).join("\n\n");
 }
 
 /** The JSON object in Claude's answer, without ```json fences or text around it. */
@@ -243,7 +324,6 @@ function parseArticleResponse(
   if (
     !nonEmptyString(input.title) ||
     !nonEmptyString(input.introduction) ||
-    !nonEmptyString(input.conclusion) ||
     !nonEmptyString(input.full_article) ||
     !nonEmptyString(input.meta_title) ||
     !nonEmptyString(input.meta_description) ||
@@ -260,6 +340,7 @@ function parseArticleResponse(
   // Keep only keywords and questions that were really supplied.
   const keywordsUsed = input.secondary_keywords_used.filter((value) => allowedKeywords.has(value));
   const questionsUsed = input.questions_answered.filter((value) => allowedQuestions.has(value));
+  if (typeof input.conclusion !== "string") input.conclusion = "";
   const sections: ArticleSectionContent[] = [];
   for (const section of input.sections) {
     if (!section || typeof section !== "object" || Array.isArray(section)) {
@@ -283,7 +364,7 @@ function parseArticleResponse(
     title: input.title,
     introduction: input.introduction,
     sections,
-    conclusion: input.conclusion,
+    conclusion: String(input.conclusion ?? ""),
     fullArticle: input.full_article,
     metaTitle: input.meta_title,
     metaDescription: input.meta_description,
@@ -347,12 +428,14 @@ export async function generateArticle(
       } catch {
         throw new Error("invalid_article_json");
       }
-      return parseArticleResponse(
-        decoded,
-        primaryKeyword,
-        allowedKeywords,
-        allowedQuestions,
-      );
+      const draft = parseArticleResponse(decoded, primaryKeyword, allowedKeywords, allowedQuestions);
+      // Editor pass: if it fails or returns something unusable, keep the draft.
+      try {
+        const edited = await runner(makeEditorPrompt(extractJson(raw), input), timeoutMs);
+        return parseArticleResponse(JSON.parse(extractJson(edited)), primaryKeyword, allowedKeywords, allowedQuestions);
+      } catch {
+        return draft;
+      }
     } catch (error) {
       lastError = error;
       if (attempt === 1) break;

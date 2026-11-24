@@ -57,8 +57,25 @@ test("repairs invalid JSON exactly once", async () => {
     calls += 1;
     return calls === 1 ? "not json" : JSON.stringify(valid);
   });
-  assert.equal(calls, 2);
+  assert.equal(calls, 3); // draft, repair, editor pass
   assert.equal(article.title, valid.title);
+});
+
+test("editor pass result is used, and a broken editor answer keeps the draft", async () => {
+  let calls = 0;
+  const edited = await generateArticle(input, async () => (++calls === 1 ? JSON.stringify(valid) : JSON.stringify({ ...valid, title: valid.title + " (bewerkt)" })));
+  assert.match(edited.title, /bewerkt/);
+  calls = 0;
+  const kept = await generateArticle(input, async () => (++calls === 1 ? JSON.stringify(valid) : "kapot"));
+  assert.equal(kept.title, valid.title);
+});
+
+test("prompt has no forced conclusion and includes Search Console data", () => {
+  const prompt = makeArticleGenerationPrompt({ ...input, searchConsole: { relatedQueries: [{ query: "tuin aanleggen kosten", clicks: 12, impressions: 300, position: 7.2 }], pages: [{ url: "https://voorbeeld.nl/tuinontwerp", clicks: 40 }], existingPageForKeyword: null } });
+  assert.match(prompt, /Geen aparte 'Conclusie'-kop/);
+  assert.match(prompt, /tuin aanleggen kosten/);
+  assert.match(prompt, /voorbeeld\.nl\/tuinontwerp/);
+  assert.match(prompt, /SCHRIJFREGELS VAN DEZE PARTNER/);
 });
 
 test("fails after exactly two invalid Claude responses", async () => {
@@ -192,7 +209,7 @@ test("maps a Claude timeout without starting a repair request", async () => {
 
 test("v2 prompt asks for a direct answer, an In het kort block and a FAQ, and passes a style sample", () => {
   const prompt = makeArticleGenerationPrompt({ ...input, styleSample: "Wij helpen je graag met je tuin. Bel ons gerust voor een afspraak bij jou thuis." });
-  assert.match(prompt, /article_generation_v2/);
+  assert.match(prompt, /article_generation_v3/);
   assert.match(prompt, /direct antwoord/);
   assert.match(prompt, /In het kort/);
   assert.match(prompt, /## Veelgestelde vragen/);

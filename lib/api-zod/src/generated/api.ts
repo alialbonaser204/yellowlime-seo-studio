@@ -1152,7 +1152,7 @@ export const ListArticleGenerationsResponseItem = zod.object({
   "questionsAnswered": zod.array(zod.string()),
   "articleStatus": zod.enum(['Klaar voor generatie', 'Artikel wordt geschreven', 'Concept gereed', 'Generatie mislukt', 'Wacht op controle']),
   "claudeModelName": zod.enum(['claude-sonnet-5']),
-  "promptVersion": zod.enum(['article_generation_v1', 'article_generation_v2']),
+  "promptVersion": zod.enum(['article_generation_v1', 'article_generation_v2', 'article_generation_v3']),
   "generatedAt": zod.coerce.date(),
   "failureMessage": zod.string().nullable()
 })
@@ -1220,7 +1220,7 @@ export const GenerateArticleGenerationResponse = zod.object({
   "questionsAnswered": zod.array(zod.string()),
   "articleStatus": zod.enum(['Klaar voor generatie', 'Artikel wordt geschreven', 'Concept gereed', 'Generatie mislukt', 'Wacht op controle']),
   "claudeModelName": zod.enum(['claude-sonnet-5']),
-  "promptVersion": zod.enum(['article_generation_v1', 'article_generation_v2']),
+  "promptVersion": zod.enum(['article_generation_v1', 'article_generation_v2', 'article_generation_v3']),
   "generatedAt": zod.coerce.date(),
   "failureMessage": zod.string().nullable()
 })

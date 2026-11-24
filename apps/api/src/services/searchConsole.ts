@@ -417,3 +417,32 @@ export async function searchConsolePageMetrics(websiteUrl: string, fetcher: Fetc
     return null;
   }
 }
+
+
+/**
+ * Search Console context for writing an article: searches the partner's site
+ * already shows up for that share a word with the main keyword, and its pages
+ * that get clicks (for internal links). Null when Google is not connected.
+ */
+export async function articleSearchConsoleContext(partnerId: number, mainKeyword: string): Promise<{
+  relatedQueries: { query: string; clicks: number; impressions: number; position: number }[];
+  pages: { url: string; clicks: number }[];
+  existingPageForKeyword: null;
+} | null> {
+  try {
+    const page = await partnerSearchConsolePage(partnerId, 90);
+    const report = page?.report;
+    if (!report) return null;
+    const words = mainKeyword.toLowerCase().split(/[^\p{L}\p{N}]+/u).filter((w) => w.length >= 4);
+    const seen = new Set<string>();
+    const relatedQueries = [...report.topQueries, ...report.opportunities]
+      .filter((q) => !seen.has(q.key) && seen.add(q.key))
+      .filter((q) => words.some((w) => q.key.toLowerCase().includes(w)))
+      .slice(0, 15)
+      .map((q) => ({ query: q.key, clicks: q.clicks, impressions: q.impressions, position: q.position }));
+    const pages = report.topPages.filter((p) => p.clicks > 0).slice(0, 15).map((p) => ({ url: p.key, clicks: p.clicks }));
+    return { relatedQueries, pages, existingPageForKeyword: null };
+  } catch {
+    return null;
+  }
+}

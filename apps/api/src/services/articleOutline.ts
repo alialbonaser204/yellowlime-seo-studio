@@ -80,7 +80,7 @@ export function makeOutlinePrompt(input: OutlineInput): string {
     "Regels:",
     [
       "- title bevat het hoofdzoekwoord.",
-      "- sections zijn alleen de inhoudelijke secties. Inleiding, het blok 'In het kort', 'Veelgestelde vragen' en de conclusie komen er later vast bij: zet ze niet in de opzet.",
+      "- sections zijn alleen de inhoudelijke secties. Inleiding, het blok 'In het kort', 'Veelgestelde vragen' en een eventuele korte afsluiter komen er later bij: zet ze niet in de opzet.",
       "- 4 tot 7 H2-secties; een H3 alleen direct onder een H2 als een sectie echt uit delen bestaat. Eén duidelijk onderwerp per sectie, in een logische volgorde voor de lezer.",
       "- Het hoofdzoekwoord staat in ongeveer een derde van de H2-koppen, natuurlijk geformuleerd.",
       input.serp?.medianWords
@@ -150,7 +150,7 @@ export function outlineInstructions(outline: ArticleOutline): string {
     "Goedgekeurde opzet (bindend, door een Yellowlimer goedgekeurd):",
     `Titel: ${outline.title}`,
     ...lines,
-    "Gebruik deze titel en precies deze koppen, in deze volgorde en op dit niveau; voeg geen andere inhoudelijke secties toe. Houd ongeveer het aangegeven aantal woorden aan. Inleiding, 'In het kort', 'Veelgestelde vragen' en de conclusie komen er volgens de vaste opbouw bij.",
+    "Gebruik deze titel en precies deze koppen, in deze volgorde en op dit niveau; voeg geen andere inhoudelijke secties toe. Houd ongeveer het aangegeven aantal woorden aan. Inleiding, 'In het kort', 'Veelgestelde vragen' en een eventuele korte afsluiter (geen conclusie) komen er volgens de vaste opbouw bij.",
   ].join("\n");
 }
 

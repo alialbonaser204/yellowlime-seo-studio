@@ -12,4 +12,5 @@ export type ArticleGenerationPromptVersion = typeof ArticleGenerationPromptVersi
 export const ArticleGenerationPromptVersion = {
   article_generation_v1: 'article_generation_v1',
   article_generation_v2: 'article_generation_v2',
+  article_generation_v3: 'article_generation_v3',
 } as const;
