@@ -99,6 +99,13 @@
       "when": 1795518600991,
       "tag": "0013_note_scope",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1795519150954,
+      "tag": "0014_learning_lessons",
+      "breakpoints": true
     }
   ]
 }

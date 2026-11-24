@@ -4,6 +4,7 @@ import { Link, useParams } from 'wouter';
 import { ArrowLeft, Check, ClipboardCheck, PenLine, Plus, RefreshCw, RotateCcw, Trash2, TriangleAlert, X } from 'lucide-react';
 import { articleHtml } from '../lib/concept-html';
 import { ConceptButtons } from '../components/concept-buttons';
+import { LessonWizard } from '../components/lesson-wizard';
 
 interface QueueItem {
   id: number; title: string; subject: string; versionNumber: number; partnerName: string;
@@ -92,6 +93,7 @@ export function ReviewArticlePage() {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
+  const [learning, setLearning] = useState(false);
   const [blocks, setBlocks] = useState<EditBlock[]>([]);
   const [metaTitle, setMetaTitle] = useState('');
   const [metaDescription, setMetaDescription] = useState('');
@@ -115,6 +117,7 @@ export function ReviewArticlePage() {
       const body = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(body.error ?? 'Opslaan mislukt.');
       setEditing(false);
+      if (decision) setLearning(true);
       await Promise.all(['review-article', 'review-queue', 'review-count'].map((k) => queryClient.invalidateQueries({ queryKey: [k] })));
     } catch (error) { setMessage(error instanceof Error ? error.message : 'Opslaan mislukt.'); }
     finally { setBusy(false); }
@@ -142,7 +145,10 @@ export function ReviewArticlePage() {
         </div>
         <div className="rq-bar-actions">
           {a.reviewDecision ? (
-            <button type="button" className="rq-bar-ghost" onClick={() => decide(null)} disabled={busy}>Controle opnieuw openen</button>
+            <>
+              <button type="button" className="rq-bar-ghost" onClick={() => setLearning(true)}>Wat leerde de AI?</button>
+              <button type="button" className="rq-bar-ghost" onClick={() => decide(null)} disabled={busy}>Controle opnieuw openen</button>
+            </>
           ) : editing ? (
             <>
               <button type="button" className="rq-bar-ghost" onClick={() => setEditing(false)} disabled={busy}>Annuleren</button>
@@ -154,6 +160,7 @@ export function ReviewArticlePage() {
           )}
         </div>
       </div>
+      {learning && <LessonWizard genId={a.id} partnerName={a.partnerName} onClose={() => setLearning(false)} />}
       <div className="article-layout">
         {editing ? (
           <article className="card article-paper rq-article rq-editing">

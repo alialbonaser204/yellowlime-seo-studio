@@ -12,3 +12,4 @@ export * from "./googleConnections";
 export * from "./users";
 export * from "./semrushAnalyses";
 export * from "./articleCorrections";
+export * from "./learningLessons";

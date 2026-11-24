@@ -5,7 +5,9 @@
 import { alias } from "drizzle-orm/pg-core";
 import { and, desc, eq, isNull, sql } from "drizzle-orm";
 import { Router, type IRouter } from "express";
-import { articleCorrectionsTable, articleGenerationsTable, briefingsTable, db, partnersTable, usersTable, yellowlimersTable } from "@yellowlime/db";
+import { articleCorrectionsTable, articleGenerationsTable, briefingsTable, db, learningLessonsTable, partnersTable, usersTable, yellowlimersTable } from "@yellowlime/db";
+import { proposeLessons, type ProposedLesson } from "../services/learning";
+import type { ArticleDifference } from "../services/articleDiff";
 import { compareArticles } from "../services/articleDiff";
 import { currentUser } from "../lib/requestUser";
 
@@ -137,6 +139,73 @@ router.post("/review-queue/:id/decision", async (req, res): Promise<void> => {
     .set({ reviewDecision: decision, reviewNote: note, reviewedBy: user?.id ?? null, reviewedAt: new Date() })
     .where(eq(articleGenerationsTable.id, id));
   res.json({ ok: true, difference: difference.stats });
+});
+
+async function latestCorrection(generationId: number) {
+  const [c] = await db.select().from(articleCorrectionsTable).where(eq(articleCorrectionsTable.generationId, generationId)).orderBy(desc(articleCorrectionsTable.createdAt)).limit(1);
+  return c ?? null;
+}
+
+/**
+ * After the check: the AI compares both versions carefully and proposes
+ * lessons. Stored with the correction, so asking again does not cost again.
+ */
+router.post("/review-queue/:id/lessons/analyse", async (req, res): Promise<void> => {
+  const id = Number(req.params.id);
+  if (!Number.isInteger(id) || id <= 0) { res.status(400).json({ error: "Ongeldig artikel." }); return; }
+  const correction = await latestCorrection(id);
+  if (!correction) { res.status(404).json({ error: "Sla eerst de controle op." }); return; }
+  if (correction.aiLessons && req.query.refresh !== "1") { res.json({ lessons: correction.aiLessons }); return; }
+  const [partner] = await db.select({ name: partnersTable.companyName }).from(partnersTable).where(eq(partnersTable.id, correction.partnerId));
+  const known = await db
+    .select({ rule: learningLessonsTable.rule, scope: learningLessonsTable.scope, partnerName: partnersTable.companyName })
+    .from(learningLessonsTable)
+    .leftJoin(partnersTable, eq(partnersTable.id, learningLessonsTable.partnerId))
+    .where(eq(learningLessonsTable.status, "actief"))
+    .orderBy(desc(learningLessonsTable.createdAt))
+    .limit(60);
+  try {
+    const lessons = await proposeLessons({
+      partnerName: partner?.name ?? "de partner",
+      before: correction.beforeVersion,
+      after: correction.afterVersion,
+      difference: correction.difference as unknown as ArticleDifference,
+      note: correction.note,
+      noteScope: correction.noteScope,
+      knownLessons: known,
+    });
+    await db.update(articleCorrectionsTable).set({ aiLessons: lessons }).where(eq(articleCorrectionsTable.id, correction.id));
+    res.json({ lessons });
+  } catch (error) {
+    req.log.error({ code: "lesson_analysis_failed", errorType: error instanceof Error ? error.message : typeof error }, "Lessen konden niet worden bepaald");
+    res.status(502).json({ error: "De AI kon de versies nu niet vergelijken. Probeer het opnieuw." });
+  }
+});
+
+/** The reviewer's choice per lesson: only this partner, all partners, or not remembered. */
+router.post("/review-queue/:id/lessons", async (req, res): Promise<void> => {
+  const id = Number(req.params.id);
+  const choices = Array.isArray(req.body?.choices) ? req.body.choices : null;
+  if (!Number.isInteger(id) || id <= 0 || !choices) { res.status(400).json({ error: "Ongeldige keuze." }); return; }
+  const correction = await latestCorrection(id);
+  const proposed = (correction?.aiLessons ?? []) as ProposedLesson[];
+  if (!correction || !proposed.length) { res.status(404).json({ error: "Geen lessen gevonden." }); return; }
+  // Choosing again replaces the earlier choice for this check.
+  await db.delete(learningLessonsTable).where(eq(learningLessonsTable.correctionId, correction.id));
+  const rows = choices
+    .filter((c: { index?: unknown; scope?: unknown }) => Number.isInteger(c.index) && proposed[c.index as number] && (c.scope === "partner" || c.scope === "algemeen"))
+    .map((c: { index: number; scope: "partner" | "algemeen" }) => ({
+      scope: c.scope,
+      partnerId: correction.partnerId,
+      rule: proposed[c.index].rule,
+      explanation: proposed[c.index].explanation,
+      example: { before: proposed[c.index].before, after: proposed[c.index].after },
+      correctionId: correction.id,
+      createdBy: currentUser()?.id ?? null,
+    }));
+  if (rows.length) await db.insert(learningLessonsTable).values(rows);
+  const [{ n }] = await db.select({ n: sql<number>`count(*)::int` }).from(learningLessonsTable).where(and(eq(learningLessonsTable.status, "actief"), sql`(${learningLessonsTable.scope} = 'algemeen' or ${learningLessonsTable.partnerId} = ${correction.partnerId})`));
+  res.json({ saved: rows.length, totalForPartner: n });
 });
 
 export default router;

@@ -842,3 +842,45 @@ img.partner-symbol { width: 35px; height: 35px; border-radius: 9px; }
 .rq-bar button:disabled { opacity: .6; cursor: wait; }
 .rq-bar.is-done { background: linear-gradient(100deg, #1f3d26, #2b5235); }
 @media (prefers-reduced-motion: reduce) { .rq-bar, .rq-bar-cta.breathe { animation: none; } }
+
+/* Lesson wizard (design 3) */
+@keyframes lw-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes lw-inR { from { opacity: 0; transform: translateX(40px); } to { opacity: 1; transform: none; } }
+@keyframes lw-pop { 0% { transform: scale(.6); opacity: 0; } 70% { transform: scale(1.08); } 100% { transform: scale(1); opacity: 1; } }
+.lw-backdrop { position: fixed; inset: 0; z-index: 100; background: rgba(15, 30, 20, .45); backdrop-filter: blur(3px); display: grid; place-items: center; padding: 16px; animation: lw-fade .25s ease-out; }
+.lw-modal { position: relative; width: min(760px, 100%); max-height: calc(100vh - 32px); overflow: auto; background: #f3f6f0; border-radius: 22px; padding: 30px; box-sizing: border-box; box-shadow: 0 30px 80px rgba(0,0,0,.25); }
+.lw-close { position: absolute; right: 14px; top: 14px; border: 0; background: transparent; cursor: pointer; padding: 8px; border-radius: 8px; color: #3c4a38; }
+.lw-close:hover { background: rgba(0,0,0,.06); }
+.lw-center { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 12px; padding: 20px 10px; }
+.lw-center h2 { margin: 0; font-size: 24px; }
+.lw-center p { margin: 0; max-width: 520px; color: #3c4a38; line-height: 1.55; }
+.lw-in { animation: lw-fade .4s ease-out; }
+.lw-spin { color: #2f6b3a; }
+.lw-why-box { margin-top: 10px; background: #fff; border: 1px solid #e1e7dc; border-radius: 14px; padding: 16px 18px; display: flex; flex-direction: column; gap: 6px; max-width: 520px; text-align: left; font-size: 14px; line-height: 1.55; color: #3c4a38; }
+.lw-why-box strong { color: #1f2a1c; }
+.lw-why { font-weight: 600; color: #2f6b3a !important; }
+.lw-badge { width: 64px; height: 64px; border-radius: 50%; background: #e9f56a; color: #1f2a1c; display: grid; place-items: center; animation: lw-pop .6s cubic-bezier(.2,.9,.3,1.2) both; }
+.lw-error { color: #b42318 !important; }
+.lw-step { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+.lw-progress { display: flex; gap: 6px; }
+.lw-progress span { width: 40px; height: 5px; border-radius: 5px; background: #cfd8ca; transition: background .3s; }
+.lw-progress span.on { background: #2f6b3a; }
+.lw-count { font-size: 13px; color: #5b6b57; }
+.lw-intro { margin: 0; max-width: 600px; text-align: center; font-size: 14px; color: #3c4a38; line-height: 1.55; }
+.lw-card { width: 100%; background: #fff; border: 1px solid #e1e7dc; border-radius: 20px; padding: 26px; box-sizing: border-box; display: flex; flex-direction: column; gap: 14px; animation: lw-inR .5s cubic-bezier(.2,.9,.3,1.1) both; }
+.lw-card h2 { margin: 0; font-size: 23px; }
+.lw-expl { margin: 0; color: #3c4a38; font-size: 15px; }
+.lw-diff { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; font-size: 14px; color: #5b6b57; }
+.lw-old { background: #fde8e8; color: #9f1f19; padding: 6px 10px; border-radius: 8px; text-decoration: line-through; }
+.lw-new { background: #e4f1da; color: #2f6b3a; padding: 6px 10px; border-radius: 8px; }
+.lw-ai { margin: 0; font-size: 13px; color: #5b6b57; background: #f6f8f4; border-radius: 10px; padding: 10px 12px; }
+.lw-q { font-weight: 600; font-size: 15px; }
+.lw-choices { display: flex; gap: 14px; flex-wrap: wrap; }
+.lw-big { flex: 1 1 220px; display: flex; flex-direction: column; gap: 6px; text-align: left; border-radius: 16px; padding: 18px 20px; font: 700 16px var(--app-font-sans, Inter, sans-serif); cursor: pointer; border: 2px solid #cfd8ca; background: #fff; color: #1f2a1c; transition: transform .15s ease, border-color .2s; }
+.lw-big small { font-weight: 400; font-size: 13px; color: #5b6b57; }
+.lw-big.dark { border-color: #1f3d26; background: #1f3d26; color: #e9f56a; }
+.lw-big.dark small { color: #c8dcc4; }
+.lw-big:hover { transform: translateY(-2px); }
+.lw-big.suggested { box-shadow: 0 0 0 4px rgba(233,245,106,.7); }
+.lw-skip { align-self: center; border: 0; background: none; font: 500 13px var(--app-font-sans, Inter, sans-serif); color: #5b6b57; cursor: pointer; text-decoration: underline; }
+@media (prefers-reduced-motion: reduce) { .lw-backdrop, .lw-card, .lw-badge, .lw-in { animation: none; } }

@@ -4,6 +4,7 @@ import {
   type ClaudeTextRunner,
 } from "./claudeRunner";
 import { outlineInstructions, type ArticleOutline } from "./articleOutline";
+import { lessonsBlock } from "./learning";
 
 export const CLAUDE_MODEL = SHARED_CLAUDE_MODEL;
 export const PROMPT_VERSION = "article_generation_v3" as const;
@@ -26,6 +27,8 @@ export interface ArticleGenerationInput {
   searchConsole?: SearchConsoleContext | null;
   /** What the partner itself does in its own texts (null = unknown, so: don't). */
   partnerHabits?: PartnerHabits | null;
+  /** Lessons learned from earlier human checks (partner first, then general). */
+  lessons?: { partner: string[]; general: string[] } | null;
 }
 
 export interface PartnerHabits {
@@ -235,6 +238,7 @@ export function makeArticleGenerationPrompt(input: ArticleGenerationInput): stri
       : "Er is geen voorbeeldtekst van de website; volg de toon en stijl uit het partnerprofiel.",
     ...(input.outline ? [outlineInstructions(input.outline)] : []),
     partnerStyleRules(profile),
+    lessonsBlock(input.lessons),
     searchConsoleBlock(input.searchConsole ?? null, primaryKeyword),
     [
       "Opbouw van full_article (markdown):",
@@ -349,6 +353,7 @@ export function makeEditorPrompt(articleJson: string, input: ArticleGenerationIn
     input.partnerHabits?.closing.used ? "" : "Deze partner gebruikt geen afsluitende kop: schrap een kop als 'Conclusie' of 'Tot slot' en laat hooguit 2 of 3 zinnen met een volgende stap over.",
     "Houd de titel, het hoofdzoekwoord en de koppen in principe zoals ze zijn; verander alleen wat beter moet. Werk full_article, sections, introduction en conclusion consequent bij, zodat ze dezelfde tekst bevatten.",
     partnerStyleRules(cloneSnapshot(input.approvedPartnerProfile)),
+    lessonsBlock(input.lessons),
     input.styleSample ? `Voorbeeldtekst van de partner:\n"""\n${input.styleSample}\n"""` : "",
     "Conceptartikel:",
     articleJson,

@@ -26,6 +26,8 @@ export const articleCorrectionsTable = pgTable(
     note: text("note"),
     /** Reviewer's choice for the remarks: "partner" (only this partner), "algemeen" (all partners) or null (let the count decide). */
     noteScope: text("note_scope"),
+    /** Lessons the AI proposed after comparing both versions (before the reviewer chose). */
+    aiLessons: jsonb("ai_lessons").$type<{ rule: string; explanation: string; before: string | null; after: string | null; suggestedScope: string }[] | null>(),
     reviewedBy: integer("reviewed_by").references(() => usersTable.id, { onDelete: "set null" }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },

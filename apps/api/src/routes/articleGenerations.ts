@@ -37,6 +37,7 @@ import { analyseSerp } from "../services/serpAnalysis";
 import { articleSearchConsoleContext } from "../services/searchConsole";
 import { buildConcept } from "./articlePreview";
 import { currentUser } from "../lib/requestUser";
+import { lessonsFor } from "../services/learning";
 
 const router: IRouter = Router();
 
@@ -280,6 +281,7 @@ router.post(
         yellowlimerName: reviewer!.name,
         styleSample: styleSampleFrom(profile?.websiteText),
         partnerHabits: detectPartnerHabits([profile?.websiteText ?? ""], partnerHeadings),
+        lessons: await lessonsFor(partner!.id).catch(() => null),
         outline,
       },
       req.log,
