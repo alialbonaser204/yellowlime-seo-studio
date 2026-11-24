@@ -51,7 +51,6 @@ export interface ConceptDesign {
 
 interface PhotoPlanItem { heading: string | null; query: string; alt: string; reason: string }
 
-const previews = new Map<string, unknown>();
 
 const COLOR = /^(#[0-9a-f]{3,8}|rgba?\([\d\s.,%]+\))$/i;
 const color = (v: unknown) => (typeof v === "string" && COLOR.test(v.trim()) ? v.trim() : null);
@@ -119,17 +118,14 @@ function parseDirector(raw: string, headings: string[]): { design: Partial<Conce
   }
 }
 
-router.get("/article-generations/:id/preview", async (req, res): Promise<void> => {
-  const id = Number(req.params.id);
-  if (!Number.isInteger(id) || id <= 0) { res.status(400).json({ error: "Ongeldig artikel." }); return; }
+/**
+ * Makes the concept page for one written article and stores it with the
+ * article. Runs automatically after writing; the button only reads it.
+ */
+export async function buildConcept(id: number): Promise<Record<string, unknown> | null> {
   const [gen] = await db.select().from(articleGenerationsTable).where(eq(articleGenerationsTable.id, id));
-  if (!gen || !gen.fullArticle) { res.status(404).json({ error: "Dit artikel is nog niet geschreven." }); return; }
+  if (!gen || !gen.fullArticle) return null;
   const [partner] = await db.select({ websiteUrl: partnersTable.websiteUrl, companyName: partnersTable.companyName }).from(partnersTable).where(eq(partnersTable.id, gen.partnerId));
-
-  const cacheKey = `${id}`;
-  const cached = req.query.refresh === "1" ? undefined : previews.get(cacheKey);
-  if (cached) { res.json(cached); return; }
-
   const headings = [...gen.fullArticle.matchAll(/^## (.+)$/gm)].map((m) => m[1].trim()).filter((h) => !/veelgestelde vragen/i.test(h));
   const intro = gen.fullArticle.split(/\n## /)[0].replace(/^# .*$/m, "").trim();
 
@@ -208,7 +204,18 @@ router.get("/article-generations/:id/preview", async (req, res): Promise<void> =
     styleMessage: notes.join(" ") || null,
     lookedAtBrowser: Boolean(rendered),
   };
-  previews.set(cacheKey, body);
+  await db.update(articleGenerationsTable).set({ concept: body }).where(eq(articleGenerationsTable.id, id));
+  return body;
+}
+
+router.get("/article-generations/:id/preview", async (req, res): Promise<void> => {
+  const id = Number(req.params.id);
+  if (!Number.isInteger(id) || id <= 0) { res.status(400).json({ error: "Ongeldig artikel." }); return; }
+  const [gen] = await db.select({ concept: articleGenerationsTable.concept, fullArticle: articleGenerationsTable.fullArticle }).from(articleGenerationsTable).where(eq(articleGenerationsTable.id, id));
+  if (!gen || !gen.fullArticle) { res.status(404).json({ error: "Dit artikel is nog niet geschreven." }); return; }
+  if (gen.concept && req.query.refresh !== "1") { res.json(gen.concept); return; }
+  const body = await buildConcept(id);
+  if (!body) { res.status(404).json({ error: "Dit artikel is nog niet geschreven." }); return; }
   res.json(body);
 });
 

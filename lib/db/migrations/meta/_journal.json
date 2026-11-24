@@ -71,6 +71,13 @@
       "when": 1795161211760,
       "tag": "0009_prompt_version_check",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1795515992550,
+      "tag": "0010_article_concept",
+      "breakpoints": true
     }
   ]
 }

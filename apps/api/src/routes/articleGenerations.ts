@@ -33,6 +33,7 @@ import {
 import { generateOutline, validateOutline, type ArticleOutline } from "../services/articleOutline";
 import { analyseSerp } from "../services/serpAnalysis";
 import { articleSearchConsoleContext } from "../services/searchConsole";
+import { buildConcept } from "./articlePreview";
 
 const router: IRouter = Router();
 
@@ -336,6 +337,11 @@ function queueArticleGeneration(
             eq(articleGenerationsTable.articleStatus, "Artikel wordt geschreven"),
           ),
         );
+      // Make the concept page right away, for every partner. If it fails the
+      // article is still fine; the button then makes the concept on request.
+      await buildConcept(generationId).catch((error) => {
+        log.error({ code: "auto_concept_failed", errorType: error instanceof Error ? error.message.slice(0, 200) : typeof error }, "Conceptpagina kon niet automatisch worden gemaakt");
+      });
     } catch (error) {
       const message = articleGenerationErrorMessage(error);
       try {

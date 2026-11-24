@@ -1,0 +1,1 @@
+ALTER TABLE "article_generations" ADD COLUMN "concept" jsonb;
