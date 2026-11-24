@@ -343,13 +343,40 @@ function getPartner(data: StudioData, partnerId: string) { return data.partners.
 const HOME_STAGE_COLOR = 'rgba(168,201,160,0.72)';
 
 function HomeHero() {
+  // The intro (spin-in, shine, typing "AI Agent") plays once and then stays.
   const [playing, setPlaying] = useState(false);
-  const replay = () => { setPlaying(false); requestAnimationFrame(() => requestAnimationFrame(() => setPlaying(true))); };
   useEffect(() => { const timer = setTimeout(() => setPlaying(true), 250); return () => clearTimeout(timer); }, []);
+
+  // After the intro the logo keeps turning slowly; a mouse click speeds it up
+  // for a moment, after which it slows down smoothly to the calm speed again.
+  const orbit = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = orbit.current;
+    if (!el || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const BASE = 14; // degrees per second
+    let angle = 0, speed = 0, target = BASE, last = 0, frame = 0, held = false;
+    const startAfterIntro = setTimeout(() => { last = performance.now(); frame = requestAnimationFrame(tick); }, 4800);
+    function tick(now: number) {
+      const dt = Math.min(0.05, (now - last) / 1000);
+      last = now;
+      if (!held) target = Math.max(BASE, target - (target - BASE) * 1.6 * dt); // slow down
+      speed += (target - speed) * Math.min(1, 6 * dt);
+      angle = (angle + speed * dt) % 360;
+      el!.style.transform = `rotate(${angle}deg)`;
+      frame = requestAnimationFrame(tick);
+    }
+    const down = () => { held = true; target = Math.min(720, Math.max(target, BASE) + 360); };
+    const up = () => { held = false; };
+    window.addEventListener('pointerdown', down);
+    window.addEventListener('pointerup', up);
+    window.addEventListener('pointercancel', up);
+    return () => { clearTimeout(startAfterIntro); cancelAnimationFrame(frame); window.removeEventListener('pointerdown', down); window.removeEventListener('pointerup', up); window.removeEventListener('pointercancel', up); };
+  }, []);
+
   return <section className="home-stage" aria-label="Yellowlime AI Agent">
     <Spotlight stageColor={HOME_STAGE_COLOR} anchorSelector=".home-mark" />
-    <div className={`home-hero ${playing ? 'on' : ''}`} onMouseEnter={replay} onClick={replay}>
-      <div className="home-orbit">
+    <div className={`home-hero ${playing ? 'on' : ''}`}>
+      <div className="home-orbit" ref={orbit}>
         <span className="home-mark" role="img" aria-label="Yellowlime-logo" style={{ ['--mark' as string]: `url(${brandMark})` }} />
       </div>
       <h1 className="home-name">

@@ -357,11 +357,12 @@ button { cursor: pointer; }
 .home-mark::after { -webkit-mask: var(--mark) center / contain no-repeat; mask: var(--mark) center / contain no-repeat; }
 .home-wm::after { -webkit-mask: var(--wm) center / 100% 100% no-repeat; mask: var(--wm) center / 100% 100% no-repeat; }
 .home-sub::after { content: ''; display: inline-block; width: 2px; height: .95em; margin-left: 2px; vertical-align: -2px; background: hsl(var(--primary)); opacity: 0; }
-.home-hero.on .home-mark { animation: brand-spin 4.5s cubic-bezier(.25, .5, .3, 1), home-glow 1.3s ease-in-out infinite alternate; }
+.home-hero.on .home-mark { animation: brand-spin 4.5s cubic-bezier(.25, .5, .3, 1), home-glow 1.3s ease-in-out 4 alternate both; }
+.home-orbit { will-change: transform; }
 .home-hero.on .home-mark::after { animation: home-sweep .9s .2s ease-out both; }
 .home-hero.on .home-wm::after { animation: home-sweep 1.1s .35s ease-out both; }
 .home-hero.on .home-sub { animation: brand-type .9s .3s steps(8, end) both; }
-.home-hero.on .home-sub::after { animation: brand-caret .7s 1.2s steps(1) infinite; }
+.home-hero.on .home-sub::after { animation: brand-caret .7s 1.2s steps(1) 4; }
 @keyframes home-sweep { from { background-position: 100% 0; } to { background-position: 0 0; } }
 @keyframes home-glow { from { filter: drop-shadow(0 0 2px hsl(var(--primary) / .3)); } to { filter: drop-shadow(0 0 22px hsl(var(--primary) / .95)); } }
 
