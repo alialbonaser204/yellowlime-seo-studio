@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.130.0",
+    "@cloudflare/puppeteer": "^2.0.1",
     "@modelcontextprotocol/sdk": "^1.30.0",
     "@yellowlime/api-zod": "workspace:*",
     "@yellowlime/db": "workspace:*",

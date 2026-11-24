@@ -12,6 +12,13 @@ export interface BrandStyle {
   fontCssUrls: string[];
   primaryColor: string | null;
   textColor: string | null;
+  headingColor?: string | null;
+  linkColor?: string | null;
+  buttonBg?: string | null;
+  buttonText?: string | null;
+  buttonRadius?: string | null;
+  /** Raw material for the AI design check (not sent to the browser). */
+  clues?: string;
   logoUrl: string | null;
   siteName: string | null;
   images: { url: string; alt: string }[];
@@ -40,21 +47,57 @@ const abs = (url: string | null, base: string): string | null => {
   try { const u = new URL(url.replace(/&amp;/g, "&"), base); return u.protocol === "https:" || u.protocol === "http:" ? u.toString() : null; } catch { return null; }
 };
 
+/** All CSS custom properties (--name: value) in the stylesheet text. */
+export function cssVariables(css: string): Map<string, string> {
+  const vars = new Map<string, string>();
+  for (const m of css.matchAll(/(--[\w-]+)\s*:\s*([^;{}]+)/g)) if (!vars.has(m[1])) vars.set(m[1], m[2].trim());
+  return vars;
+}
+
+/** Replaces var(--x) with its value (a few levels deep). */
+export function resolveVars(value: string, vars: Map<string, string>): string {
+  let out = value;
+  for (let i = 0; i < 4 && out.includes("var("); i++) {
+    out = out.replace(/var\(\s*(--[\w-]+)\s*(?:,\s*([^)]+))?\)/g, (_m, name: string, fb?: string) => vars.get(name) ?? fb ?? "");
+  }
+  return out;
+}
+
+/** Short, readable facts about the site's look for the AI design check. */
+export function styleClues(css: string, html: string): string {
+  const vars = cssVariables(css);
+  const varLines = [...vars].filter(([k]) => /font|color|colour|accent|primary|button|btn|brand|heading|text|link|background|bg/i.test(k)).slice(0, 80).map(([k, v]) => `${k}: ${v}`);
+  const rules: string[] = [];
+  for (const m of css.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+    const sel = m[1].trim().replace(/\s+/g, " ");
+    if (sel.length > 120 || !/(^|[\s,])(body|h1|h2|h3|a|button)([\s,.:]|$)|\.btn|\.button|button--primary|header|\.rte|article/i.test(sel)) continue;
+    const decl = m[2].split(";").map((d) => d.trim()).filter((d) => /^(font-family|color|background(-color)?|border-radius|font-weight|text-transform|letter-spacing)\s*:/i.test(d));
+    if (decl.length) rules.push(`${sel} { ${decl.map((d) => resolveVars(d, vars)).join("; ")} }`);
+    if (rules.length >= 60) break;
+  }
+  const header = (html.match(/<header\b[\s\S]{0,4000}?<\/header>/i)?.[0] ?? "").replace(/<(script|style|svg)[\s\S]*?<\/\1>/gi, "").replace(/\s+/g, " ").slice(0, 1500);
+  return [`CSS-variabelen:\n${varLines.join("\n")}`, `CSS-regels:\n${rules.join("\n")}`, `Begin van de header-HTML:\n${header}`].join("\n\n").slice(0, 12_000);
+}
+
 /** Most used font for headings and for body text in a stylesheet. */
 export function fontsFromCss(css: string): { heading: string | null; body: string | null } {
+  const vars = cssVariables(css);
+  const fromVar = (re: RegExp) => { for (const [k, v] of vars) if (re.test(k)) { const f = firstFont(resolveVars(v, vars)); if (f) return f; } return null; };
+  const varHeading = fromVar(/^--font-?(heading|headings|h1|title|display)[\w-]*family/i) ?? fromVar(/heading[\w-]*font|font-?heading/i);
+  const varBody = fromVar(/^--font-?(body|base|text|primary)[\w-]*family/i) ?? fromVar(/body[\w-]*font|font-?body|font-?base/i);
   const count = (selectorTest: (s: string) => boolean) => {
     const tally = new Map<string, number>();
     for (const m of css.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
       const selector = m[1].toLowerCase();
       if (!selectorTest(selector)) continue;
       const decl = m[2].match(/font-family\s*:\s*([^;]+)/i);
-      const font = decl ? firstFont(decl[1]) : null;
+      const font = decl ? firstFont(resolveVars(decl[1], vars)) : null;
       if (font) tally.set(font, (tally.get(font) ?? 0) + 1);
     }
     return [...tally.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
   };
-  const body = count((s) => /(^|[\s,])(body|html|p)([\s,.:]|$)/.test(s)) ?? count((s) => s.includes(":root"));
-  const heading = count((s) => /(^|[\s,])h[1-3]([\s,.:]|$)/.test(s)) ?? body;
+  const body = varBody ?? count((s) => /(^|[\s,])(body|html|p)([\s,.:]|$)/.test(s)) ?? count((s) => s.includes(":root"));
+  const heading = varHeading ?? count((s) => /(^|[\s,])h[1-3]([\s,.:]|$)/.test(s)) ?? body;
   return { heading, body };
 }
 
@@ -94,7 +137,10 @@ export function parseHomePage(html: string, baseUrl: string) {
   const inlineCss = [...html.matchAll(/<style\b[^>]*>([\s\S]*?)<\/style>/gi)].map((m) => m[1]).join("\n");
 
   const imgs = tags("img");
-  const logoTag = imgs.find((t) => /logo/i.test(`${attr(t, "class") ?? ""} ${attr(t, "src") ?? ""} ${attr(t, "alt") ?? ""} ${attr(t, "id") ?? ""}`));
+  const headerHtml = html.match(/<header\b[\s\S]*?<\/header>/i)?.[0] ?? "";
+  const isLogo = (t: string) => /logo/i.test(`${attr(t, "class") ?? ""} ${attr(t, "src") ?? ""} ${attr(t, "alt") ?? ""} ${attr(t, "id") ?? ""}`) && !/keurmerk|thuiswinkel|trustpilot|kiyoh|payment|betaal|review/i.test(attr(t, "src") ?? "");
+  const headerImgs = [...headerHtml.matchAll(/<img\b[^>]*>/gi)].map((m) => m[0]);
+  const logoTag = headerImgs.find(isLogo) ?? headerImgs[0] ?? imgs.find(isLogo);
   const logoUrl = abs(logoTag ? attr(logoTag, "src") ?? attr(logoTag, "data-src") : null, baseUrl);
 
   const seen = new Set<string>();
@@ -151,6 +197,7 @@ export async function loadBrandStyle(
     fontCssUrls: page.fontCssUrls,
     primaryColor: primaryColorFromCss(css) ?? theme,
     textColor: null,
+    clues: styleClues(css, home.body),
     logoUrl: page.logoUrl,
     siteName: page.siteName,
     images: page.images,

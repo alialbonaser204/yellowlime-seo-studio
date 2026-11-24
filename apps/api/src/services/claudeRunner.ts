@@ -115,3 +115,28 @@ export async function defaultClaudeTextRunner(
     clearTimeout(idleTimer);
   }
 }
+
+/**
+ * One Claude call with images (screenshots) and a text prompt; returns the text
+ * of the reply. Used where the AI must really look at a page.
+ */
+export async function claudeWithImages(prompt: string, imagesJpegBase64: string[], maxTokens = 4000): Promise<string> {
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) throw new Error("missing_key");
+  const result = await getClient(apiKey).messages.create(
+    {
+      model: CLAUDE_MODEL,
+      max_tokens: maxTokens,
+      messages: [{
+        role: "user",
+        content: [
+          ...imagesJpegBase64.map((data) => ({ type: "image" as const, source: { type: "base64" as const, media_type: "image/jpeg" as const, data } })),
+          { type: "text" as const, text: prompt },
+        ],
+      }],
+    },
+    { timeout: 180_000 },
+  );
+  const block = result.content.find((b) => b.type === "text");
+  return block && block.type === "text" ? block.text.trim() : "";
+}

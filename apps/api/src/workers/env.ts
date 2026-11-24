@@ -38,3 +38,5 @@ export function copyWorkerSettings(source: Record<string, unknown> = env): void 
 
 copyWorkerSettings();
 setMailBinding((env as Record<string, unknown>).EMAIL);
+import { setBrowserBinding } from "../services/siteRender";
+setBrowserBinding((env as Record<string, unknown>).BROWSER);

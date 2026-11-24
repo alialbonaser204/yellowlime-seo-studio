@@ -12,6 +12,14 @@ export interface ConceptData {
   fullArticle: string;
   style: { headingFont: string | null; bodyFont: string | null; fontCssUrls: string[]; primaryColor: string | null; logoUrl: string | null } | null;
   photos: ConceptPhoto[];
+  /** Chosen by the AI art director after looking at the partner's website. */
+  design?: {
+    headingFont: string | null; bodyFont: string | null; headingColor: string | null; textColor: string | null;
+    linkColor: string | null; accentColor: string | null; buttonBg: string | null; buttonText: string | null;
+    buttonRadius: string | null; headingWeight: string | null; h1Size: string | null; h2Size: string | null;
+    contentWidth: number | null; logoUrl: string | null; summaryStyle: 'box' | 'line' | 'none'; fontCssUrls: string[];
+  };
+  styleMessage?: string | null;
 }
 
 const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -55,13 +63,36 @@ export function articleHtml(markdown: string, photos: ConceptPhoto[]): string {
 
 export function buildConceptHtml(d: ConceptData): string {
   const s = d.style;
-  const accent = s?.primaryColor && /^#[0-9a-f]{3,8}$/i.test(s.primaryColor) ? s.primaryColor : '#2f6b3a';
+  const g = d.design;
+  const col = (v: string | null | undefined, fb: string) => (v && /^(#[0-9a-f]{3,8}|rgba?\([\d\s.,%]+\))$/i.test(v) ? v : fb);
+  const len = (v: string | null | undefined, fb: string) => (v && /^\d+(\.\d+)?(px|rem|em)$/.test(v) ? v : fb);
+  const accent = col(g?.accentColor ?? s?.primaryColor, '#222222');
+  const headingFont = g?.headingFont ?? s?.headingFont ?? null;
+  const bodyFont = g?.bodyFont ?? s?.bodyFont ?? null;
   const fam = (f: string | null | undefined) => (f ? `'${f.replace(/['"\\<>]/g, '')}', ` : '');
-  const families = [...new Set([s?.headingFont, s?.bodyFont].filter((f): f is string => !!f))];
+  const families = [...new Set([headingFont, bodyFont].filter((f): f is string => !!f))];
   const fontLinks = [
-    ...(s?.fontCssUrls ?? []),
-    ...(families.length ? [`https://fonts.googleapis.com/css2?${families.map((f) => `family=${encodeURIComponent(f)}:wght@400;600;700`).join('&')}&display=swap`] : []),
+    ...(g?.fontCssUrls ?? s?.fontCssUrls ?? []),
+    ...(families.length ? [`https://fonts.googleapis.com/css2?${families.map((f) => `family=${encodeURIComponent(f)}:wght@400;500;600;700`).join('&')}&display=swap`] : []),
   ].map((u) => `<link rel="stylesheet" href="${safeUrl(u)}">`).join('\n');
+  const logoUrl = g?.logoUrl ?? s?.logoUrl ?? null;
+  const width = g?.contentWidth && g.contentWidth >= 480 && g.contentWidth <= 1200 ? g.contentWidth : 740;
+  const summary = g?.summaryStyle ?? 'box';
+  const vars = [
+    `--accent:${accent}`,
+    `--heading-color:${col(g?.headingColor, '#111111')}`,
+    `--text:${col(g?.textColor, '#222222')}`,
+    `--link:${col(g?.linkColor, accent)}`,
+    `--btn-bg:${col(g?.buttonBg, accent)}`,
+    `--btn-text:${col(g?.buttonText, '#ffffff')}`,
+    `--btn-radius:${len(g?.buttonRadius, '6px')}`,
+    `--heading-weight:${g?.headingWeight && /^\d{3}$/.test(g.headingWeight) ? g.headingWeight : '700'}`,
+    `--h1:${len(g?.h1Size, '38px')}`,
+    `--h2:${len(g?.h2Size, '28px')}`,
+    `--width:${width}px`,
+    `--heading:${fam(headingFont)}system-ui,-apple-system,"Segoe UI",sans-serif`,
+    `--body:${fam(bodyFont)}system-ui,-apple-system,"Segoe UI",sans-serif`,
+  ].join(';');
   let host = '';
   try { host = d.websiteUrl ? new URL(d.websiteUrl).hostname.replace(/^www\./, '') : ''; } catch { /* no host */ }
 
@@ -75,37 +106,39 @@ export function buildConceptHtml(d: ConceptData): string {
 <meta name="description" content="${esc(d.metaDescription)}">
 ${fontLinks}
 <style>
-:root{--accent:${accent};--heading:${fam(s?.headingFont)}system-ui,-apple-system,"Segoe UI",sans-serif;--body:${fam(s?.bodyFont)}system-ui,-apple-system,"Segoe UI",sans-serif}
+:root{${vars}}
 *{box-sizing:border-box}
-body{margin:0;background:#fff;color:#222;font-family:var(--body);font-size:17px;line-height:1.7}
+body{margin:0;background:#fff;color:var(--text);font-family:var(--body);font-size:16px;line-height:1.65}
 .notice{background:#fff4d6;border-bottom:1px solid #f0c95a;color:#5c4300;padding:12px 16px;font:14px/1.5 system-ui,sans-serif;text-align:center}
-header{display:flex;justify-content:space-between;align-items:center;gap:16px;padding:16px max(16px,calc((100% - 1100px)/2));border-bottom:3px solid var(--accent)}
-header img{max-height:48px;max-width:220px;object-fit:contain}
-header strong{font-family:var(--heading);font-size:22px}
-header span{font-size:13px;color:#777}
-main{max-width:740px;margin:0 auto;padding:40px 16px 64px}
-h1,h2,h3{font-family:var(--heading);line-height:1.25;color:#111}
-h1{font-size:clamp(28px,5vw,40px);margin:0 0 22px}
-h2{font-size:clamp(22px,3.4vw,28px);margin:44px 0 12px;color:var(--accent)}
+header{display:flex;justify-content:space-between;align-items:center;gap:16px;padding:18px max(16px,calc((100% - 1200px)/2));border-bottom:1px solid #eee}
+header img{max-height:44px;max-width:200px;object-fit:contain}
+header strong{font-family:var(--heading);font-size:22px;color:var(--heading-color)}
+header .cta{background:var(--btn-bg);color:var(--btn-text);border-radius:var(--btn-radius);padding:10px 18px;font:600 14px var(--heading);text-decoration:none}
+main{max-width:var(--width);margin:0 auto;padding:40px 16px 64px}
+h1,h2,h3{font-family:var(--heading);font-weight:var(--heading-weight);line-height:1.25;color:var(--heading-color)}
+h1{font-size:clamp(28px,5vw,var(--h1));margin:0 0 22px}
+h2{font-size:clamp(22px,3.4vw,var(--h2));margin:44px 0 12px}
 h3{font-size:20px;margin:28px 0 8px}
 p{margin:0 0 14px}
-a{color:var(--accent)}
+a{color:var(--link)}
 ul,ol{padding-left:22px;margin:0 0 16px}
-.summary{border-left:4px solid var(--accent);background:#f6f6f6;padding:14px 18px;margin:18px 0 26px;border-radius:0 8px 8px 0}
+.summary{margin:18px 0 26px;padding:16px 20px}
+.summary.box{background:#f5f5f5;border-radius:var(--btn-radius)}
+.summary.line{border-left:4px solid var(--accent);padding:4px 18px}
 .summary p{margin:0 0 6px}
-.photo{margin:16px 0 24px}
+.photo{margin:18px 0 26px}
 .frame{position:relative}
-.photo img{width:100%;aspect-ratio:16/9;object-fit:cover;border-radius:8px;display:block;background:#eee}
+.photo img{width:100%;aspect-ratio:16/9;object-fit:cover;border-radius:var(--btn-radius);display:block;background:#eee}
 .badge{position:absolute;left:10px;top:10px;background:rgba(92,67,0,.9);color:#fff;font:600 12px/1.3 system-ui,sans-serif;padding:6px 10px;border-radius:6px}
 figcaption{font-size:12px;color:#777;margin-top:6px}
 footer{border-top:1px solid #eee;padding:20px 16px;text-align:center;font-size:13px;color:#888}
 </style>
 </head>
 <body>
-<div class="notice"><strong>Conceptpagina van ${esc(d.partnerName)}.</strong> De foto's zijn tijdelijke voorbeeldfoto's en moeten vóór publicatie worden vervangen door foto's van de partner. Lettertype en kleuren zijn van de website gelezen en kunnen iets afwijken.</div>
-<header>${s?.logoUrl ? `<img src="${safeUrl(s.logoUrl)}" alt="${esc(d.partnerName)}">` : `<strong>${esc(d.partnerName)}</strong>`}<span>${esc(host)}</span></header>
+<div class="notice"><strong>Conceptpagina van ${esc(d.partnerName)}.</strong> De foto's zijn tijdelijke voorbeeldfoto's en moeten vóór publicatie worden vervangen door foto's van de partner. Lettertype en kleuren zijn van de website gelezen en kunnen iets afwijken.${d.styleMessage ? ' ' + esc(d.styleMessage) : ''}</div>
+<header>${logoUrl ? `<img src="${safeUrl(logoUrl)}" alt="${esc(d.partnerName)}">` : `<strong>${esc(d.partnerName)}</strong>`}${d.websiteUrl ? `<a class="cta" href="${safeUrl(d.websiteUrl)}">${esc(host)}</a>` : ''}</header>
 <main>
-${articleHtml(d.fullArticle, d.photos)}
+${articleHtml(d.fullArticle, d.photos).replace(/<div class="summary">/g, summary === 'none' ? '<div class="summary">' : `<div class="summary ${summary}">`)}
 </main>
 <footer>Concept · ${esc(d.partnerName)} · niet gepubliceerd</footer>
 </body>

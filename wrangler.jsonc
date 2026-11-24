@@ -47,5 +47,9 @@
   // parsing long AI answers needs more than the 10 ms of the free plan).
   "limits": { "cpu_ms": 300000 },
 
+  // A real browser (Cloudflare Browser Rendering) to look at a partner's
+  // website the way a visitor sees it, for the concept page.
+  "browser": { "binding": "BROWSER" },
+
   "observability": { "enabled": true }
 }
