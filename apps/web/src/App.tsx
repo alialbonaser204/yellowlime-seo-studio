@@ -58,6 +58,7 @@ import { AuthGate, useAuth } from './components/auth-gate';
 import { AvatarIcon } from './components/avatar-icon';
 import { SeoResearchView } from './components/seo-research-view';
 import { ArticlePreviewPage } from './pages/article-preview-page';
+import { ConceptButtons } from './components/concept-buttons';
 import { SemrushPage } from './pages/semrush-page';
 import { SearchConsolePage } from './pages/search-console-page';
 import { Spotlight } from './components/spotlight';
@@ -1638,11 +1639,7 @@ function ArticlePage() {
         </div>
 
         <aside className="side-stack">
-          {latestGen?.fullArticle && latestGen.articleStatus !== 'Artikel wordt geschreven' && (
-              <Link className="button button-primary" href={`/artikel-voorbeeld/${latestGen.id}`} data-testid="button-preview-partner-style" style={{ justifyContent: 'center' }}>
-                <Eye size={15} /> Bekijk in stijl van de partner
-              </Link>
-            )}
+          {latestGen?.fullArticle && latestGen.articleStatus !== 'Artikel wordt geschreven' && <ConceptButtons genId={latestGen.id} onError={addToast} />}
           {latestGen && (
             <SectionCard title="Generatie Details" subtitle="Metadata van deze versie">
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', fontSize: '12px' }}>
