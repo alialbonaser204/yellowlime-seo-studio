@@ -15,6 +15,7 @@ import internalLinksRouter from "./internalLinks";
 import authRouter, { requireLogin } from "./auth";
 import semrushAnalysisRouter from "./semrushAnalysis";
 import articlePreviewRouter from "./articlePreview";
+import reviewQueueRouter from "./reviewQueue";
 
 const router: IRouter = Router();
 
@@ -32,6 +33,7 @@ router.use(semrushRouter);
 router.use(partnerProfilesRouter);
 router.use(articleGenerationsRouter);
 router.use(articlePreviewRouter);
+router.use(reviewQueueRouter);
 router.use(websiteArticlesRouter);
 router.use(googleRouter);
 router.use(topicIdeasRouter);

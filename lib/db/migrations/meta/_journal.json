@@ -78,6 +78,13 @@
       "when": 1795515992550,
       "tag": "0010_article_concept",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1795517524966,
+      "tag": "0011_human_review",
+      "breakpoints": true
     }
   ]
 }

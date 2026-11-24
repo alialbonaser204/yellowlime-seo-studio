@@ -36,6 +36,7 @@ import { generateOutline, validateOutline, type ArticleOutline } from "../servic
 import { analyseSerp } from "../services/serpAnalysis";
 import { articleSearchConsoleContext } from "../services/searchConsole";
 import { buildConcept } from "./articlePreview";
+import { currentUser } from "../lib/requestUser";
 
 const router: IRouter = Router();
 
@@ -219,6 +220,7 @@ router.post(
             briefingId,
             partnerId: briefing.partnerId,
             yellowlimerId: briefing.reviewerId!,
+            createdBy: currentUser()?.id ?? null,
             versionNumber,
             title: "",
             introduction: "",

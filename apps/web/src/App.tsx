@@ -59,6 +59,7 @@ import { AvatarIcon } from './components/avatar-icon';
 import { SeoResearchView } from './components/seo-research-view';
 import { ArticlePreviewPage } from './pages/article-preview-page';
 import { ConceptButtons } from './components/concept-buttons';
+import { ReviewArticlePage, ReviewQueuePage, useReviewCount } from './pages/review-queue-page';
 import { SemrushPage } from './pages/semrush-page';
 import { SearchConsolePage } from './pages/search-console-page';
 import { Spotlight } from './components/spotlight';
@@ -278,6 +279,8 @@ function RoutedApp() {
     <Route path="/assignments/:id/article" component={ArticlePage} />
     <Route path="/assignments/:id/review" component={ReviewPage} />
     <Route path="/artikel-voorbeeld/:genId" component={ArticlePreviewPage} />
+    <Route path="/controle" component={ReviewQueuePage} />
+    <Route path="/controle/:id" component={ReviewArticlePage} />
     <Route path="/history" component={HistoryPage} />
     <Route component={NotFound} />
   </Switch></ErrorBoundary></Shell>;
@@ -288,15 +291,23 @@ function Shell({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState(false);
   const { user, logout } = useAuth();
   useEffect(() => { if (!open) return; const onKey = (event: KeyboardEvent) => { if (event.key === 'Escape') setOpen(false); }; window.addEventListener('keydown', onKey); return () => window.removeEventListener('keydown', onKey); }, [open]);
+  const reviewCount = useReviewCount();
   const nav = [{ href: '/', label: 'Home', icon: Home }, { href: '/overzicht', label: 'Overzicht', icon: LayoutDashboard }, { href: '/partners', label: 'Partners', icon: Users }, { href: '/semrush', label: 'Semrush', icon: BarChart3 }, { href: '/search-console', label: 'Search Console', icon: Search }, { href: '/yellowlimers', label: 'Beheer Yellowlimers', icon: Users }, { href: '/history', label: 'Geschiedenis', icon: History }];
-  const title = location === '/' ? 'Home' : location === '/overzicht' ? 'Overzicht' : location.startsWith('/partners') ? 'Partners' : location.startsWith('/semrush') ? 'Semrush' : location.startsWith('/search-console') ? 'Search Console' : location.startsWith('/yellowlimers') ? 'Beheer Yellowlimers' : location.startsWith('/history') ? 'Geschiedenis' : location.includes('/brief') ? 'SEO-briefing' : location.includes('/article') ? 'Gegenereerd artikel' : location.includes('/review') ? 'Menselijke beoordeling' : 'Nieuw artikel';
+  const title = location === '/' ? 'Home' : location === '/overzicht' ? 'Overzicht' : location.startsWith('/partners') ? 'Partners' : location.startsWith('/semrush') ? 'Semrush' : location.startsWith('/search-console') ? 'Search Console' : location.startsWith('/yellowlimers') ? 'Beheer Yellowlimers' : location.startsWith('/history') ? 'Geschiedenis' : location.includes('/brief') ? 'SEO-briefing' : location.includes('/article') ? 'Gegenereerd artikel' : location.includes('/review') ? 'Menselijke beoordeling' : location.startsWith('/controle') ? 'Controle' : location.startsWith('/artikel-voorbeeld') ? 'Conceptpagina' : 'Nieuw artikel';
   return <div className={`app-shell ${open ? 'menu-open' : ''}`}>
-    <button type="button" className="menu-tab" onClick={() => setOpen(true)} aria-expanded={open} aria-controls="app-menu" data-testid="button-menu-tab"><i aria-hidden="true" /><span>Menu</span></button>
+    <button type="button" className="menu-tab" onClick={() => setOpen(true)} aria-expanded={open} aria-controls="app-menu" data-testid="button-menu-tab"><i aria-hidden="true" /><span>Menu</span>{reviewCount > 0 && <b className="notify-dot menu-tab-dot" aria-label={`${reviewCount} wachten op controle`} />}</button>
     {open && <div className="menu-backdrop" onClick={() => setOpen(false)} aria-hidden="true" />}
     <aside id="app-menu" className={`sidebar ${open ? 'open' : ''}`}>
       <button type="button" className="menu-close" onClick={() => setOpen(false)} aria-label="Menu sluiten" data-testid="button-menu-close"><X size={18} /></button>
       <div className="brand"><div className="brand-lockup" role="img" aria-label="Yellowlime AI Agent"><img src={brandMark} alt="" className="brand-mark" /><div className="brand-words"><img src={brandWordmark} alt="" className="brand-wordmark" /><span className="brand-ai">AI Agent</span></div></div></div>
       <div className="side-nav" style={{ marginTop: 14 }}><Link href="/assignments/new" className={`side-link side-link-new ${location === '/assignments/new' ? 'active' : ''}`} data-testid="link-new-assignment" onClick={() => setOpen(false)}><Plus /><span>Nieuw artikel</span></Link></div>
+      <div className="side-nav" style={{ marginTop: 10 }}>
+        <Link href="/controle" className={`side-link side-review ${location.startsWith('/controle') ? 'active' : ''}`} data-testid="link-review-queue" onClick={() => setOpen(false)}>
+          <ClipboardCheck />
+          <span className="side-review-text"><span>Controle</span><small>{reviewCount === 0 ? 'niets te controleren' : `${reviewCount} ${reviewCount === 1 ? 'artikel wacht' : 'artikelen wachten'} op controle`}</small></span>
+          {reviewCount > 0 && <i className="notify-dot" aria-label={`${reviewCount} wachten op controle`} />}
+        </Link>
+      </div>
       <nav className="side-nav" style={{ marginTop: 10 }}>{nav.map(({ href, label, icon: Icon }) => <Link key={href} href={href} className={`side-link ${location === href ? 'active' : ''}`} data-testid={`link-nav-${label.toLowerCase()}`} onClick={() => setOpen(false)}><Icon /><span>{label}</span></Link>)}</nav>
       <div className="side-user"><span><strong>{user.name}</strong><small>{user.email}</small></span><GoogleAccountMenu /><button type="button" className="side-link" onClick={() => { setOpen(false); void logout(); }} data-testid="button-logout"><LogOut /><span>Uitloggen</span></button></div>
     </aside>

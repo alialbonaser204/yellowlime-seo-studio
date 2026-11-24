@@ -1,3 +1,4 @@
+import { usersTable } from "./users";
 import {
   integer,
   jsonb,
@@ -88,6 +89,13 @@ export const articleGenerationsTable = pgTable(
     outline: jsonb("outline").$type<Record<string, unknown> | null>(),
     /** The concept page (design + photos), made automatically after writing. */
     concept: jsonb("concept").$type<Record<string, unknown> | null>(),
+    /** Who clicked "Artikel schrijven" (a logged-in user). */
+    createdBy: integer("created_by").references(() => usersTable.id, { onDelete: "set null" }),
+    /** Human check: "goedgekeurd" or "afgekeurd"; null = still waiting. */
+    reviewDecision: text("review_decision"),
+    reviewedBy: integer("reviewed_by").references(() => usersTable.id, { onDelete: "set null" }),
+    reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
+    reviewNote: text("review_note"),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
