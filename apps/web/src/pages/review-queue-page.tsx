@@ -88,6 +88,7 @@ export function ReviewArticlePage() {
   const queryClient = useQueryClient();
   const q = useQuery({ queryKey: ['review-article', id], queryFn: () => getJson<QueueArticle>(`/api/review-queue/${id}`) });
   const [note, setNote] = useState('');
+  const [noteScope, setNoteScope] = useState<'partner' | 'algemeen' | null>(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
@@ -110,7 +111,7 @@ export function ReviewArticlePage() {
     setBusy(true); setMessage(null);
     try {
       const edited = editing ? { fullArticle: blocks.filter((b) => !b.removed && b.text.trim()).map((b) => b.text.trim()).join('\n\n'), metaTitle, metaDescription } : undefined;
-      const res = await fetch(`/api/review-queue/${id}/decision`, { method: 'POST', credentials: 'include', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ decision, note, edited }) });
+      const res = await fetch(`/api/review-queue/${id}/decision`, { method: 'POST', credentials: 'include', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ decision, note, noteScope, edited }) });
       const body = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(body.error ?? 'Opslaan mislukt.');
       setEditing(false);
@@ -183,6 +184,12 @@ export function ReviewArticlePage() {
             ) : (
               <>
                 <label className="rq-note">Opmerkingen voor de AI (optioneel)<textarea value={note} onChange={(e) => setNote(e.target.value)} rows={4} placeholder="Bijvoorbeeld: te formeel, geen opsommingen gebruiken, prijs niet noemen" /></label>
+                <fieldset className="rq-scope">
+                  <legend>Voor wie geldt dit?</legend>
+                  <label><input type="checkbox" checked={noteScope === 'partner'} onChange={(e) => setNoteScope(e.target.checked ? 'partner' : null)} /> Alleen voor {a.partnerName}</label>
+                  <label><input type="checkbox" checked={noteScope === 'algemeen'} onChange={(e) => setNoteScope(e.target.checked ? 'algemeen' : null)} /> Voor alle partners</label>
+                  <small>Niets aangevinkt: de AI bepaalt het later zelf, op basis van hoe vaak het bij andere partners voorkomt.</small>
+                </fieldset>
                 <button type="button" className="button button-primary" onClick={() => decide('goedgekeurd')} disabled={busy} data-testid="button-review-approve"><Check size={15} /> Goedkeuren en opslaan</button>
                 <button type="button" className="button button-ghost" onClick={() => decide('afgekeurd')} disabled={busy} data-testid="button-review-reject"><X size={15} /> Afkeuren en opslaan</button>
                 <button type="button" className="button button-ghost button-small" onClick={() => setEditing(false)} disabled={busy}>Annuleren</button>

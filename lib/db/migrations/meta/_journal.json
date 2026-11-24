@@ -92,6 +92,13 @@
       "when": 1795518191315,
       "tag": "0012_article_corrections",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1795518600991,
+      "tag": "0013_note_scope",
+      "breakpoints": true
     }
   ]
 }

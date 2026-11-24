@@ -1,0 +1,1 @@
+ALTER TABLE "article_corrections" ADD COLUMN "note_scope" text;

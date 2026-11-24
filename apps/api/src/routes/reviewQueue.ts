@@ -129,6 +129,7 @@ router.post("/review-queue/:id/decision", async (req, res): Promise<void> => {
     afterVersion: after,
     difference: difference as unknown as Record<string, unknown>,
     note,
+    noteScope: req.body?.noteScope === "partner" || req.body?.noteScope === "algemeen" ? req.body.noteScope : null,
     reviewedBy: user?.id ?? null,
   });
   await db

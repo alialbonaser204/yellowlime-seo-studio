@@ -24,6 +24,8 @@ export const articleCorrectionsTable = pgTable(
     difference: jsonb("difference").$type<Record<string, unknown>>().notNull(),
     /** Extra remarks of the reviewer. */
     note: text("note"),
+    /** Reviewer's choice for the remarks: "partner" (only this partner), "algemeen" (all partners) or null (let the count decide). */
+    noteScope: text("note_scope"),
     reviewedBy: integer("reviewed_by").references(() => usersTable.id, { onDelete: "set null" }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
