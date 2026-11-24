@@ -34,7 +34,10 @@ function inline(text: string): ReactNode[] {
 function PhotoBlock({ photo }: { photo: Photo }) {
   return (
     <figure className="pv-photo">
-      <img src={photo.url} alt={photo.alt} loading="lazy" />
+      <div className="pv-photo-frame">
+        <img src={photo.url} alt={photo.alt} loading="lazy" />
+        <span className="pv-photo-badge">Voorbeeldfoto · vervangen door foto van de partner</span>
+      </div>
       {photo.credit && <figcaption>Foto: <a href={photo.credit.pageUrl} target="_blank" rel="noreferrer noopener">{photo.credit.name}</a></figcaption>}
     </figure>
   );
@@ -111,6 +114,10 @@ export function ArticlePreviewPage() {
       <div className="pv-toolbar">
         <button type="button" className="button button-ghost button-small" onClick={() => history.back()}><ArrowLeft size={14} /> Terug</button>
         <span>Voorbeeld in de stijl van <strong>{d.partnerName}</strong>. Lettertype en kleur zijn van de website gelezen en kunnen iets afwijken.</span>
+      </div>
+      <div className="pv-warning" role="note">
+        <TriangleAlert size={16} />
+        <span><strong>Let op: dit is een conceptpagina.</strong> De foto’s zijn tijdelijke stockfoto’s om een beeld te geven van de pagina. Vervang ze vóór publicatie door foto’s van {d.partnerName}.</span>
       </div>
       {d.styleMessage && <p className="pv-note">{d.styleMessage}</p>}
       
