@@ -727,3 +727,30 @@ img.partner-symbol { width: 35px; height: 35px; border-radius: 9px; }
 .seo-cols .seo-card{margin:0}
 @media (max-width:900px){.seo-tiles{grid-template-columns:repeat(2,minmax(0,1fr))}.seo-cols{grid-template-columns:1fr}}
 @media (max-width:520px){.seo-tiles{grid-template-columns:1fr}}
+
+/* Article preview in the partner's style */
+.pv-wrap{max-width:980px;margin:0 auto;display:flex;flex-direction:column;gap:14px}
+.pv-toolbar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;font-size:13px;color:hsl(var(--muted-foreground))}
+.pv-note{font-size:13px;color:hsl(var(--muted-foreground));margin:0}
+.pv-google{background:#fff;border:1px solid #e3e3e3;border-radius:12px;padding:16px 18px;font-family:Arial,sans-serif}
+.pv-google small{color:#4d5156;font-size:12px}
+.pv-google strong{display:block;color:#1a0dab;font-size:19px;font-weight:400;margin:4px 0}
+.pv-google p{margin:0;color:#4d5156;font-size:14px;line-height:1.5}
+.pv-site{background:#fff;color:#222;border:1px solid #e3e3e3;border-radius:12px;overflow:hidden;font-family:var(--pv-body)}
+.pv-header{display:flex;justify-content:space-between;align-items:center;padding:16px 28px;border-bottom:3px solid var(--pv-accent)}
+.pv-header img{max-height:44px;max-width:200px;object-fit:contain}
+.pv-header span{font-size:12px;color:#777}
+.pv-article{max-width:740px;margin:0 auto;padding:36px 24px 56px;font-size:17px;line-height:1.7}
+.pv-article h1,.pv-article h2,.pv-article h3{font-family:var(--pv-heading);line-height:1.25;color:#111}
+.pv-article h1{font-size:36px;margin:0 0 20px}
+.pv-article h2{font-size:26px;margin:40px 0 12px;color:var(--pv-accent)}
+.pv-article h3{font-size:20px;margin:26px 0 8px}
+.pv-article p{margin:0 0 14px}
+.pv-article a{color:var(--pv-accent)}
+.pv-summary{border-left:4px solid var(--pv-accent);background:#f7f7f7;padding:14px 18px;margin:18px 0 24px;border-radius:0 8px 8px 0}
+.pv-summary p{margin:0 0 6px}
+.pv-photo{margin:16px 0 22px}
+.pv-photo img{width:100%;aspect-ratio:16/9;object-fit:cover;border-radius:8px;display:block}
+.pv-photo figcaption{font-size:12px;color:#777;margin-top:6px}
+.pv-photo figcaption a{color:#777}
+@media (max-width:600px){.pv-article{padding:24px 16px 40px;font-size:16px}.pv-article h1{font-size:28px}.pv-article h2{font-size:22px}}

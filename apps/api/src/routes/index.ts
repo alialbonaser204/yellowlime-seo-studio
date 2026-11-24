@@ -14,6 +14,7 @@ import topicIdeasRouter from "./topicIdeas";
 import internalLinksRouter from "./internalLinks";
 import authRouter, { requireLogin } from "./auth";
 import semrushAnalysisRouter from "./semrushAnalysis";
+import articlePreviewRouter from "./articlePreview";
 
 const router: IRouter = Router();
 
@@ -30,6 +31,7 @@ router.use(storageRouter);
 router.use(semrushRouter);
 router.use(partnerProfilesRouter);
 router.use(articleGenerationsRouter);
+router.use(articlePreviewRouter);
 router.use(websiteArticlesRouter);
 router.use(googleRouter);
 router.use(topicIdeasRouter);

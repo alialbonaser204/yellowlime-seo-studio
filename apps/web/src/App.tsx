@@ -53,10 +53,11 @@ import type { ArticleOutline } from '@yellowlime/api-client-react';
 import { SquareCropper } from './components/square-cropper';
 import { useImageUpload } from './hooks/use-image-upload';
 import { ICONS } from './pages/yellowlimers-page';
-import { UserCircle, LogOut } from 'lucide-react';
+import { UserCircle, LogOut, Eye } from 'lucide-react';
 import { AuthGate, useAuth } from './components/auth-gate';
 import { AvatarIcon } from './components/avatar-icon';
 import { SeoResearchView } from './components/seo-research-view';
+import { ArticlePreviewPage } from './pages/article-preview-page';
 import { SemrushPage } from './pages/semrush-page';
 import { SearchConsolePage } from './pages/search-console-page';
 import { Spotlight } from './components/spotlight';
@@ -275,6 +276,7 @@ function RoutedApp() {
     <Route path="/assignments/:id/brief" component={BriefPage} />
     <Route path="/assignments/:id/article" component={ArticlePage} />
     <Route path="/assignments/:id/review" component={ReviewPage} />
+    <Route path="/artikel-voorbeeld/:genId" component={ArticlePreviewPage} />
     <Route path="/history" component={HistoryPage} />
     <Route component={NotFound} />
   </Switch></ErrorBoundary></Shell>;
@@ -1636,6 +1638,11 @@ function ArticlePage() {
         </div>
 
         <aside className="side-stack">
+          {latestGen?.fullArticle && latestGen.articleStatus !== 'Artikel wordt geschreven' && (
+              <Link className="button button-primary" href={`/artikel-voorbeeld/${latestGen.id}`} data-testid="button-preview-partner-style" style={{ justifyContent: 'center' }}>
+                <Eye size={15} /> Bekijk in stijl van de partner
+              </Link>
+            )}
           {latestGen && (
             <SectionCard title="Generatie Details" subtitle="Metadata van deze versie">
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', fontSize: '12px' }}>
