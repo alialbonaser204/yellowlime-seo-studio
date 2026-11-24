@@ -800,3 +800,20 @@ img.partner-symbol { width: 35px; height: 35px; border-radius: 9px; }
 .rq-google p { margin: 4px 0 0; color: #4d5156; font-size: 13px; }
 .rq-article .summary { background: hsl(var(--accent) / .5); border-radius: 8px; padding: 12px 16px; margin: 16px 0; }
 @media (max-width: 760px) { .rq-row { grid-template-columns: 1fr; gap: 8px; } }
+
+.rq-edit-hint { background: #fff4d6; border: 1px solid #f0c95a; color: #5c4300; border-radius: 10px; padding: 10px 14px; font-size: 13px; margin-bottom: 18px; }
+.rq-field { display: flex; flex-direction: column; gap: 4px; font-size: 12px; font-weight: 600; margin-bottom: 12px; }
+.rq-field small { font-weight: 400; color: hsl(var(--muted-foreground)); }
+.rq-field input, .rq-field textarea { font: inherit; font-size: 14px; font-weight: 400; padding: 8px 10px; border: 1px solid hsl(var(--border)); border-radius: 8px; }
+.rq-blocks { display: flex; flex-direction: column; gap: 10px; margin-top: 14px; }
+.rq-block { border: 1px solid hsl(var(--border)); border-radius: 10px; padding: 8px 10px; background: hsl(var(--card)); }
+.rq-block:focus-within { border-color: hsl(var(--primary)); box-shadow: 0 0 0 3px hsl(var(--primary) / .15); }
+.rq-block.is-removed { opacity: .5; background: #fbeaea; }
+.rq-block.is-removed .rq-block-text { text-decoration: line-through; }
+.rq-block-bar { display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: hsl(var(--muted-foreground)); text-transform: uppercase; letter-spacing: .06em; }
+.rq-block-bar div { display: flex; gap: 4px; }
+.rq-block-bar button { display: inline-flex; align-items: center; gap: 4px; border: 0; background: transparent; padding: 5px 7px; border-radius: 6px; cursor: pointer; color: hsl(var(--muted-foreground)); font: inherit; text-transform: none; letter-spacing: 0; }
+.rq-block-bar button:hover { background: hsl(var(--accent)); color: hsl(var(--foreground)); }
+.rq-block-bar .rq-del:hover { background: #fde8e8; color: #b42318; }
+.rq-block-text { width: 100%; border: 0; resize: vertical; font: inherit; font-size: 15px; line-height: 1.6; background: transparent; padding: 4px 0; outline: none; }
+.rq-stats { margin: 0; font-size: 12px; color: hsl(var(--muted-foreground)); }

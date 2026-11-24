@@ -85,6 +85,13 @@
       "when": 1795517524966,
       "tag": "0011_human_review",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1795518191315,
+      "tag": "0012_article_corrections",
+      "breakpoints": true
     }
   ]
 }

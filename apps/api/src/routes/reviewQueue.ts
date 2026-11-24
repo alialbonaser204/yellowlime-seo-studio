@@ -5,7 +5,8 @@
 import { alias } from "drizzle-orm/pg-core";
 import { and, desc, eq, isNull, sql } from "drizzle-orm";
 import { Router, type IRouter } from "express";
-import { articleGenerationsTable, briefingsTable, db, partnersTable, usersTable, yellowlimersTable } from "@yellowlime/db";
+import { articleCorrectionsTable, articleGenerationsTable, briefingsTable, db, partnersTable, usersTable, yellowlimersTable } from "@yellowlime/db";
+import { compareArticles } from "../services/articleDiff";
 import { currentUser } from "../lib/requestUser";
 
 const router: IRouter = Router();
@@ -79,29 +80,62 @@ router.get("/review-queue/:id", async (req, res): Promise<void> => {
     .leftJoin(creator, eq(creator.id, articleGenerationsTable.createdBy))
     .where(eq(articleGenerationsTable.id, id));
   if (!row || !row.fullArticle) { res.status(404).json({ error: "Artikel niet gevonden." }); return; }
-  res.json(row);
+  const [correction] = await db
+    .select({ afterVersion: articleCorrectionsTable.afterVersion, difference: articleCorrectionsTable.difference, note: articleCorrectionsTable.note })
+    .from(articleCorrectionsTable)
+    .where(eq(articleCorrectionsTable.generationId, id))
+    .orderBy(desc(articleCorrectionsTable.createdAt))
+    .limit(1);
+  res.json({ ...row, corrected: row.reviewDecision ? correction ?? null : null });
 });
 
 router.post("/review-queue/:id/decision", async (req, res): Promise<void> => {
   const id = Number(req.params.id);
   const decision = req.body?.decision;
-  const note = typeof req.body?.note === "string" ? req.body.note.slice(0, 4000) : null;
+  const note = typeof req.body?.note === "string" && req.body.note.trim() ? req.body.note.trim().slice(0, 4000) : null;
   if (!Number.isInteger(id) || id <= 0 || (decision !== "goedgekeurd" && decision !== "afgekeurd" && decision !== null)) {
     res.status(400).json({ error: "Kies goedkeuren of afkeuren." });
     return;
   }
-  const [updated] = await db
+  const [gen] = await db.select().from(articleGenerationsTable).where(and(eq(articleGenerationsTable.id, id), eq(articleGenerationsTable.articleStatus, "Wacht op controle")));
+  if (!gen) { res.status(404).json({ error: "Artikel niet gevonden." }); return; }
+  const user = currentUser();
+
+  if (decision === null) {
+    // Undo: the check is open again; the stored correction is removed.
+    await db.delete(articleCorrectionsTable).where(eq(articleCorrectionsTable.generationId, id));
+    await db.update(articleGenerationsTable).set({ reviewDecision: null, reviewNote: null, reviewedBy: null, reviewedAt: null }).where(eq(articleGenerationsTable.id, id));
+    res.json({ ok: true });
+    return;
+  }
+
+  // Before = the AI version, after = what the reviewer made of it.
+  const before = { fullArticle: gen.fullArticle, metaTitle: gen.metaTitle, metaDescription: gen.metaDescription };
+  const edited = req.body?.edited ?? {};
+  const str = (v: unknown, fallback: string, max: number) => (typeof v === "string" ? v.slice(0, max) : fallback);
+  const after = {
+    fullArticle: str(edited.fullArticle, before.fullArticle, 200_000),
+    metaTitle: str(edited.metaTitle, before.metaTitle, 300),
+    metaDescription: str(edited.metaDescription, before.metaDescription, 1000),
+  };
+  const difference = compareArticles(before, after);
+
+  await db.delete(articleCorrectionsTable).where(eq(articleCorrectionsTable.generationId, id));
+  await db.insert(articleCorrectionsTable).values({
+    generationId: id,
+    partnerId: gen.partnerId,
+    decision,
+    beforeVersion: before,
+    afterVersion: after,
+    difference: difference as unknown as Record<string, unknown>,
+    note,
+    reviewedBy: user?.id ?? null,
+  });
+  await db
     .update(articleGenerationsTable)
-    .set({
-      reviewDecision: decision,
-      reviewNote: decision ? note : null,
-      reviewedBy: decision ? currentUser()?.id ?? null : null,
-      reviewedAt: decision ? new Date() : null,
-    })
-    .where(and(eq(articleGenerationsTable.id, id), eq(articleGenerationsTable.articleStatus, "Wacht op controle")))
-    .returning({ id: articleGenerationsTable.id });
-  if (!updated) { res.status(404).json({ error: "Artikel niet gevonden." }); return; }
-  res.json({ ok: true });
+    .set({ reviewDecision: decision, reviewNote: note, reviewedBy: user?.id ?? null, reviewedAt: new Date() })
+    .where(eq(articleGenerationsTable.id, id));
+  res.json({ ok: true, difference: difference.stats });
 });
 
 export default router;
