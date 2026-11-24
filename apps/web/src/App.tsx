@@ -365,18 +365,23 @@ function HomeHero() {
       el!.style.transform = `rotate(${angle}deg)`;
       frame = requestAnimationFrame(tick);
     }
-    const down = () => { held = true; target = Math.min(720, Math.max(target, BASE) + 360); };
+    const down = () => {
+      held = true;
+      target = Math.min(720, Math.max(target, BASE) + 360);
+      if (!frame) { clearTimeout(startAfterIntro); last = performance.now(); frame = requestAnimationFrame(tick); }
+    };
     const up = () => { held = false; };
-    window.addEventListener('pointerdown', down);
+    // Only a click on the logo itself speeds it up; it keeps its angle.
+    el.addEventListener('pointerdown', down);
     window.addEventListener('pointerup', up);
     window.addEventListener('pointercancel', up);
-    return () => { clearTimeout(startAfterIntro); cancelAnimationFrame(frame); window.removeEventListener('pointerdown', down); window.removeEventListener('pointerup', up); window.removeEventListener('pointercancel', up); };
+    return () => { clearTimeout(startAfterIntro); cancelAnimationFrame(frame); el.removeEventListener('pointerdown', down); window.removeEventListener('pointerup', up); window.removeEventListener('pointercancel', up); };
   }, []);
 
   return <section className="home-stage" aria-label="Yellowlime AI Agent">
     <Spotlight stageColor={HOME_STAGE_COLOR} anchorSelector=".home-mark" />
     <div className={`home-hero ${playing ? 'on' : ''}`}>
-      <div className="home-orbit" ref={orbit}>
+      <div className="home-orbit" ref={orbit} title="Klik om sneller te laten draaien">
         <span className="home-mark" role="img" aria-label="Yellowlime-logo" style={{ ['--mark' as string]: `url(${brandMark})` }} />
       </div>
       <h1 className="home-name">
