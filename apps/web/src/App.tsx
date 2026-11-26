@@ -53,7 +53,8 @@ import type { ArticleOutline } from '@yellowlime/api-client-react';
 import { SquareCropper } from './components/square-cropper';
 import { useImageUpload } from './hooks/use-image-upload';
 import { ICONS } from './pages/yellowlimers-page';
-import { UserCircle, LogOut, Eye } from 'lucide-react';
+import { UserCircle, LogOut, Eye, Moon, Sun } from 'lucide-react';
+import { useTheme } from './lib/theme';
 import { AuthGate, useAuth } from './components/auth-gate';
 import { AvatarIcon } from './components/avatar-icon';
 import { SeoResearchView } from './components/seo-research-view';
@@ -292,6 +293,7 @@ function Shell({ children }: { children: ReactNode }) {
   const { user, logout } = useAuth();
   useEffect(() => { if (!open) return; const onKey = (event: KeyboardEvent) => { if (event.key === 'Escape') setOpen(false); }; window.addEventListener('keydown', onKey); return () => window.removeEventListener('keydown', onKey); }, [open]);
   const reviewCount = useReviewCount();
+  const theme = useTheme();
   const nav = [{ href: '/', label: 'Home', icon: Home }, { href: '/overzicht', label: 'Overzicht', icon: LayoutDashboard }, { href: '/partners', label: 'Partners', icon: Users }, { href: '/semrush', label: 'Semrush', icon: BarChart3 }, { href: '/search-console', label: 'Search Console', icon: Search }, { href: '/yellowlimers', label: 'Beheer Yellowlimers', icon: Users }, { href: '/history', label: 'Geschiedenis', icon: History }];
   const title = location === '/' ? 'Home' : location === '/overzicht' ? 'Overzicht' : location.startsWith('/partners') ? 'Partners' : location.startsWith('/semrush') ? 'Semrush' : location.startsWith('/search-console') ? 'Search Console' : location.startsWith('/yellowlimers') ? 'Beheer Yellowlimers' : location.startsWith('/history') ? 'Geschiedenis' : location.includes('/brief') ? 'SEO-briefing' : location.includes('/article') ? 'Gegenereerd artikel' : location.includes('/review') ? 'Menselijke beoordeling' : location.startsWith('/controle') ? 'Controle' : location.startsWith('/artikel-voorbeeld') ? 'Conceptpagina' : 'Nieuw artikel';
   return <div className={`app-shell ${open ? 'menu-open' : ''}`}>
@@ -309,9 +311,9 @@ function Shell({ children }: { children: ReactNode }) {
         </Link>
       </div>
       <nav className="side-nav" style={{ marginTop: 10 }}>{nav.map(({ href, label, icon: Icon }) => <Link key={href} href={href} className={`side-link ${location === href ? 'active' : ''}`} data-testid={`link-nav-${label.toLowerCase()}`} onClick={() => setOpen(false)}><Icon /><span>{label}</span></Link>)}</nav>
-      <div className="side-user"><span><strong>{user.name}</strong><small>{user.email}</small></span><GoogleAccountMenu /><button type="button" className="side-link" onClick={() => { setOpen(false); void logout(); }} data-testid="button-logout"><LogOut /><span>Uitloggen</span></button></div>
+      <div className="side-user"><span><strong>{user.name}</strong><small>{user.email}</small></span><GoogleAccountMenu /><div className="theme-switch" role="radiogroup" aria-label="Weergave">{(['licht', 'donker', 'systeem'] as const).map((c) => <button key={c} type="button" role="radio" aria-checked={theme.choice === c} className={theme.choice === c ? 'on' : ''} onClick={() => theme.set(c)}>{c === 'licht' ? <Sun size={13} /> : c === 'donker' ? <Moon size={13} /> : null}{c === 'licht' ? 'Licht' : c === 'donker' ? 'Donker' : 'Systeem'}</button>)}</div><button type="button" className="side-link" onClick={() => { setOpen(false); void logout(); }} data-testid="button-logout"><LogOut /><span>Uitloggen</span></button></div>
     </aside>
-    <div className="main"><header className="topbar"><button className="mobile-menu" onClick={() => setOpen((value) => !value)} data-testid="button-mobile-menu"><Menu size={20} /></button>{location === '/' ? <div className="breadcrumb" aria-hidden="true" /> : <div className="breadcrumb"><strong>{title}</strong></div>}<div className="top-actions"><span className="eyebrow" style={{ color: 'hsl(var(--muted-foreground))' }} data-testid="text-user">{user.name}</span><Link href="/assignments/new" className="button button-primary button-small" data-testid="button-top-new"><Plus size={14} /><span>Nieuw artikel</span></Link></div></header><main className="main-content">{children}</main></div>
+    <div className="main"><header className="topbar"><button className="mobile-menu" onClick={() => setOpen((value) => !value)} data-testid="button-mobile-menu"><Menu size={20} /></button>{location === '/' ? <div className="breadcrumb" aria-hidden="true" /> : <div className="breadcrumb"><strong>{title}</strong></div>}<div className="top-actions"><button type="button" className="theme-toggle" onClick={theme.toggle} aria-label={theme.dark ? 'Lichte modus aanzetten' : 'Donkere modus aanzetten'} title={theme.dark ? 'Lichte modus' : 'Donkere modus'} data-testid="button-theme-toggle">{theme.dark ? <Sun size={17} /> : <Moon size={17} />}</button><span className="eyebrow" style={{ color: 'hsl(var(--muted-foreground))' }} data-testid="text-user">{user.name}</span><Link href="/assignments/new" className="button button-primary button-small" data-testid="button-top-new"><Plus size={14} /><span>Nieuw artikel</span></Link></div></header><main className="main-content">{children}</main></div>
   </div>;
 }
 
@@ -350,8 +352,10 @@ function getPartner(data: StudioData, partnerId: string) { return data.partners.
  */
 /** Gedempt Yellowlime-groen podium onder het meebewegende licht. */
 const HOME_STAGE_COLOR = 'rgba(168,201,160,0.72)';
+const HOME_STAGE_COLOR_DARK = 'rgba(12,32,26,0.93)';
 
 function HomeHero() {
+  const dark = useIsDark();
   // The intro (spin-in, shine, typing "AI Agent") plays once and then stays.
   const [playing, setPlaying] = useState(false);
   useEffect(() => { const timer = setTimeout(() => setPlaying(true), 250); return () => clearTimeout(timer); }, []);
@@ -388,7 +392,7 @@ function HomeHero() {
   }, []);
 
   return <section className="home-stage" aria-label="Yellowlime AI Agent">
-    <Spotlight stageColor={HOME_STAGE_COLOR} anchorSelector=".home-mark" />
+    <Spotlight stageColor={dark ? HOME_STAGE_COLOR_DARK : HOME_STAGE_COLOR} glow={dark ? 0.32 : 1} anchorSelector=".home-mark" />
     <div className={`home-hero ${playing ? 'on' : ''}`}>
       <div className="home-orbit" ref={orbit} title="Klik om sneller te laten draaien">
         <span className="home-mark" role="img" aria-label="Yellowlime-logo" style={{ ['--mark' as string]: `url(${brandMark})` }} />
@@ -399,6 +403,17 @@ function HomeHero() {
       </h1>
     </div>
   </section>;
+}
+
+/** True while the dark theme is on (follows the class on <html>). */
+function useIsDark(): boolean {
+  const [dark, setDark] = useState(() => document.documentElement.classList.contains('dark'));
+  useEffect(() => {
+    const obs = new MutationObserver(() => setDark(document.documentElement.classList.contains('dark')));
+    obs.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+    return () => obs.disconnect();
+  }, []);
+  return dark;
 }
 
 function HomePartners({ partners }: { partners: Array<{ id: number; companyName: string; websiteUrl: string; logoPath?: string | null }> }) {

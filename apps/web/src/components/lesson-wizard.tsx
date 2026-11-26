@@ -98,7 +98,7 @@ export function LessonWizard({ genId, partnerName, onClose }: { genId: number; p
               <div className="lw-q">Voor wie geldt dit?</div>
               <div className="lw-choices">
                 <button type="button" className={`lw-big ${lesson.suggestedScope === 'partner' ? 'suggested' : ''}`} onClick={() => choose('partner')} disabled={saving}>Alleen {partnerName}<small>Past bij de stijl of feiten van deze partner</small></button>
-                <button type="button" className={`lw-big dark ${lesson.suggestedScope === 'algemeen' ? 'suggested' : ''}`} onClick={() => choose('algemeen')} disabled={saving}>Alle partners<small>Geldt voor elk artikel dat de AI schrijft</small></button>
+                <button type="button" className={`lw-big solid ${lesson.suggestedScope === 'algemeen' ? 'suggested' : ''}`} onClick={() => choose('algemeen')} disabled={saving}>Alle partners<small>Geldt voor elk artikel dat de AI schrijft</small></button>
               </div>
               <button type="button" className="lw-skip" onClick={() => choose('niet')} disabled={saving}>Overslaan, niet onthouden</button>
             </div>

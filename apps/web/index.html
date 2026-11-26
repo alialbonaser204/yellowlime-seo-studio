@@ -13,7 +13,16 @@
     <meta name="twitter:title" content="Yellowlime SEO Studio" />
     <meta name="twitter:description" content="Yellowlime SEO Studio — Redactionele operaties dashboard." />
     <link rel="icon" type="image/png" href="./yellowlime-favicon.png" />
-  </head>
+    <script>
+    (function () {
+      try {
+        var v = localStorage.getItem('yl-theme');
+        var dark = v === 'donker' || (v !== 'licht' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+        if (dark) { document.documentElement.classList.add('dark'); document.documentElement.style.colorScheme = 'dark'; }
+      } catch (e) {}
+    })();
+  </script>
+</head>
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>

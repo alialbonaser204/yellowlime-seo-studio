@@ -12,6 +12,7 @@ export function Spotlight({
   stageColor,
   anchorSelector,
   ease = 0.07,
+  glow = 1,
 }: {
   /** Colour of the stage, painted over white. */
   stageColor: string;
@@ -19,6 +20,8 @@ export function Spotlight({
   anchorSelector?: string;
   /** Share of the distance to the mouse covered per frame. */
   ease?: number;
+  /** Strength of the light (1 = full; lower for a dark stage). */
+  glow?: number;
 }) {
   const ref = useRef<HTMLCanvasElement>(null);
 
@@ -59,9 +62,9 @@ export function Spotlight({
       ctx.fillRect(0, 0, width, height);
       const r = radius();
       const light = ctx.createRadialGradient(x, y, 0, x, y, r);
-      light.addColorStop(0, 'rgba(255,255,255,0.98)');
-      light.addColorStop(0.35, 'rgba(255,255,255,0.75)');
-      light.addColorStop(0.7, 'rgba(255,255,255,0.22)');
+      light.addColorStop(0, `rgba(255,255,255,${0.98 * glow})`);
+      light.addColorStop(0.35, `rgba(255,255,255,${0.75 * glow})`);
+      light.addColorStop(0.7, `rgba(255,255,255,${0.22 * glow})`);
       light.addColorStop(1, 'rgba(255,255,255,0)');
       ctx.fillStyle = light;
       ctx.fillRect(x - r, y - r, r * 2, r * 2);
@@ -125,7 +128,7 @@ export function Spotlight({
       hasMouse.removeEventListener('change', onHoverChange);
       observer?.disconnect();
     };
-  }, [stageColor, anchorSelector, ease]);
+  }, [stageColor, anchorSelector, ease, glow]);
 
   return <canvas ref={ref} className="spotlight-canvas" aria-hidden="true" />;
 }
