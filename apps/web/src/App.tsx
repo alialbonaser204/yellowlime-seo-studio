@@ -60,6 +60,7 @@ import { AvatarIcon } from './components/avatar-icon';
 import { SeoResearchView } from './components/seo-research-view';
 import { ArticlePreviewPage } from './pages/article-preview-page';
 import { ConceptButtons } from './components/concept-buttons';
+import { NewArticleChooser, OptimizationResultPage } from './pages/optimize-page';
 import { ReviewArticlePage, ReviewQueuePage, useReviewCount } from './pages/review-queue-page';
 import { SemrushPage } from './pages/semrush-page';
 import { SearchConsolePage } from './pages/search-console-page';
@@ -275,7 +276,8 @@ function RoutedApp() {
     <Route path="/semrush" component={SemrushPage} />
     <Route path="/search-console" component={SearchConsolePage} />
     <Route path="/yellowlimers" component={YellowlimersPage} />
-    <Route path="/assignments/new" component={NewAssignmentPage} />
+    <Route path="/assignments/new">{() => <NewArticleChooser newArticle={<NewAssignmentPage />} />}</Route>
+    <Route path="/optimaliseren/:id" component={OptimizationResultPage} />
     <Route path="/assignments/:id/brief" component={BriefPage} />
     <Route path="/assignments/:id/article" component={ArticlePage} />
     <Route path="/assignments/:id/review" component={ReviewPage} />
@@ -295,7 +297,7 @@ function Shell({ children }: { children: ReactNode }) {
   const reviewCount = useReviewCount();
   const theme = useTheme();
   const nav = [{ href: '/', label: 'Home', icon: Home }, { href: '/overzicht', label: 'Overzicht', icon: LayoutDashboard }, { href: '/partners', label: 'Partners', icon: Users }, { href: '/semrush', label: 'Semrush', icon: BarChart3 }, { href: '/search-console', label: 'Search Console', icon: Search }, { href: '/yellowlimers', label: 'Beheer Yellowlimers', icon: Users }, { href: '/history', label: 'Geschiedenis', icon: History }];
-  const title = location === '/' ? 'Home' : location === '/overzicht' ? 'Overzicht' : location.startsWith('/partners') ? 'Partners' : location.startsWith('/semrush') ? 'Semrush' : location.startsWith('/search-console') ? 'Search Console' : location.startsWith('/yellowlimers') ? 'Beheer Yellowlimers' : location.startsWith('/history') ? 'Geschiedenis' : location.includes('/brief') ? 'SEO-briefing' : location.includes('/article') ? 'Gegenereerd artikel' : location.includes('/review') ? 'Menselijke beoordeling' : location.startsWith('/controle') ? 'Controle' : location.startsWith('/artikel-voorbeeld') ? 'Conceptpagina' : 'Nieuw artikel';
+  const title = location === '/' ? 'Home' : location === '/overzicht' ? 'Overzicht' : location.startsWith('/partners') ? 'Partners' : location.startsWith('/semrush') ? 'Semrush' : location.startsWith('/search-console') ? 'Search Console' : location.startsWith('/yellowlimers') ? 'Beheer Yellowlimers' : location.startsWith('/history') ? 'Geschiedenis' : location.includes('/brief') ? 'SEO-briefing' : location.includes('/article') ? 'Gegenereerd artikel' : location.includes('/review') ? 'Menselijke beoordeling' : location.startsWith('/optimaliseren') ? 'Optimaliseren' : location.startsWith('/controle') ? 'Controle' : location.startsWith('/artikel-voorbeeld') ? 'Conceptpagina' : 'Nieuw artikel';
   return <div className={`app-shell ${open ? 'menu-open' : ''}`}>
     <button type="button" className="menu-tab" onClick={() => setOpen(true)} aria-expanded={open} aria-controls="app-menu" data-testid="button-menu-tab"><i aria-hidden="true" /><span>Menu</span>{reviewCount > 0 && <b className="notify-dot menu-tab-dot" aria-label={`${reviewCount} wachten op controle`} />}</button>
     {open && <div className="menu-backdrop" onClick={() => setOpen(false)} aria-hidden="true" />}

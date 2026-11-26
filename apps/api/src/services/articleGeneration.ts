@@ -291,7 +291,7 @@ function summaryInstruction(habits: PartnerHabits | null): string {
 }
 
 /** Turns the partner's own writing rules from the approved profile into instructions. */
-function partnerStyleRules(profile: Record<string, unknown>): string {
+export function partnerStyleRules(profile: Record<string, unknown>): string {
   const pick = (...keys: string[]) => keys
     .map((k) => profile[k])
     .map((v) => (Array.isArray(v) ? v.filter((x) => typeof x === "string").join(", ") : typeof v === "string" ? v : ""))

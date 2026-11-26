@@ -13,3 +13,4 @@ export * from "./users";
 export * from "./semrushAnalyses";
 export * from "./articleCorrections";
 export * from "./learningLessons";
+export * from "./articleOptimizations";
