@@ -126,9 +126,14 @@ function OptimizeCandidatesPage() {
                 </div>
                 {c.topQueries.length > 0 && <div className="opt-queries"><small>Zoekopdrachten:</small> {c.topQueries.slice(0, 4).map((t) => <span key={t.query}>{t.query}</span>)}</div>}
               </div>
-              <button type="button" className="button button-primary opt-go" onClick={() => start(c)} disabled={starting !== null} data-testid={`optimize-${i}`}>
-                {starting === c.url ? <RefreshCw size={15} className="animate-spin" /> : <Wand2 size={15} />} Optimaliseren
-              </button>
+              <div className="opt-actions">
+                <button type="button" className="button button-primary opt-go" onClick={() => start(c)} disabled={starting !== null} data-testid={`optimize-${i}`}>
+                  {starting === c.url ? <RefreshCw size={15} className="animate-spin" /> : <Wand2 size={15} />} Optimaliseren
+                </button>
+                <a href={c.url} target="_blank" rel="noreferrer noopener" className="button button-ghost opt-go" data-testid={`visit-${i}`}>
+                  <ExternalLink size={15} /> Pagina bezoeken
+                </a>
+              </div>
             </article>
           ))}
         </div>
