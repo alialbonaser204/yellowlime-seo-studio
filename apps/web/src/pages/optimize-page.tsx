@@ -25,6 +25,8 @@ interface Change { type: string; section: string | null; before: string | null; 
 interface Optimization {
   id: number; partnerId: number; partnerName: string; url: string; status: 'bezig' | 'klaar' | 'mislukt'; error: string | null;
   analysis: Candidate; createdAt: string;
+  stage: 'lezen' | 'zoekwoord' | 'top5' | 'schrijven' | 'klaar' | null;
+  progress: { wordCount?: number; headings?: number; keyword?: string; volume?: number | null; competitors?: string[]; competitorWords?: number | null; questions?: string[]; noResearch?: boolean } | null;
   original: { title: string; metaTitle: string; metaDescription: string; fullArticle: string; wordCount: number } | null;
   result: { title: string; metaTitle: string; metaDescription: string; fullArticle: string } | null;
   overview: { diagnosis: string; mainKeyword: string; changes: Change[]; expectedEffect: string; checkBeforePublishing: string[] } | null;
@@ -81,10 +83,10 @@ function OptimizeCandidatesPage() {
     setStarting(c.url); setError(null);
     prepareTaskNotifications();
     try {
-      // The server keeps working on the job; we only wait for its id.
       const res = await fetch(`/api/partners/${partnerId}/optimize`, { method: 'POST', credentials: 'include', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ analysis: c }) });
       const body = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(body.error ?? 'Starten mislukt.');
+      // Straight to the page that shows what the AI is doing; it starts the work.
       setLocation(`/optimaliseren/${body.id}`);
     } catch (e) { setError(e instanceof Error ? e.message : 'Starten mislukt.'); setStarting(null); }
   };
@@ -142,6 +144,21 @@ function OptimizeCandidatesPage() {
   );
 }
 
+type StepState = 'done' | 'now' | 'todo';
+/** The live steps, filled with what the AI found so far. */
+function liveSteps(o: Optimization): { key: string; title: string; detail: string | null; state: StepState }[] {
+  const order = ['lezen', 'zoekwoord', 'top5', 'schrijven'];
+  const at = Math.max(0, order.indexOf(o.stage ?? 'lezen'));
+  const state = (i: number): StepState => (i < at ? 'done' : i === at ? 'now' : 'todo');
+  const p = o.progress ?? {};
+  return [
+    { key: 'lezen', title: 'Het artikel van de website lezen', detail: p.wordCount ? `${nf(p.wordCount)} woorden, ${p.headings ?? 0} tussenkoppen.` : null, state: state(0) },
+    { key: 'zoekwoord', title: 'Het hoofdzoekwoord bepalen', detail: p.keyword ? `"${p.keyword}"${p.volume ? `, ${nf(p.volume)} zoekopdrachten per maand` : ''}.` : null, state: state(1) },
+    { key: 'top5', title: 'De top 5 in Google bekijken', detail: p.noResearch ? 'Niet gelukt; de AI werkt verder met de Search Console-gegevens.' : p.competitors?.length ? `${p.competitors.join(', ')}${p.competitorWords ? ` (gemiddeld ${nf(p.competitorWords)} woorden)` : ''}.` : null, state: state(2) },
+    { key: 'schrijven', title: `Het artikel verbeteren in de stijl van ${o.partnerName}`, detail: at >= 3 ? `Hij vergelijkt het artikel met de top 5${p.questions?.length ? ` en let op vragen als "${p.questions[0]}"` : ''}, en legt elke wijziging met de reden vast.` : null, state: state(3) },
+  ];
+}
+
 export function OptimizationResultPage() {
   const { id } = useParams<{ id: string }>();
   const [tab, setTab] = useState<'overzicht' | 'nieuw' | 'oud'>('overzicht');
@@ -152,7 +169,13 @@ export function OptimizationResultPage() {
     refetchInterval: (query) => (query.state.data?.status === 'bezig' ? 4000 : false),
   });
   const busy = q.data?.status === 'bezig';
-  const progress = useEstimatedProgress(Boolean(busy), 180_000);
+  // Start the work once (the server ignores a second start).
+  const kicked = useRef(false);
+  useEffect(() => {
+    if (kicked.current || !q.data || q.data.status !== 'bezig' || q.data.stage) return;
+    kicked.current = true;
+    void fetch(`/api/optimizations/${id}/run`, { method: 'POST', credentials: 'include' }).catch(() => undefined);
+  }, [q.data, id]);
   // Only notify when the job finishes while this page is open.
   const wasBusy = useRef(false);
   useEffect(() => {
@@ -177,20 +200,28 @@ export function OptimizationResultPage() {
       <div className="page-header"><div><div className="eyebrow">Optimalisatie · {o.partnerName}</div><h1>{o.result?.title ?? o.original?.title ?? shortUrl(o.url)}</h1><p><a href={o.url} target="_blank" rel="noreferrer noopener" className="opt-url">{shortUrl(o.url)} <ExternalLink size={12} /></a></p></div></div>
 
       {busy ? (
-        <>
-          <ProgressPanel title="De AI optimaliseert het artikel" subtitle="Dit kan even duren" pct={progress} steps={[{ label: 'Artikel lezen', at: 0 }, { label: 'Top 5 bekijken', at: 20 }, { label: 'Verbeteren', at: 45 }, { label: 'Overzicht maken', at: 85 }]} />
-          <div className="opt-steps card">
-            <p><strong>Wat de AI nu doet:</strong></p>
-            <ol>
-              <li className={o.original ? 'done' : ''}>Het artikel van de website lezen{o.original ? ` (${nf(o.original.wordCount)} woorden)` : ''}</li>
-              <li>De top 5 in Google bekijken voor het hoofdzoekwoord</li>
-              <li>Uitzoeken waarom het slecht presteert</li>
-              <li>Het artikel verbeteren in de stijl van {o.partnerName}</li>
-              <li>Elke wijziging met reden vastleggen</li>
-            </ol>
-            <p className="opt-muted">Je kunt deze pagina sluiten; je krijgt een melding als het klaar is.</p>
+        <div className="opt-live">
+          <div className="opt-live-main">
+            <div className="opt-steps card">
+              <p><strong>De AI optimaliseert het artikel</strong> <span className="opt-muted">· dit kan even duren</span></p>
+              <ol className="opt-timeline">
+                {liveSteps(o).map((st) => (
+                  <li key={st.key} className={`is-${st.state}`}>
+                    <span className="opt-dot" aria-hidden="true">{st.state === 'done' ? <CheckCircle2 size={16} /> : st.state === 'now' ? <RefreshCw size={14} className="animate-spin" /> : null}</span>
+                    <div><strong>{st.title}</strong>{st.detail && <p>{st.detail}</p>}</div>
+                  </li>
+                ))}
+              </ol>
+              <p className="opt-muted">Laat deze pagina open tot het klaar is. Je krijgt een melding, ook als je in een ander tabblad werkt.</p>
+            </div>
           </div>
-        </>
+          <aside className="opt-why card">
+            <strong>Waarom dit artikel?</strong>
+            <p className="opt-muted" style={{ margin: '4px 0 10px' }}>Dit vond de AI in Search Console. Hier richt hij zich op bij het verbeteren:</p>
+            <ul>{o.analysis.reasons.map((r) => <li key={r.code}><span className={`opt-tag t-${r.code}`}>{REASON_LABEL[r.code] ?? r.code}</span>{r.text}</li>)}</ul>
+            {o.analysis.topQueries.length > 0 && <div className="opt-queries"><small>Zoekopdrachten:</small> {o.analysis.topQueries.slice(0, 4).map((t) => <span key={t.query}>{t.query}</span>)}</div>}
+          </aside>
+        </div>
       ) : o.status === 'mislukt' ? (
         <div className="card empty-state"><TriangleAlert size={24} /><h3>Het optimaliseren is mislukt</h3><p>{o.error}</p></div>
       ) : ov && o.result && (

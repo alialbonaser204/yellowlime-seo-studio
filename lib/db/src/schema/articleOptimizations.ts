@@ -22,6 +22,10 @@ export const articleOptimizationsTable = pgTable(
     result: jsonb("result").$type<{ title: string; metaTitle: string; metaDescription: string; fullArticle: string } | null>(),
     /** Overview: diagnosis, every change with its reason, expected effect. */
     overview: jsonb("overview").$type<Record<string, unknown> | null>(),
+    /** What the AI is doing right now (shown while it works). */
+    stage: text("stage"),
+    /** Facts found along the way: main keyword, top 5, word counts. */
+    progress: jsonb("progress").$type<Record<string, unknown> | null>(),
     error: text("error"),
     createdBy: integer("created_by").references(() => usersTable.id, { onDelete: "set null" }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

@@ -2,7 +2,7 @@
  * Optimising existing articles: the five worst performing articles of a
  * partner (with reasons), and a background job that rewrites a chosen one.
  */
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq, isNull } from "drizzle-orm";
 import { Router, type IRouter } from "express";
 import { articleOptimizationsTable, db, partnerProfilesTable, partnersTable, websiteArticlesTable } from "@yellowlime/db";
 import { runInBackground } from "../lib/background";
@@ -90,10 +90,34 @@ router.post("/partners/:partnerId/optimize", async (req, res): Promise<void> => 
     .insert(articleOptimizationsTable)
     .values({ partnerId, url: analysis.url, analysis: analysis as unknown as Record<string, unknown>, createdBy: currentUser()?.id ?? null })
     .returning({ id: articleOptimizationsTable.id });
-  const id = row.id;
+  // Answer right away; the page then starts the work with /run and shows
+  // what the AI is doing.
+  res.status(201).json({ id: row.id });
+});
+
+/** Does the actual work. Started by the result page; runs once per optimisation. */
+router.post("/optimizations/:id/run", async (req, res): Promise<void> => {
+  const id = Number(req.params.id);
+  // Claim the job: only a job that has not started yet.
+  const [job] = await db
+    .update(articleOptimizationsTable)
+    .set({ stage: "lezen" })
+    .where(and(eq(articleOptimizationsTable.id, id), eq(articleOptimizationsTable.status, "bezig"), isNull(articleOptimizationsTable.stage)))
+    .returning();
+  if (!job) { res.status(202).json({ started: false }); return; }
+  const [partner] = await db.select().from(partnersTable).where(eq(partnersTable.id, job.partnerId));
+  const [profile] = await db.select().from(partnerProfilesTable).where(eq(partnerProfilesTable.partnerId, job.partnerId));
+  const analysis = job.analysis as unknown as Underperformer;
+  const partnerId = job.partnerId;
+  const progress: Record<string, unknown> = {};
+  const step = (stage: string, extra: Record<string, unknown> = {}) => {
+    Object.assign(progress, extra);
+    return db.update(articleOptimizationsTable).set({ stage, progress: { ...progress } }).where(eq(articleOptimizationsTable.id, id));
+  };
 
   runInBackground(async () => {
     try {
+      if (!partner || !profile?.approvedProfile) throw new Error("Keur eerst het partnerprofiel goed.");
       const page = await fetchSafe(analysis.url, { timeoutMs: 20_000 });
       if (page.status >= 400) throw new Error(`De pagina gaf een foutmelding (${page.status}).`);
       const original = pageToArticle(page.body);
@@ -101,6 +125,7 @@ router.post("/partners/:partnerId/optimize", async (req, res): Promise<void> => 
       await db.update(articleOptimizationsTable).set({ original }).where(eq(articleOptimizationsTable.id, id));
 
       const keyword = analysis.topQueries?.[0]?.query ?? original.title;
+      await step("zoekwoord", { wordCount: original.wordCount, headings: original.fullArticle.split("\n").filter((l) => l.startsWith("## ")).length, keyword });
       let research: { keyword: string; volume: number | null; related: string[]; questions: string[] } | null = null;
       let serp: string | null = null;
       try {
@@ -111,11 +136,14 @@ router.post("/partners/:partnerId/optimize", async (req, res): Promise<void> => 
           related: r.secondaryKeywords.slice(0, 10).map((k) => k.keyword),
           questions: r.relevantQuestions.slice(0, 8).map((q) => q.question),
         };
-        // Compare with the top 5, leaving out the partner's own page.
         const others = r.organicCompetitors.filter((c) => !sameSite(c.url, partner.websiteUrl));
-        serp = serpContext(await analyseSerp(others));
+        await step("top5", { keyword: r.selectedMainKeyword, volume: r.searchVolume, competitors: others.slice(0, 5).map((c) => c.domain) });
+        const analysed = await analyseSerp(others);
+        serp = serpContext(analysed);
+        await step("schrijven", { competitorWords: analysed.medianWords, questions: research.questions.slice(0, 4) });
       } catch (error) {
         logger.warn({ code: "optimize_research_failed", errorType: error instanceof Error ? error.message : typeof error }, "Semrush-onderzoek voor optimalisatie mislukt");
+        await step("schrijven", { noResearch: true });
       }
 
       const output = await optimizeArticle({
@@ -128,7 +156,7 @@ router.post("/partners/:partnerId/optimize", async (req, res): Promise<void> => 
         lessons: await lessonsFor(partnerId).catch(() => null),
       });
       await db.update(articleOptimizationsTable)
-        .set({ status: "klaar", result: output.result, overview: output.overview as unknown as Record<string, unknown>, finishedAt: new Date() })
+        .set({ status: "klaar", stage: "klaar", result: output.result, overview: output.overview as unknown as Record<string, unknown>, finishedAt: new Date() })
         .where(eq(articleOptimizationsTable.id, id));
     } catch (error) {
       const message = error instanceof Error && /^[A-Z]/.test(error.message) ? error.message : "Het optimaliseren is mislukt. Probeer het opnieuw.";
@@ -137,7 +165,8 @@ router.post("/partners/:partnerId/optimize", async (req, res): Promise<void> => 
     }
   });
 
-  res.status(202).json({ id });
+  res.status(202).json({ started: true });
+
 });
 
 export default router;
